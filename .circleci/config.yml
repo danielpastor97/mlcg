@@ -6,14 +6,17 @@ jobs:
       - image: nec4/pytorch_geometric_v1:latest
     steps:
       - checkout
-      - run: pip install .
+      - run:
+        command: pip install .
+        no_output_timeout: 30m
   test:
     docker:
       - image: nec4/pytorch_geometric_v1:latest
     steps:
       - checkout
-      - run: pytest .
-      - run: black .
+      - run:
+        command: black .
+        no_output_timeout: 30m
     
 workflows:
   version: 2
