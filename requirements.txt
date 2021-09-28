@@ -6,3 +6,4 @@ e3nn
 numpy
 scipy
 scikit-learn
+pytest

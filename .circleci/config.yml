@@ -18,7 +18,7 @@ jobs:
       - checkout
       - run:
           name: "Run tests/formatting checks"
-          command: pytest .;black .
+          command: pip install .;pytest .;black .
           no_output_timeout: 30m
     
 workflows:
