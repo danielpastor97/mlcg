@@ -1,22 +1,29 @@
-# Cicle CI job list
-version: 2.1
+version: 2.0
 
 jobs:
-    build_and_test:
-        docker:
-            - image: nec4/pytorch_geometric_v1:latest
-        steps:
-            - checkout
-            - run:
-                name: package install
-                command: pip install .
-            - run:
-                name: run tests
-                command: pytest .
-            - run:
-                name: black formatting check
-                command: black .
-        
+  build:
+    docker:
+      - image: nec4/pytorch_geometric_v1:latest
+    steps:
+      - checkout
+      - run:
+        name: package install
+        command: pip install .
+  test:
+    docker:
+      - image: nec4/pytorch_geometric_v1:latest
+    steps:
+      - checkout
+      - run:
+        name: run tests
+        command: pytest .
+      - run:
+        name: black formatting check
+        command: black .
+    
 workflows:
+  version: 2
+  build_and_test:
     jobs:
-        - build_and_test
+      - build
+      - test
