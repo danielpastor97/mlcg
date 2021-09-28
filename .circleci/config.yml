@@ -4,6 +4,7 @@ jobs:
   build:
     docker:
       - image: nec4/pytorch_geometric_v1:latest
+          no_output_timeout: 30m
     steps:
       - checkout
       - run:
