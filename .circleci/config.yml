@@ -6,20 +6,14 @@ jobs:
       - image: nec4/pytorch_geometric_v1:latest
     steps:
       - checkout
-      - run:
-        name: package install
-        command: pip install .
+      - run: pip install .
   test:
     docker:
       - image: nec4/pytorch_geometric_v1:latest
     steps:
       - checkout
-      - run:
-        name: run tests
-        command: pytest .
-      - run:
-        name: black formatting check
-        command: black .
+      - run: pytest .
+      - run: black .
     
 workflows:
   version: 2
