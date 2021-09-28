@@ -15,7 +15,8 @@ jobs:
     steps:
       - checkout
       - run:
-        command: black .
+        name: "Run tests/formatting checks"
+        command: pytest .;black .
         no_output_timeout: 30m
     
 workflows:
