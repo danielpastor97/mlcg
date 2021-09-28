@@ -7,17 +7,17 @@ jobs:
     steps:
       - checkout
       - run:
-        command: pip install .
-        no_output_timeout: 30m
+          command: pip install .
+          no_output_timeout: 30m
   test:
     docker:
       - image: nec4/pytorch_geometric_v1:latest
     steps:
       - checkout
       - run:
-        name: "Run tests/formatting checks"
-        command: pytest .;black .
-        no_output_timeout: 30m
+          name: "Run tests/formatting checks"
+          command: pytest .;black .
+          no_output_timeout: 30m
     
 workflows:
   version: 2
