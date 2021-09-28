@@ -8,6 +8,13 @@ target-version = ['py38', 'py39']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
-  
+
 )/
 '''
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "mlcg",
+]
