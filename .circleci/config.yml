@@ -1,29 +1,18 @@
 version: 2.0
 
 jobs:
-  build:
-    docker:
-      - image: nec4/pytorch_geometric_v1:latest
-    resource_class: medium
-    steps:
-      - checkout
-      - run:
-          command: pip install .
-          no_output_timeout: 30m
   test:
     docker:
       - image: nec4/pytorch_geometric_v1:latest
-    resource_class: medium
     steps:
       - checkout
       - run:
           name: "Run tests/formatting checks"
-          command: pip install .;pytest .;black .
-          no_output_timeout: 30m
-    
+          command: pip install .;pytest .
+
+
 workflows:
   version: 2
   build_and_test:
     jobs:
-      - build
       - test
