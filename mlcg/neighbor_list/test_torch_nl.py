@@ -10,7 +10,7 @@ from .utils import ase2data
 
 
 def bulk_metal():
-    a = 4.0  
+    a = 4.0
     b = a / 2
     frames = [
         ase.Atoms(

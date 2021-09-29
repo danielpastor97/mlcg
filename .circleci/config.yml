@@ -10,7 +10,6 @@ jobs:
           name: "Run tests"
           command: pip install .;pytest .
 
-
 workflows:
   version: 2
   build_and_test:
