@@ -8,7 +8,7 @@ jobs:
       - checkout
       - run:
           name: "Run tests"
-          command: pip install .;pytest .;black .
+          command: pip install .;pytest .
 
 
 workflows:
