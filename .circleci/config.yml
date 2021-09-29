@@ -7,7 +7,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: "Run tests/formatting checks"
+          name: "Run tests"
           command: pip install .;pytest .
 
 
