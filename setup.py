@@ -12,6 +12,7 @@ install_requires = [
     "numpy",
     "scipy",
     "scikit-learn",
+    "pytest",
 ]
 
 
@@ -21,5 +22,7 @@ setup(
     packages=find_packages(),
     zip_safe=True,
     python_requires=">=3.8",
+    license='MIT',
+    author='Fe'+u'\u0301'+'lix Musil, Nick Charron',
     install_requires=install_requires,
 )

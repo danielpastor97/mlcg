@@ -1,0 +1,9 @@
+mdtraj
+jsonargparse[signatures]
+tqdm
+ase
+e3nn
+numpy
+scipy
+scikit-learn
+pytest
