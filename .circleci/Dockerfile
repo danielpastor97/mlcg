@@ -3,6 +3,8 @@ FROM conda/miniconda3
 RUN apt update -y; \
     apt install build-essential -y
 
+RUN conda install python=3.8
+
 RUN TORCH=1.8.1; \
     CUDA=cpu; \
     pip install torch==$TORCH+$CUDA -f https://download.pytorch.org/whl/torch_stable.html; \
