@@ -3,11 +3,11 @@ version: 2.0
 jobs:
   test:
     docker:
-      - image: nec4/pytorch_geometric_v1:latest
+      - image: nec4/pytorch_geometric_cpu:v1
     steps:
       - checkout
       - run:
-          name: "Run tests/formatting checks"
+          name: "Run tests"
           command: pip install .;pytest .
 
 workflows:
