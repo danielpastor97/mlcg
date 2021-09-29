@@ -1,0 +1,21 @@
+name: Lint
+
+on:
+  push:
+    branches: [ master ]
+  pull_request: # Run on local PRs
+    branches: [ master ]
+  pull_request_target: # Run on fork PRs
+    branches: [ master ]
+
+jobs:
+  run-linters:
+    name: Run linters
+    runs-on: ubuntu-latest
+
+  - name: Run linters
+        uses: wearerequired/lint-action@v1.10.0
+        with:
+          github_token: ${{ secrets.github_token }}
+          # Enable your linters here
+          black: true
