@@ -10,7 +10,7 @@ Welcome to mlcg-tools's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-
+   autodoc
 
 Indices and tables
 ==================
