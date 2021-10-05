@@ -14,7 +14,7 @@ N_ATOMS_KEY: Final[str] = "n_atoms"
 
 NEIGHBOR_LIST_KEY: Final[str] = "neighbor_list"
 
-TAG_KEY:Final[str] = "tag"
+TAG_KEY: Final[str] = "tag"
 
 # A [n_edge, 3] tensor of displacement vectors associated to edges
 DIRECTION_VECTORS_KEY: Final[str] = "direction_vectors"

@@ -62,7 +62,9 @@ class AtomicData(Data):
 
         # check the sanity of the inputs
 
-        assert torch.sum(self.n_atoms) == self.pos.shape[0], f"number of atoms {torch.sum(self.n_atoms)} and number of positions {self.pos.shape[0]}"
+        assert (
+            torch.sum(self.n_atoms) == self.pos.shape[0]
+        ), f"number of atoms {torch.sum(self.n_atoms)} and number of positions {self.pos.shape[0]}"
 
         assert self.pos.shape[1] == 3
 
@@ -78,15 +80,16 @@ class AtomicData(Data):
             assert self[ENERGY_KEY].dtype == self[POSITIONS_KEY].dtype
         if PBC_KEY in self and self.pbc is not None:
             assert self.pbc.dim() == 2, f"dim {self.pbc.dim()}"
-            assert self.pbc.shape[1:] == torch.Size([3]), f"shape {self.pbc.shape[1:]}"
+            assert self.pbc.shape[1:] == torch.Size(
+                [3]
+            ), f"shape {self.pbc.shape[1:]}"
             assert self.pbc.dtype == torch.bool
-
 
     @staticmethod
     def from_ase(
         frame,
-        energy_tag:str= ENERGY_KEY,
-        force_tag:str= FORCE_KEY,
+        energy_tag: str = ENERGY_KEY,
+        force_tag: str = FORCE_KEY,
     ):
         z = torch.from_numpy(frame.get_atomic_numbers())
         pos = torch.from_numpy(frame.get_positions())
@@ -124,9 +127,13 @@ class AtomicData(Data):
         data[POSITIONS_KEY] = torch.as_tensor(pos)
         data[N_ATOMS_KEY] = data[ATOM_TYPE_KEY].shape[0]
         if energy is not None:
-            data[ENERGY_KEY] = torch.as_tensor(energy, dtype=data[POSITIONS_KEY].dtype)
+            data[ENERGY_KEY] = torch.as_tensor(
+                energy, dtype=data[POSITIONS_KEY].dtype
+            )
         if forces is not None:
-            data[FORCE_KEY] = torch.as_tensor(forces, dtype=data[POSITIONS_KEY].dtype)
+            data[FORCE_KEY] = torch.as_tensor(
+                forces, dtype=data[POSITIONS_KEY].dtype
+            )
         data[TAG_KEY] = tag
         if neighborlist is None:
             data[NEIGHBOR_LIST_KEY] = {}
