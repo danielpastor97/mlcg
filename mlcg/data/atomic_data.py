@@ -15,8 +15,6 @@ from ._keys import (
     FORCE_KEY,
 )
 
-from ..neighbor_list import torch_neighbor_list
-
 
 class NeighborList(NamedTuple):
     """data structure holding the information about connectivity within atomic
@@ -63,7 +61,7 @@ class AtomicData(Data):
         super(AtomicData, self).__init__(**kwargs)
 
         # check the sanity of the inputs
-        
+
         assert torch.sum(self.n_atoms) == self.pos.shape[0], f"number of atoms {torch.sum(self.n_atoms)} and number of positions {self.pos.shape[0]}"
 
         assert self.pos.shape[1] == 3
