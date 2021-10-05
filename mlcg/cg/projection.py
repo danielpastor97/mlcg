@@ -3,7 +3,7 @@ from collections import OrderedDict
 import numpy as np
 
 
-from ._cg_mappings import CA_MAP
+from ._mappings import CA_MAP
 
 # # Workaround for apple M1 which does not support mdtraj in a simple manner
 # try:
@@ -14,13 +14,13 @@ from ._cg_mappings import CA_MAP
 
 def build_cg_matrix(
     topology,
-    cg_mapping: Dict[Tuple[str, str], str] = CA_MAP,
+    cg_mapping: Dict[Tuple[str, str], Tuple[str, int]] = CA_MAP,
     special_terminal: bool = True,
 ):
     cg_mapping_ = OrderedDict()
-    n_atoms = len(topology)
+    n_atoms = topology.n_atoms
     for i_at, at in enumerate(topology.atoms):
-        (cg_name, cg_type) = CA_MAP.get((at.resname, at.name), (None, None))
+        (cg_name, cg_type) = cg_mapping.get((at.residue.name, at.name), (None, None))
 
         if cg_name is None:
             continue
@@ -40,3 +40,4 @@ def build_cg_matrix(
         cg_matrix[cg_type, i_at] = 1
 
     return cg_types, cg_matrix, cg_mapping_
+
