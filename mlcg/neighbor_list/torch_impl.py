@@ -5,7 +5,6 @@ from torch_cluster import radius, radius_graph
 from typing import Tuple
 
 
-
 def torch_neighbor_list(
     data, rcut, self_interaction=True, num_workers=1, max_num_neighbors=1000
 ):
