@@ -2,8 +2,9 @@ import torch
 
 from .math_utils import safe_norm, safe_normalization
 
+
 @torch.jit.script
-def compute_distance_vectors(pos:torch.Tensor, mapping:torch.Tensor):
+def compute_distance_vectors(pos: torch.Tensor, mapping: torch.Tensor):
     assert mapping.dim() == 2
     assert mapping.shape[0] == 2
 
@@ -14,8 +15,9 @@ def compute_distance_vectors(pos:torch.Tensor, mapping:torch.Tensor):
     direction_vectors = safe_normalization(dr, distances)
     return distances, direction_vectors
 
+
 @torch.jit.script
-def compute_bound_distances(pos:torch.Tensor, mapping:torch.Tensor):
+def compute_bound_distances(pos: torch.Tensor, mapping: torch.Tensor):
     assert mapping.dim() == 2
     assert mapping.shape[0] == 2
 
@@ -23,8 +25,9 @@ def compute_bound_distances(pos:torch.Tensor, mapping:torch.Tensor):
     distances = dr.norm(dim=1)
     return distances
 
+
 @torch.jit.script
-def compute_bound_angles(pos:torch.Tensor, mapping:torch.Tensor):
+def compute_bound_angles(pos: torch.Tensor, mapping: torch.Tensor):
     assert mapping.dim() == 2
     assert mapping.shape[0] == 3
 

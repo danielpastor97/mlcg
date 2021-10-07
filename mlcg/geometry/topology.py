@@ -1,0 +1,135 @@
+# Workaround for apple M1 which does not support mdtraj in a simple manner
+try:
+    import mdtraj
+except ModuleNotFoundError:
+    print(f"Failed to import mdtraj")
+
+from typing import NamedTuple, List, Optional, Tuple
+import torch
+
+
+class Atom(NamedTuple):
+    """Define an atom"""
+
+    #: type of the atom
+    type: int
+    #: name of the atom
+    name: Optional[str] = None
+    #: name of the residue containing the atom
+    resname: Optional[str] = None
+
+
+class Topology(NamedTuple):
+    """Define the topology of an isolated protein."""
+
+    #: types of the atoms
+    types: List[int] = []
+    #: name of the atoms
+    names: List[str] = []
+    #: name of the residue containing the atoms
+    resnames: List[str] = []
+    #: list of bonds between the atoms
+    bonds: Tuple[List[int], List[int]] = ([], [])
+    #: list of angles formed by triplets of atoms
+    angles: Tuple[List[int], List[int], List[int]] = ([], [], [])
+    #: list of dihedrals formed by quadruplets of atoms
+    dihedrals: Tuple[List[int], List[int], List[int], List[int]] = (
+        [],
+        [],
+        [],
+        [],
+    )
+
+    def add_atom(self, type: int, name: str, resname: str):
+        self.types.append(type)
+        self.names.append(name)
+        self.resnames.append(resname)
+
+    def atoms(self):
+        for type, name, resname in zip(self.types, self.names, self.resnames):
+            yield Atom(type=type, name=name, resname=resname)
+
+    @property
+    def n_atoms(self) -> int:
+        """Number of atoms in the topology."""
+        return self.types.shape[0]
+
+    def bonds2torch(self, device: str = "cpu"):
+        return torch.tensor(self.bonds, dtype=torch.long, device=device)
+
+    def angles2torch(self, device: str = "cpu"):
+        return torch.tensor(self.angles, dtype=torch.long, device=device)
+
+    def dihedrals2torch(self, device: str = "cpu"):
+        return torch.tensor(self.dihedrals, dtype=torch.long, device=device)
+
+    def add_bond(self, idx1: int, idx2: int):
+        """Define a bond between two atoms.
+
+        Parameters
+        ----------
+        idx:
+            index of the atoms bonded together
+        """
+        self.bonds[0].append(idx1)
+        self.bonds[1].append(idx2)
+
+    def add_angle(self, idx1: int, idx2: int, idx3: int):
+        """Define an angle between three atoms. `idx2` represent the apex of
+        the angles::
+
+          2---3
+         /
+        1
+        """
+        self.angles[0].append(idx1)
+        self.angles[1].append(idx2)
+        self.angles[2].append(idx3)
+
+    def add_dihedral(self, idx1: int, idx2: int, idx3: int, idx4: int):
+        """
+        The dihedral angle formed by a quadruplet of indices (1,2,3,4) is
+        difined around the axis connecting index 2 and 3 (i.e., the angle
+        between the planes spanned by indices (1,2,3) and (2,3,4))::
+
+                  4
+                  |
+            2-----3
+           /
+          1
+        """
+        self.dihedrals[0].append(idx1)
+        self.dihedrals[1].append(idx2)
+        self.dihedrals[2].append(idx3)
+        self.dihedrals[3].append(idx4)
+
+    def to_mdtraj(self):
+        """Convert to mdtraj format"""
+        topo = mdtraj.Topology()
+        chain = topo.add_chain()
+        for i_at in range(self.n_atoms):
+            residue = topo.add_residue(self.resnames[i_at], chain)
+            topo.add_atom(self.names[i_at], self.types[i_at], residue)
+        for idx1, idx2 in self.bonds:
+            a1, a2 = topo.atom(idx1), topo.atom(idx2)
+            topo.add_bond(a1, a2)
+        return topo
+
+    @staticmethod
+    def from_mdtraj(topology):
+        """Build topology from an existing mdtraj topology."""
+        assert (
+            topology.n_chains == 1
+        ), f"Does not support multiple chains but {topology.n_chains}"
+        topo = Topology()
+        for at in topology.atoms:
+            topo.add_atom(at.element, at.name, at.residue.name)
+        for at1, at2 in topology.bonds:
+            topo.add_bond(at1.index, at2.index)
+        return topo
+
+    @staticmethod
+    def from_file(filename: str):
+        """Uses mdtraj reader to read the input topology."""
+        topo = mdtraj.load(filename).topology
+        return Topology.from_mdtraj(topo)
