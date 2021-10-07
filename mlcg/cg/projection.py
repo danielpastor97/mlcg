@@ -5,12 +5,6 @@ import numpy as np
 
 from ._mappings import CA_MAP
 
-# # Workaround for apple M1 which does not support mdtraj in a simple manner
-# try:
-#     import mdtraj
-# except ModuleNotFoundError:
-#     print(f'Failed to import mdtraj')
-
 
 def build_cg_matrix(
     topology,
