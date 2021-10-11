@@ -40,26 +40,27 @@ class NeighborList(NamedTuple):
             kind of information to extract (should be in ["bonds", "angles",
             "dihedrals"]).
         """
-        assert type in ["bonds", "angles", "dihedrals"]
+        allowed_types = ["bonds", "angles", "dihedrals"]
+        assert type in allowed_types, f"type should be any of {allowed_types}"
         if type == "bonds":
             nl = NeighborList(
                 tag=type,
                 order=2,
-                mapping=topology.bonds2torch(),
+                index_mapping=topology.bonds2torch(),
                 self_interaction=False,
             )
         elif type == "angles":
             nl = NeighborList(
                 tag=type,
                 order=3,
-                mapping=topology.angles2torch(),
+                index_mapping=topology.angles2torch(),
                 self_interaction=False,
             )
         elif type == "dihedrals":
             nl = NeighborList(
                 tag=type,
                 order=4,
-                mapping=topology.dihedrals2torch(),
+                index_mapping=topology.dihedrals2torch(),
                 self_interaction=False,
             )
 

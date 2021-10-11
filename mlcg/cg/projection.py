@@ -8,7 +8,7 @@ from ..geometry.topology import Topology, add_chain_bonds, add_chain_angles
 
 
 def build_cg_matrix(
-    topology,
+    topology: Topology,
     cg_mapping: Dict[Tuple[str, str], Tuple[str, int]] = CA_MAP,
     special_terminal: bool = True,
 ):
@@ -16,7 +16,7 @@ def build_cg_matrix(
     n_atoms = topology.n_atoms
     for i_at, at in enumerate(topology.atoms):
         (cg_name, cg_type) = cg_mapping.get(
-            (at.residue.name, at.name), (None, None)
+            (at.resname, at.name), (None, None)
         )
         if cg_name is None:
             continue
@@ -42,21 +42,17 @@ def build_cg_matrix(
 
 
 def build_cg_topology(
-    topology,
+    topology: Topology,
     cg_mapping: Dict[Tuple[str, str], Tuple[str, int]] = CA_MAP,
     special_terminal: bool = True,
     bonds: Optional[Callable] = add_chain_bonds,
     angles: Optional[Callable] = add_chain_angles,
 ):
     cg_topo = Topology()
-    n_atoms = topology.n_atoms
-    for i_at, at in enumerate(topology.atoms()):
+    for at in topology.atoms:
         (cg_name, cg_type) = cg_mapping.get((at.resname, at.name), (None, None))
-
         if cg_name is None:
             continue
-        if ((i_at == 0) or (i_at == n_atoms - 1)) and special_terminal:
-            cg_name += "-terminal"
         cg_topo.add_atom(cg_type, cg_name, at.resname)
 
     if special_terminal:
@@ -64,7 +60,6 @@ def build_cg_topology(
         cg_topo.types[0] += len(cg_mapping)
         cg_topo.names[-1] += "-terminal"
         cg_topo.types[-1] += len(cg_mapping)
-
 
     if bonds is not None:
         bonds(cg_topo)
