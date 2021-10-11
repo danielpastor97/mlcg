@@ -41,10 +41,13 @@ class Topology(NamedTuple):
     )
 
     def add_atom(self, type: int, name: str, resname: str):
+        assert isinstance(type, int), f"{type}"
+        assert isinstance(name, str), f"{name}"
         self.types.append(type)
         self.names.append(name)
         self.resnames.append(resname)
 
+    @property
     def atoms(self):
         for type, name, resname in zip(self.types, self.names, self.resnames):
             yield Atom(type=type, name=name, resname=resname)
@@ -52,7 +55,7 @@ class Topology(NamedTuple):
     @property
     def n_atoms(self) -> int:
         """Number of atoms in the topology."""
-        return self.types.shape[0]
+        return len(self.types)
 
     def bonds2torch(self, device: str = "cpu"):
         return torch.tensor(self.bonds, dtype=torch.long, device=device)
@@ -123,7 +126,7 @@ class Topology(NamedTuple):
         ), f"Does not support multiple chains but {topology.n_chains}"
         topo = Topology()
         for at in topology.atoms:
-            topo.add_atom(at.element, at.name, at.residue.name)
+            topo.add_atom(at.element.atomic_number, at.name, at.residue.name)
         for at1, at2 in topology.bonds:
             topo.add_bond(at1.index, at2.index)
         return topo
