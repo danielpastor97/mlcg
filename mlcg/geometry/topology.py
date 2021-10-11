@@ -40,9 +40,12 @@ class Topology(NamedTuple):
         [],
     )
 
+    def __len__(self):
+        return len(self.types)
+
     def add_atom(self, type: int, name: str, resname: str):
-        assert isinstance(type, int), f"{type}"
-        assert isinstance(name, str), f"{name}"
+        # assert isinstance(type, int), f"{type}"
+        # assert isinstance(name, str), f"{name}"
         self.types.append(type)
         self.names.append(name)
         self.resnames.append(resname)
