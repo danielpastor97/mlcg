@@ -46,3 +46,13 @@ ALLOWED_KEYS: List[str] = [
     for k in sys.modules[__name__].__dict__.keys()
     if k.endswith("_KEY")
 ]
+
+
+def validate_keys(keys, graph_required=True):
+    pass
+    # # Validate combinations
+    # if graph_required:
+    #     if not (POSITIONS_KEY in keys):
+    #         raise KeyError("At least pos and edge_index must be supplied")
+    # # for k in keys:
+    # #     assert k in ALLOWED_KEYS, f"{k} not in ALLOWED_KEYS={ALLOWED_KEYS}"
