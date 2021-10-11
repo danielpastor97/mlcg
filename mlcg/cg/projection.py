@@ -25,16 +25,22 @@ def build_cg_matrix(
             cg_name += "-terminal"
             cg_type += len(cg_mapping)
 
-        cg_mapping_[i_at] = (cg_name, cg_type)
+        cg_mapping_[i_at] = [cg_name, cg_type]
 
-    n_beads = 2 * len(cg_mapping)
+    keys = list(cg_mapping_)
+    cg_mapping_[keys[0]][0] += "-terminal"
+    cg_mapping_[keys[0]][1] += len(cg_mapping)
+    cg_mapping_[keys[-1]][0] += "-terminal"
+    cg_mapping_[keys[-1]][1] += len(cg_mapping)
+
+    n_beads = len(cg_mapping_)
 
     cg_types = np.array([cg_type for (_, cg_type) in cg_mapping_.values()])
 
     cg_matrix = np.zeros((n_beads, n_atoms))
-
-    for i_at, (cg_name, cg_type) in cg_mapping_.items():
-        cg_matrix[cg_type, i_at] = 1
+    print(cg_mapping_)
+    for i_cg, i_at in enumerate(cg_mapping_.keys()):
+        cg_matrix[i_cg, i_at] = 1
 
     return cg_types, cg_matrix, cg_mapping_
 
