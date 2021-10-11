@@ -17,7 +17,7 @@ def compute_distance_vectors(pos: torch.Tensor, mapping: torch.Tensor):
 
 
 @torch.jit.script
-def compute_bound_distances(pos: torch.Tensor, mapping: torch.Tensor):
+def compute_distances(pos: torch.Tensor, mapping: torch.Tensor):
     assert mapping.dim() == 2
     assert mapping.shape[0] == 2
 
@@ -27,7 +27,7 @@ def compute_bound_distances(pos: torch.Tensor, mapping: torch.Tensor):
 
 
 @torch.jit.script
-def compute_bound_angles(pos: torch.Tensor, mapping: torch.Tensor):
+def compute_angles(pos: torch.Tensor, mapping: torch.Tensor):
     assert mapping.dim() == 2
     assert mapping.shape[0] == 3
 
