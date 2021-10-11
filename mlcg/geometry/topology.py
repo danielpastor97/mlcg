@@ -133,3 +133,20 @@ class Topology(NamedTuple):
         """Uses mdtraj reader to read the input topology."""
         topo = mdtraj.load(filename).topology
         return Topology.from_mdtraj(topo)
+
+
+def add_chain_bonds(topology: Topology) -> None:
+    """Add bonds to the topology assuming a chain-like pattern, i.e. atoms are
+    linked together following their insertion order.
+    A four atoms chain will are linked like: `1-2-3-4`.
+    """
+    for i in range(topology.n_atoms - 1):
+        topology.add_bond(i, i + 1)
+
+def add_chain_angles(topology: Topology) -> None:
+    """Add angles to the topology assuming a chain-like pattern, i.e. angles are
+    defined following the insertion order of the atoms in the topology.
+    A four atoms chain `1-2-3-4` will fine the angles: `1-2-3, 2-3-4`.
+    """
+    for i in range(topology.n_atoms - 2):
+        topology.add_angle(i, i + 1, i + 2)
