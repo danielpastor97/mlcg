@@ -1,6 +1,6 @@
 import torch
 from torch_geometric.data import Data
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
 from ._keys import (
     validate_keys,
@@ -14,8 +14,6 @@ from ._keys import (
     ENERGY_KEY,
     FORCE_KEY,
 )
-
-from ..neighbor_list.neighbor_list import NeighborList
 
 
 class AtomicData(Data):
@@ -39,7 +37,7 @@ class AtomicData(Data):
         super(AtomicData, self).__init__(**kwargs)
 
         # check the sanity of the inputs
-        if 'n_atoms' in self and 'pos' in self:
+        if "n_atoms" in self and "pos" in self:
             assert (
                 torch.sum(self.n_atoms) == self.pos.shape[0]
             ), f"number of atoms {torch.sum(self.n_atoms)} and number of positions {self.pos.shape[0]}"
@@ -98,9 +96,11 @@ class AtomicData(Data):
         tag: Optional[str] = None,
         energy: Optional[torch.Tensor] = None,
         forces: Optional[torch.Tensor] = None,
-        neighborlist: Optional[Dict[str, NeighborList]] = None,
+        neighborlist: Optional[Dict[str, Dict[str, Any]]] = None,
+        **kwargs,
     ):
         data = {}
+        data.update(**kwargs)
         data[ATOM_TYPE_KEY] = torch.as_tensor(atomic_types)
         data[POSITIONS_KEY] = torch.as_tensor(pos)
         data[N_ATOMS_KEY] = torch.tensor(

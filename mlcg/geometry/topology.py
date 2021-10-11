@@ -19,31 +19,32 @@ class Atom(NamedTuple):
     resname: Optional[str] = None
 
 
-class Topology(NamedTuple):
+class Topology(object):
     """Define the topology of an isolated protein."""
 
     #: types of the atoms
-    types: List[int] = []
+    types: List[int]
     #: name of the atoms
-    names: List[str] = []
+    names: List[str]
     #: name of the residue containing the atoms
-    resnames: List[str] = []
+    resnames: List[str]
     #: list of bonds between the atoms
-    bonds: Tuple[List[int], List[int]] = ([], [])
+    bonds: Tuple[List[int], List[int]]
     #: list of angles formed by triplets of atoms
-    angles: Tuple[List[int], List[int], List[int]] = ([], [], [])
+    angles: Tuple[List[int], List[int], List[int]]
     #: list of dihedrals formed by quadruplets of atoms
-    dihedrals: Tuple[List[int], List[int], List[int], List[int]] = (
-        [],
-        [],
-        [],
-        [],
-    )
+    dihedrals: Tuple[List[int], List[int], List[int], List[int]]
 
-    def __len__(self):
-        return len(self.types)
+    def __init__(self) -> None:
+        super(Topology, self).__init__()
+        self.types = []
+        self.names = []
+        self.resnames = []
+        self.bonds = ([], [])
+        self.angles = ([], [], [])
+        self.dihedrals = ([], [], [], [])
 
-    def add_atom(self, type: int, name: str, resname: str):
+    def add_atom(self, type: int, name: str, resname: Optional[str] = None):
         # assert isinstance(type, int), f"{type}"
         # assert isinstance(name, str), f"{name}"
         self.types.append(type)
@@ -59,6 +60,9 @@ class Topology(NamedTuple):
     def n_atoms(self) -> int:
         """Number of atoms in the topology."""
         return len(self.types)
+
+    def types2torch(self, device: str = "cpu"):
+        return torch.tensor(self.types, dtype=torch.long, device=device)
 
     def bonds2torch(self, device: str = "cpu"):
         return torch.tensor(self.bonds, dtype=torch.long, device=device)
@@ -148,6 +152,7 @@ def add_chain_bonds(topology: Topology) -> None:
     """
     for i in range(topology.n_atoms - 1):
         topology.add_bond(i, i + 1)
+
 
 def add_chain_angles(topology: Topology) -> None:
     """Add angles to the topology assuming a chain-like pattern, i.e. angles are

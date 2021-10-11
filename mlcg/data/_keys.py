@@ -33,7 +33,7 @@ NODE_FEATURES_KEY: Final[str] = "node_features"
 NODE_ATTRS_KEY: Final[str] = "node_attrs"
 # if atoms then it's the atomic number, if it's a CG bead then it's a number
 # defined by the CG mapping
-ATOM_TYPE_KEY: Final[str] = "atom_type"
+ATOM_TYPE_KEY: Final[str] = "atom_types"
 
 ENERGY_KEY: Final[str] = "energy"
 FORCE_KEY: Final[str] = "forces"

@@ -1,15 +1,8 @@
 import yaml
-import argparse
 import numpy as np
 import torch
-import inspect
 from sklearn.model_selection import train_test_split
 
-try:
-    from pytorch_lightning.trainer.states import RunningStage
-except ImportError:
-    # compatibility for PyTorch lightning versions < 1.2.0
-    RunningStage = None
 
 
 def is_notebook():
