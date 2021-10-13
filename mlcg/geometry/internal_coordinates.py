@@ -41,8 +41,7 @@ def compute_distances(pos: torch.Tensor, mapping: torch.Tensor):
     assert mapping.shape[0] == 2
 
     dr = pos[mapping[1]] - pos[mapping[0]]
-    distances = dr.norm(p=2,dim=1)
-    return distances
+    return dr.norm(p=2,dim=1)
 
 
 @torch.jit.script
@@ -52,7 +51,7 @@ def compute_angles(pos: torch.Tensor, mapping: torch.Tensor):
 
     dr1 = pos[mapping[0]] - pos[mapping[1]]
     dr2 = pos[mapping[2]] - pos[mapping[1]]
-    cos_theta = dr1 @ dr2.t()
+    cos_theta = (dr1 * dr2).sum(dim=1) / dr1.norm(p=2,dim=1) / dr2.norm(p=2,dim=1)
     return cos_theta
 
 

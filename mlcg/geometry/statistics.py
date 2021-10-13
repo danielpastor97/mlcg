@@ -1,45 +1,90 @@
+from copy import deepcopy
 import torch
-from itertools import product
-import numpy as np
+from scipy.integrate import trapezoid
 
 from ..data import AtomicData
-from .internal_coordinates import compute_distances ,compute_angles
+from ..nn.prior import Harmonic, Repulsion, _Prior
 
-compute_map = {
-    2: compute_distances,
-    3: compute_angles,
-}
 
-def symmetrise_angle(tup):
-    tup = tuple(tup)
-    ends = sorted([tup[0], tup[2]])
-    return (ends[0], tup[1], ends[1])
-def symmetrise_distance(tup):
-    tup = sorted(tup)
-    return (tup[0], tup[1])
+def symmetrise_angle_interaction(unique_interaction_types):
+    mask = unique_interaction_types[0] > unique_interaction_types[2]
+    ee = unique_interaction_types[0, mask]
+    unique_interaction_types[0, mask] = unique_interaction_types[2,mask]
+    unique_interaction_types[2, mask] = ee
+    unique_interaction_types = torch.unique(unique_interaction_types, dim=1)
+    return unique_interaction_types
+
+
+def symmetrise_distance_interaction(unique_interaction_types):
+    mask = unique_interaction_types[0] > unique_interaction_types[1]
+    ee = unique_interaction_types[0, mask]
+    unique_interaction_types[0, mask] = unique_interaction_types[1,mask]
+    unique_interaction_types[1, mask] = ee
+    unique_interaction_types = torch.unique(unique_interaction_types, dim=1)
+    return unique_interaction_types
 
 symmetrise_map = {
-    2: symmetrise_distance,
-    3: symmetrise_angle,
+    2: symmetrise_distance_interaction,
+    3: symmetrise_angle_interaction,
+}
+flip_map = {
+    2: lambda tup: torch.tensor([tup[1], tup[0]], dtype=torch.long),
+    3: lambda tup: torch.tensor([tup[2], tup[1], tup[0]], dtype=torch.long),
 }
 
-def compute_statistics(data: AtomicData, target: str, beta: float):
 
-    unique_types = torch.unique(data.atomic_types)
-    order = data.neighbor_list[target]['order']
-    keys = set(map(symmetrise_map[order],product(*[unique_types for _ in range(order)])))
-    statistics = {k:{'values':[], 'mean':0, 'k':0, 'std':0} for k in keys}
+def get_all_unique_keys(unique_types, order):
+    # get all combinations of size order between the elements of unique_types
+    keys = torch.cartesian_prod(*[unique_types for ii in range(order)]).t()
+    # symmetrize the keys and keep only unique entries
+    sym_keys = symmetrise_map[order](keys)
+    unique_sym_keys = torch.unique(sym_keys, dim=1)
+    return unique_sym_keys
+
+def get_bin_centers(a, nbins):
+    bin_centers = torch.zeros((nbins,), dtype=torch.float64)
+    a_min = a.min()
+    a_max = a.max()
+    delta = (a_max - a_min) / nbins
+    bin_centers = a_min + 0.5*delta + torch.arange(0, nbins, dtype=torch.float64) * delta
+    return bin_centers
+
+def compute_statistics(data: AtomicData, target: str, beta: float, TargetPrior:_Prior=Harmonic, nbins: int = 100):
+
+    unique_types = torch.unique(data.atom_types)
+    order = data.neighbor_list[target]['index_mapping'].shape[0]
+    unique_keys = get_all_unique_keys(unique_types, order)
+
     mapping = data.neighbor_list[target]['index_mapping']
-    vars = compute_map[order](data.pos, mapping)
+    values = TargetPrior.compute_features(data.pos, mapping, order=order)
 
-    interaction_types = torch.cat([data.atomic_types[mapping[ii]].unsqueeze(0) for ii in range(order)], dim=0)
+    interaction_types = torch.vstack([data.atom_types[mapping[ii]] for ii in range(order)])
 
-    for val, interaction_type in zip(vars,interaction_types):
-        statistics[symmetrise_map(interaction_type)].append(val)
+    statistics = {}
+    for unique_key in unique_keys.t():
+        # find which values correspond to unique_key type of interaction
+        mask = torch.all(torch.vstack([interaction_types[ii,:] == unique_key[ii] for ii in range(order)]), dim=0)
+        val = values[mask]
+        if len(val) == 0:
+            continue
 
-    for k in statistics.keys():
-        values = statistics[k].pop('values')
-        statistics[k]['mean'] = np.mean(values)
-        statistics[k]['std'] = np.std(values)
-        statistics[k]['k'] = 1/np.var(values)/beta
+        bin_centers = get_bin_centers(val, nbins)
+        hist = torch.histc(val, bins=nbins)
+
+        mask = hist >  0
+        bin_centers_nz = bin_centers[mask]
+        ncounts_nz = hist[mask]
+        dG_nz = -torch.log(ncounts_nz)/beta
+        params = TargetPrior.fit_from_data(bin_centers_nz, dG_nz)
+        statistics[unique_key] = params
+
+        statistics[unique_key]['p'] = hist / trapezoid(hist.cpu().numpy(),x=bin_centers.cpu().numpy())
+        statistics[unique_key]['p_bin'] = bin_centers
+        statistics[unique_key]['V'] = dG_nz
+        statistics[unique_key]['V_bin'] = bin_centers_nz
+
+        kf = flip_map[order](unique_key)
+        statistics[kf] = deepcopy(statistics[unique_key])
+
+
     return statistics

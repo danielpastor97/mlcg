@@ -79,7 +79,7 @@ class AtomicData(Data):
 
         return AtomicData.from_points(
             pos=pos,
-            atomic_types=z,
+            atom_types=z,
             pbc=pbc,
             cell=cell,
             tag=tag,
@@ -90,7 +90,7 @@ class AtomicData(Data):
     @staticmethod
     def from_points(
         pos: torch.Tensor,
-        atomic_types: torch.Tensor,
+        atom_types: torch.Tensor,
         pbc: Optional[torch.Tensor] = None,
         cell: Optional[torch.Tensor] = None,
         tag: Optional[str] = None,
@@ -101,7 +101,7 @@ class AtomicData(Data):
     ):
         data = {}
         data.update(**kwargs)
-        data[ATOM_TYPE_KEY] = torch.as_tensor(atomic_types)
+        data[ATOM_TYPE_KEY] = torch.as_tensor(atom_types)
         data[POSITIONS_KEY] = torch.as_tensor(pos)
         data[N_ATOMS_KEY] = torch.tensor(
             [data[ATOM_TYPE_KEY].shape[0]], dtype=torch.long
