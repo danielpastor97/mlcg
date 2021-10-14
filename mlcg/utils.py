@@ -4,7 +4,6 @@ import torch
 from sklearn.model_selection import train_test_split
 
 
-
 def is_notebook():
     from IPython import get_ipython
 

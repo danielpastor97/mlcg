@@ -9,7 +9,7 @@ from ..nn.prior import Harmonic, Repulsion, _Prior
 def symmetrise_angle_interaction(unique_interaction_types):
     mask = unique_interaction_types[0] > unique_interaction_types[2]
     ee = unique_interaction_types[0, mask]
-    unique_interaction_types[0, mask] = unique_interaction_types[2,mask]
+    unique_interaction_types[0, mask] = unique_interaction_types[2, mask]
     unique_interaction_types[2, mask] = ee
     unique_interaction_types = torch.unique(unique_interaction_types, dim=1)
     return unique_interaction_types
@@ -18,10 +18,11 @@ def symmetrise_angle_interaction(unique_interaction_types):
 def symmetrise_distance_interaction(unique_interaction_types):
     mask = unique_interaction_types[0] > unique_interaction_types[1]
     ee = unique_interaction_types[0, mask]
-    unique_interaction_types[0, mask] = unique_interaction_types[1,mask]
+    unique_interaction_types[0, mask] = unique_interaction_types[1, mask]
     unique_interaction_types[1, mask] = ee
     unique_interaction_types = torch.unique(unique_interaction_types, dim=1)
     return unique_interaction_types
+
 
 symmetrise_map = {
     2: symmetrise_distance_interaction,
@@ -41,29 +42,51 @@ def get_all_unique_keys(unique_types, order):
     unique_sym_keys = torch.unique(sym_keys, dim=1)
     return unique_sym_keys
 
+
 def get_bin_centers(a, nbins):
     bin_centers = torch.zeros((nbins,), dtype=torch.float64)
     a_min = a.min()
     a_max = a.max()
     delta = (a_max - a_min) / nbins
-    bin_centers = a_min + 0.5*delta + torch.arange(0, nbins, dtype=torch.float64) * delta
+    bin_centers = (
+        a_min
+        + 0.5 * delta
+        + torch.arange(0, nbins, dtype=torch.float64) * delta
+    )
     return bin_centers
 
-def compute_statistics(data: AtomicData, target: str, beta: float, TargetPrior:_Prior=Harmonic, nbins: int = 100):
+
+def compute_statistics(
+    data: AtomicData,
+    target: str,
+    beta: float,
+    TargetPrior: _Prior = Harmonic,
+    nbins: int = 100,
+):
 
     unique_types = torch.unique(data.atom_types)
-    order = data.neighbor_list[target]['index_mapping'].shape[0]
+    order = data.neighbor_list[target]["index_mapping"].shape[0]
     unique_keys = get_all_unique_keys(unique_types, order)
 
-    mapping = data.neighbor_list[target]['index_mapping']
+    mapping = data.neighbor_list[target]["index_mapping"]
     values = TargetPrior.compute_features(data.pos, mapping, order=order)
 
-    interaction_types = torch.vstack([data.atom_types[mapping[ii]] for ii in range(order)])
+    interaction_types = torch.vstack(
+        [data.atom_types[mapping[ii]] for ii in range(order)]
+    )
 
     statistics = {}
     for unique_key in unique_keys.t():
         # find which values correspond to unique_key type of interaction
-        mask = torch.all(torch.vstack([interaction_types[ii,:] == unique_key[ii] for ii in range(order)]), dim=0)
+        mask = torch.all(
+            torch.vstack(
+                [
+                    interaction_types[ii, :] == unique_key[ii]
+                    for ii in range(order)
+                ]
+            ),
+            dim=0,
+        )
         val = values[mask]
         if len(val) == 0:
             continue
@@ -71,20 +94,34 @@ def compute_statistics(data: AtomicData, target: str, beta: float, TargetPrior:_
         bin_centers = get_bin_centers(val, nbins)
         hist = torch.histc(val, bins=nbins)
 
-        mask = hist >  0
+        mask = hist > 0
         bin_centers_nz = bin_centers[mask]
         ncounts_nz = hist[mask]
-        dG_nz = -torch.log(ncounts_nz)/beta
-        params = TargetPrior.fit_from_data(bin_centers_nz, dG_nz)
+        dG_nz = -torch.log(ncounts_nz) / beta
+        params = TargetPrior.fit_from_potential_estimates(bin_centers_nz, dG_nz)
         statistics[unique_key] = params
 
-        statistics[unique_key]['p'] = hist / trapezoid(hist.cpu().numpy(),x=bin_centers.cpu().numpy())
-        statistics[unique_key]['p_bin'] = bin_centers
-        statistics[unique_key]['V'] = dG_nz
-        statistics[unique_key]['V_bin'] = bin_centers_nz
+        statistics[unique_key]["p"] = hist / trapezoid(
+            hist.cpu().numpy(), x=bin_centers.cpu().numpy()
+        )
+        statistics[unique_key]["p_bin"] = bin_centers
+        statistics[unique_key]["V"] = dG_nz
+        statistics[unique_key]["V_bin"] = bin_centers_nz
 
         kf = flip_map[order](unique_key)
         statistics[kf] = deepcopy(statistics[unique_key])
 
-
     return statistics
+
+
+def fit_baseline_models(data, beta, targets, priors_cls):
+    statistics = {}
+    models = torch.nn.ModuleDict()
+    for k, TargetPrior in zip(
+        ["bonds", "angles", "repulsion"], [Harmonic, Harmonic, Repulsion]
+    ):
+        statistics[k] = compute_statistics(
+            data, k, beta, TargetPrior=TargetPrior, nbins=100
+        )
+        models[k] = TargetPrior(statistics[k])
+    return models, statistics

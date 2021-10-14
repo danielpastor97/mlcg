@@ -36,6 +36,7 @@ class AtomicData(Data):
 
         super(AtomicData, self).__init__(**kwargs)
 
+        self.out = {"contributions": {}}
         # check the sanity of the inputs
         if "n_atoms" in self and "pos" in self:
             assert (

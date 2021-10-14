@@ -7,6 +7,8 @@ except ModuleNotFoundError:
 from typing import NamedTuple, List, Optional, Tuple
 import torch
 
+from ..neighbor_list.neighbor_list import make_neighbor_list
+
 
 class Atom(NamedTuple):
     """Define an atom"""
@@ -72,6 +74,41 @@ class Topology(object):
 
     def dihedrals2torch(self, device: str = "cpu"):
         return torch.tensor(self.dihedrals, dtype=torch.long, device=device)
+
+    def fully_connected2torch(self, device: str = "cpu"):
+        ids = torch.arange(self.n_atoms)
+        mapping = torch.cartesian_prod(ids, ids).t()
+        mapping = mapping[:, mapping[0] != mapping[1]]
+        return mapping
+
+    def neighbor_list(self, type: str, device: str = "cpu"):
+        """Build Neighborlist from a :ref:`mlcg.neighbor_list.neighbor_list.Topology`.
+
+        Parameters
+        ----------
+        type:
+            kind of information to extract (should be in ["bonds", "angles",
+            "dihedrals", "fully connected"]).
+        device:
+            device onto which to return the nl
+        """
+        allowed_types = ["bonds", "angles", "dihedrals", "fully connected"]
+        assert type in allowed_types, f"type should be any of {allowed_types}"
+        if type == "bonds":
+            mapping = self.bonds2torch(device)
+        elif type == "angles":
+            mapping = self.angles2torch(device)
+        elif type == "dihedrals":
+            mapping = self.dihedrals2torch(device)
+        elif type == "fully connected":
+            mapping = self.fully_connected2torch(device)
+        nl = make_neighbor_list(
+            tag=type,
+            order=mapping.shape[0],
+            index_mapping=mapping,
+            self_interaction=False,
+        )
+        return nl
 
     def add_bond(self, idx1: int, idx2: int):
         """Define a bond between two atoms.

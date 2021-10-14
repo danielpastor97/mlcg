@@ -4,35 +4,6 @@ import torch
 from .torch_impl import torch_neighbor_list
 
 
-def topology2neighbor_list(topology, type: str = "bonds") -> dict:
-    """Build Neighborlist from a :ref:`mlcg.neighbor_list.neighbor_list.Topology`.
-
-    Parameters
-    ----------
-    topology: :ref:`mlcg.neighbor_list.neighbor_list.Topology`
-        A topology object.
-    type:
-        kind of information to extract (should be in ["bonds", "angles",
-        "dihedrals"]).
-    """
-    allowed_types = ["bonds", "angles", "dihedrals"]
-    assert type in allowed_types, f"type should be any of {allowed_types}"
-    if type == "bonds":
-        mapping = topology.bonds2torch()
-    elif type == "angles":
-        mapping = topology.angles2torch()
-    elif type == "dihedrals":
-        mapping = topology.dihedrals2torch()
-
-    nl = make_neighbor_list(
-        tag=type,
-        order=mapping.shape[0],
-        index_mapping=mapping,
-        self_interaction=False,
-    )
-    return nl
-
-
 def atomic_data2neighbor_list(
     data,
     rcut: float,
@@ -65,7 +36,6 @@ def atomic_data2neighbor_list(
         rcut=rcut,
         self_interaction=self_interaction,
     )
-
 
 
 def make_neighbor_list(
@@ -115,8 +85,7 @@ class EmptyField:
 
 
 def validate_neighborlist(inp: dict) -> bool:
-    """Tool to validate that the neighborlist dictionary has the required fields
-    """
+    """Tool to validate that the neighborlist dictionary has the required fields"""
     validator = {
         "tag": [str],
         "order": [int],
@@ -131,5 +100,3 @@ def validate_neighborlist(inp: dict) -> bool:
             [isinstance(v, t) for t in ts]
         ), f"entry {k} is {type(v)} but should be in {ts}"
     return True
-
-
