@@ -1,12 +1,15 @@
 import torch
 
+from ..data._keys import FORCE_KEY
+
+
 def remove_baseline_forces(data, models):
     baseline_forces = []
     for k in models.keys():
         models[k].eval()
 
         data = models[k](data)
-        baseline_forces.append(data.out["contributions"][k]["forces"].flatten())
+        baseline_forces.append(data.out[k][FORCE_KEY].flatten())
     baseline_forces = torch.sum(torch.vstack(baseline_forces), dim=0).view(
         -1, 3
     )

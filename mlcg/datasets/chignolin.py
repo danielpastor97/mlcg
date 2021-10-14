@@ -3,21 +3,26 @@ from os.path import join
 
 import numpy as np
 import torch
-from torch_geometric.data import InMemoryDataset, download_url, extract_tar, collate
+from torch_geometric.data import InMemoryDataset, extract_tar
+from torch_geometric.data.collate import collate
 from shutil import copy
+import mdtraj
 
-from ..utils import tqdm
+
+from ..utils import tqdm, download_url
 from ..geometry import Topology, fit_baseline_models
 from ..cg import build_cg_matrix, build_cg_topology, CA_MAP
 from ..data import AtomicData
 from ..nn import (
-    Harmonic,
     HarmonicBonds,
     HarmonicAngles,
     Repulsion,
     GradientsOut,
 )
 from .utils import remove_baseline_forces
+
+import matplotlib
+import matplotlib.pyplot as plt
 
 
 class ChignolinDataset(InMemoryDataset):
@@ -40,6 +45,8 @@ class ChignolinDataset(InMemoryDataset):
             root, transform, pre_transform, pre_filter
         )
         self.data, self.slices = torch.load(self.processed_paths[0])
+        self.prior_models = torch.load(self.processed_paths[3])
+        self.topologies = torch.load(self.processed_paths[2])
 
     def download(self):
         # Download to `self.raw_dir`.
@@ -62,7 +69,7 @@ class ChignolinDataset(InMemoryDataset):
 
     @property
     def processed_file_names(self):
-        return ["chignolin.pt", "chignolin.pdb","topologies.pt", "priors.pt"]
+        return ["chignolin.pt", "chignolin.pdb", "topologies.pt", "priors.pt"]
 
     @staticmethod
     def get_data_filenames(coord_dir, force_dir):
@@ -83,21 +90,21 @@ class ChignolinDataset(InMemoryDataset):
 
     def process(self):
         # extract files
-        for fn in tqdm(self.raw_paths, desc='Extracting archives'):
+        for fn in tqdm(self.raw_paths, desc="Extracting archives"):
             extract_tar(fn, self.raw_dir, mode="r:gz")
         coord_dir = join(self.raw_dir, "coords_nowater")
         force_dir = join(self.raw_dir, "forces_nowater")
 
-        topology_fn = join(self.raw_dir,'chignolin_50ns_0/structure.pdb')
-        topology = Topology.from_file(topology_fn)
+        topology_fn = join(self.raw_dir, "chignolin_50ns_0/structure.pdb")
+        topo = mdtraj.load(topology_fn).remove_solvent().topology
+        topology = Topology.from_mdtraj(topo)
         embeddings, cg_matrix, _ = build_cg_matrix(topology, cg_mapping=CA_MAP)
         cg_topo = build_cg_topology(topology, cg_mapping=CA_MAP)
         copy(topology_fn, self.processed_paths[1])
 
-        prior_nls = {
-            cls._name: cls.neighbor_list(cg_topo)
-            for cls in self.priors_cls
-        }
+        prior_nls = {}
+        for cls in self.priors_cls:
+            prior_nls.update(**cls.neighbor_list(cg_topo))
 
         n_beads = cg_matrix.shape[0]
         embeddings = np.array(embeddings, dtype=np.int64)
@@ -144,9 +151,7 @@ class ChignolinDataset(InMemoryDataset):
                 data_list.append(data)
                 ii_frame += 1
 
-                if ii_frame > 100:
-                    break
-        print('collating data_list')
+        print("collating data_list")
         datas, _, _ = collate(
             data_list[0].__class__,
             data_list=data_list,
@@ -154,8 +159,10 @@ class ChignolinDataset(InMemoryDataset):
             add_batch=True,
         )
 
-        print('fitting baseline models')
-        baseline_models, self.statistics = fit_baseline_models(self.beta, datas, self.priors_cls)
+        print("fitting baseline models")
+        baseline_models, self.statistics = fit_baseline_models(
+            datas, self.beta, self.priors_cls
+        )
 
         for k in baseline_models.keys():
             baseline_models[k] = GradientsOut(
@@ -163,11 +170,11 @@ class ChignolinDataset(InMemoryDataset):
             )
 
         data_list_ = []
-        for data in tqdm(data_list, 'Removing baseline forces'):
+        for data in tqdm(data_list, "Removing baseline forces"):
             data = remove_baseline_forces(data, baseline_models)
             data_list_.append(data)
 
-        print('collating data_list')
+        print("collating data_list")
         datas, slices = self.collate(data_list_)
 
         torch.save((cg_topo), self.processed_paths[2])

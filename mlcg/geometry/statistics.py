@@ -4,6 +4,7 @@ from scipy.integrate import trapezoid
 
 from ..data import AtomicData
 from ..nn.prior import Harmonic, Repulsion, _Prior
+from ..utils import tensor2tuple
 
 
 def symmetrise_angle_interaction(unique_interaction_types):
@@ -69,7 +70,7 @@ def compute_statistics(
     unique_keys = get_all_unique_keys(unique_types, order)
 
     mapping = data.neighbor_list[target]["index_mapping"]
-    values = TargetPrior.compute_features(data.pos, mapping, order=order)
+    values = TargetPrior.compute_features(data.pos, mapping)
 
     interaction_types = torch.vstack(
         [data.atom_types[mapping[ii]] for ii in range(order)]
@@ -99,29 +100,29 @@ def compute_statistics(
         ncounts_nz = hist[mask]
         dG_nz = -torch.log(ncounts_nz) / beta
         params = TargetPrior.fit_from_potential_estimates(bin_centers_nz, dG_nz)
-        statistics[unique_key] = params
+        kk = tensor2tuple(unique_key)
+        statistics[kk] = params
 
-        statistics[unique_key]["p"] = hist / trapezoid(
+        statistics[kk]["p"] = hist / trapezoid(
             hist.cpu().numpy(), x=bin_centers.cpu().numpy()
         )
-        statistics[unique_key]["p_bin"] = bin_centers
-        statistics[unique_key]["V"] = dG_nz
-        statistics[unique_key]["V_bin"] = bin_centers_nz
+        statistics[kk]["p_bin"] = bin_centers
+        statistics[kk]["V"] = dG_nz
+        statistics[kk]["V_bin"] = bin_centers_nz
 
-        kf = flip_map[order](unique_key)
-        statistics[kf] = deepcopy(statistics[unique_key])
+        kf = tensor2tuple(flip_map[order](unique_key))
+        statistics[kf] = deepcopy(statistics[kk])
 
     return statistics
 
 
-def fit_baseline_models(data, beta, targets, priors_cls):
+def fit_baseline_models(data, beta, priors_cls, nbins: int = 100):
     statistics = {}
     models = torch.nn.ModuleDict()
-    for k, TargetPrior in zip(
-        ["bonds", "angles", "repulsion"], [Harmonic, Harmonic, Repulsion]
-    ):
+    for TargetPrior in priors_cls:
+        k = TargetPrior._name
         statistics[k] = compute_statistics(
-            data, k, beta, TargetPrior=TargetPrior, nbins=100
+            data, k, beta, TargetPrior=TargetPrior, nbins=nbins
         )
         models[k] = TargetPrior(statistics[k])
     return models, statistics

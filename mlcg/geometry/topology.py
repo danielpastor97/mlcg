@@ -102,6 +102,7 @@ class Topology(object):
             mapping = self.dihedrals2torch(device)
         elif type == "fully connected":
             mapping = self.fully_connected2torch(device)
+
         nl = make_neighbor_list(
             tag=type,
             order=mapping.shape[0],

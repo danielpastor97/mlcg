@@ -38,6 +38,8 @@ ATOM_TYPE_KEY: Final[str] = "atom_types"
 ENERGY_KEY: Final[str] = "energy"
 FORCE_KEY: Final[str] = "forces"
 
+PROPERTY_KEYS: Final[List[str]] = (ENERGY_KEY, FORCE_KEY)
+
 BATCH_KEY: Final[str] = "batch"
 
 # Make a list of allowed keys
