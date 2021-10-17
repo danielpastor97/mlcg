@@ -18,12 +18,31 @@ from ._keys import (
 
 class AtomicData(Data):
     """A data object holding atomic structures.
+    The attributes name are defined in :py:data:`mlcg.data._keys`
 
     Attributes
     ----------
 
-    kwargs:
-        Allowed fields are defined in :ref:`ALLOWED_KEYS`
+    pos: [n_atoms, 3]
+        set of atomic positions in each structures
+    atom_types: [n_atoms]
+        if atoms then it's the atomic number, if it's a CG bead then it's a number defined by the CG mapping
+    pbc: [n_structures, 3] (Optional)
+        periodic boundary conditions
+    cell: [n_structures, 3, 3] (Optional)
+        unit cell of the atomic structure. Lattice vectors are defined row wise
+    tag: [n_structures] (Optional)
+        metadata about each structure
+    energy: [n_structures] (Optional)
+        reference energy associated with each structures
+    forces: [n_atoms, 3] (Optional)
+        reference forces associated with each structures
+    neighborlist: Dict[str, Dict[str, Any]] (Optional)
+        contains information about the connectivity formatted according to
+        :ref:`mlcg.neighbor_list.neighbor_list.make_neighbor_list`.
+    batch: [n_atoms]
+        maps the atoms to their structure index (from 0 to n_structures-1)
+
 
 
     """
@@ -32,6 +51,9 @@ class AtomicData(Data):
         self,
         **kwargs,
     ):
+        """kwargs:
+            Allowed fields are defined in :ref:`ALLOWED_KEYS`
+        """
         validate_keys(kwargs.keys())
 
         super(AtomicData, self).__init__(**kwargs)

@@ -16,7 +16,7 @@ NEIGHBOR_LIST_KEY: Final[str] = "neighbor_list"
 
 TAG_KEY: Final[str] = "tag"
 
-# A [n_edge, 3] tensor of displacement vectors associated to edges
+# A [n_edge, 3] tensor of direction vectors associated to edges
 DIRECTION_VECTORS_KEY: Final[str] = "direction_vectors"
 # A [n_edge] tensor of the lengths of EDGE_VECTORS
 DISTANCES_KEY: Final[str] = "distances"
