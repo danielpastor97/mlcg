@@ -26,7 +26,10 @@ import matplotlib.pyplot as plt
 
 
 class ChignolinDataset(InMemoryDataset):
-    r""""""
+    r"""Dataset for training a CG model of the chignolin protein following a Cα CG mapping using the all-atom data from [CGnet]_.
+    The prior models (harmonic bonds and angles and a repulsive term) are fitted on the training data directly. The prior forces have already been subtracted from the reference forces.
+
+    """
     #:Temperature used to generate the underlying all-atom data in [K]
     temperature = 350  # K
     #:Boltzmann constan in kcal/mol/K
@@ -54,7 +57,6 @@ class ChignolinDataset(InMemoryDataset):
         url_forces = "http://pub.htmd.org/chignolin_forces_nowater.tar.gz"
         url_coords = "http://pub.htmd.org/chignolin_coords_nowater.tar.gz"
         url_inputs = "http://pub.htmd.org/chignolin_generators.tar.gz"
-        # path_trajectory = download_url(url_trajectory, self.raw_dir)
         path_inputs = download_url(url_inputs, self.raw_dir)
         path_coord = download_url(url_coords, self.raw_dir)
         path_forces = download_url(url_forces, self.raw_dir)

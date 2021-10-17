@@ -5,6 +5,12 @@ API Reference
 Atomic Data
 -----------
 
+
+..
+   .. automodule:: mlcg.data._keys
+      :members:
+      :undoc-members:
+
 TODO: describe the data structure and its use.
 
 .. automodule:: mlcg.data.atomic_data
