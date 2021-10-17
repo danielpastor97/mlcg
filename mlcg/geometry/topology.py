@@ -47,8 +47,6 @@ class Topology(object):
         self.dihedrals = ([], [], [], [])
 
     def add_atom(self, type: int, name: str, resname: Optional[str] = None):
-        # assert isinstance(type, int), f"{type}"
-        # assert isinstance(name, str), f"{name}"
         self.types.append(type)
         self.names.append(name)
         self.resnames.append(resname)
