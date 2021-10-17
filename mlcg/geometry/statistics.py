@@ -79,8 +79,7 @@ def compute_statistics(
     TargetPrior: _Prior = Harmonic,
     nbins: int = 100,
 ):
-    """TODO add doc
-    """
+    """TODO add doc"""
 
     unique_types = torch.unique(data.atom_types)
     order = data.neighbor_list[target]["index_mapping"].shape[0]
@@ -134,8 +133,7 @@ def compute_statistics(
 
 
 def fit_baseline_models(data, beta, priors_cls, nbins: int = 100):
-    """TODO add doc
-    """
+    """TODO add doc"""
     statistics = {}
     models = torch.nn.ModuleDict()
     for TargetPrior in priors_cls:
