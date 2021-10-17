@@ -91,6 +91,8 @@ class AtomicData(Data):
         energy_tag: str = ENERGY_KEY,
         force_tag: str = FORCE_KEY,
     ):
+        """TODO add doc
+        """
         z = torch.from_numpy(frame.get_atomic_numbers())
         pos = torch.from_numpy(frame.get_positions())
         pbc = torch.from_numpy(frame.get_pbc())
@@ -123,6 +125,8 @@ class AtomicData(Data):
         neighborlist: Optional[Dict[str, Dict[str, Any]]] = None,
         **kwargs,
     ):
+        """TODO add doc
+        """
         data = {}
         data.update(**kwargs)
         data[ATOM_TYPE_KEY] = torch.as_tensor(atom_types)
