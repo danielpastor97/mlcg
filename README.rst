@@ -44,7 +44,10 @@ How to build
     sphinx-build -b html source build
 
 How to update the documentation
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This udapte should be done after any update of the `main` branch so that the
+documentation is synchronised with the main version of the repository.
 
 .. code:: bash
 
