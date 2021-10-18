@@ -46,7 +46,7 @@ class SchNet(nn.Module):
 
         if isinstance(interaction_blocks, List):
             self.interaction_blocks = nn.Sequential(*interaction_blocks)
-        elif instance(interaction_blocks, InteractionBlock):
+        elif isinstance(interaction_blocks, InteractionBlock):
             self.interaction_blocks = nn.Sequential(interaction_blocks)
         else:
             raise RuntimeError(
