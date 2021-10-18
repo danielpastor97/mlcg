@@ -18,7 +18,7 @@ from ._keys import (
 
 class AtomicData(Data):
     """A data object holding atomic structures.
-    The attributes name are defined in :py:data:`mlcg.data._keys`
+    The attribute names are defined in :py:data:`mlcg.data._keys`
 
     Attributes
     ----------

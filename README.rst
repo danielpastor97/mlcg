@@ -35,12 +35,22 @@ Dependencies
     pip install sphinx sphinx_rtd_theme
 
 
-Build instructions
-~~~~~~~~~~~~~~~~~~
+How to build
+~~~~~~~~~~~~
 
 .. code:: bash
 
     cd docs
     sphinx-build -b html source build
 
+How to update the documentation
+~~~~~~~~~~~~~~~~~~
 
+.. code:: bash
+
+    git checkout gh-pages
+    git rebase main
+    cd docs
+    sphinx-build -b html source ./
+    git commit -a
+    git push

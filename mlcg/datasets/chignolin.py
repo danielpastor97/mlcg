@@ -27,8 +27,8 @@ import matplotlib.pyplot as plt
 
 class ChignolinDataset(InMemoryDataset):
     r"""Dataset for training a CG model of the chignolin protein following a Cα CG mapping using the all-atom data from [CGnet]_.
-    The prior models (harmonic bonds and angles and a repulsive term) are fitted on the training data directly. The prior forces have already been subtracted from the reference forces.
 
+    This Dataset produces delta forces for model training, in which the CG prior forces (harmonic bonds and angles and a repulsive term) have been subtracted from the full CG forces.
     """
     #:Temperature used to generate the underlying all-atom data in [K]
     temperature = 350  # K
