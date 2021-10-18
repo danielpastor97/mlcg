@@ -120,12 +120,16 @@ def strides_of(v: torch.Tensor) -> torch.Tensor:
 def torch_neighbor_list_no_pbc(
     data, rcut, self_interaction=True, num_workers=1, max_num_neighbors=1000
 ):
-    # assert data.n_atoms.shape[0] == 1, 'data should contain only one structure'
-
+    if "batch" not in data:
+        batch = torch.zeros(
+            data.pos.shape[0], dtype=torch.long, device=data.pos.device
+        )
+    else:
+        batch = data.batch
     edge_index = radius_graph(
         data.pos,
         rcut,
-        batch=data.batch,
+        batch=batch,
         max_num_neighbors=max_num_neighbors,
         num_workers=num_workers,
         flow="target_to_source",
@@ -160,15 +164,22 @@ def get_j_idx(
 def torch_neighbor_list_pbc(
     data, rcut, self_interaction=True, num_workers=1, max_num_neighbors=1000
 ):
+    if "batch" not in data:
+        batch_y = torch.zeros(
+            data.pos.shape[0], dtype=torch.long, device=data.pos.device
+        )
+    else:
+        batch_y = data.batch
+
     images, batch_images, shifts_expanded, shifts_idx = compute_images(
-        data.pos, data.cell, data.pbc, rcut, data.batch, data.n_atoms
+        data.pos, data.cell, data.pbc, rcut, batch_y, data.n_atoms
     )
     edge_index = radius(
         x=images,
         y=data.pos,
         r=rcut,
         batch_x=batch_images,
-        batch_y=data.batch,
+        batch_y=batch_y,
         max_num_neighbors=max_num_neighbors,
         num_workers=num_workers,
     )
@@ -222,8 +233,6 @@ def wrap_positions(data, eps=1e-7):
 
     # Don't change coordinates when pbc is False
     shift[torch.logical_not(pbc)] = 0.0
-
-    # assert np.asarray(cell)[np.asarray(pbc)].any(axis=1).all(), (cell, pbc)
 
     cell = data.cell
     positions = data.pos

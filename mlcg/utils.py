@@ -1,15 +1,11 @@
 import yaml
-import argparse
 import numpy as np
 import torch
-import inspect
+import urllib.request
+import requests
 from sklearn.model_selection import train_test_split
-
-try:
-    from pytorch_lightning.trainer.states import RunningStage
-except ImportError:
-    # compatibility for PyTorch lightning versions < 1.2.0
-    RunningStage = None
+from torch_geometric.data.makedirs import makedirs
+import sys
 
 
 def is_notebook():
@@ -31,6 +27,61 @@ if is_notebook():
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
+
+
+def tensor2tuple(x):
+    x = x.flatten()
+    if x.dtype in [torch.int32, torch.int64]:
+        return tuple(map(int, x))
+    elif x.dtype in [torch.float32, torch.float64]:
+        return tuple(map(float, x))
+
+
+class DownloadProgressBar(tqdm):
+    def update_to(self, b=1, bsize=1, tsize=None):
+        if tsize is not None:
+            self.total = tsize
+        self.update(b * bsize - self.n)
+
+
+def download_url(url: str, folder: str, log: bool = True):
+    r"""Downloads the content of an URL to a specific folder.
+
+    Args:
+        url (string): The url.
+        folder (string): The folder.
+        log (bool, optional): If :obj:`False`, will not print anything to the
+            console. (default: :obj:`True`)
+
+    Adtapted from torch_geometric.data.download.py
+    """
+    import os.path as osp
+
+    filename = url.rpartition("/")[2].split("?")[0]
+    path = osp.join(folder, filename)
+
+    if osp.exists(path):  # pragma: no cover
+        if log:
+            print(f"Using existing file {filename}", file=sys.stderr)
+        return path
+
+    if log:
+        print(f"Downloading {url}", file=sys.stderr)
+
+    makedirs(folder)
+
+    response = requests.head(url)
+    total_size = int(response.headers["content-length"])
+    with DownloadProgressBar(
+        unit="B",
+        total=total_size,
+        unit_scale=True,
+        miniters=1,
+        desc=url.split("/")[-1],
+    ) as t:
+        urllib.request.urlretrieve(url, filename=path, reporthook=t.update_to)
+
+    return path
 
 
 def load_yaml(fn):
