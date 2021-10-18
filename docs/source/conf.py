@@ -18,6 +18,8 @@ import sys, os
 
 sys.path.insert(0, os.path.abspath("../../"))
 
+# disable torch jitting when building the documentation
+os.environ["PYTORCH_JIT"] = "0"
 
 # -- Project information -----------------------------------------------------
 
@@ -43,6 +45,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
     "sphinx.ext.autosummary",
+    "sphinx.ext.githubpages",
 ]
 
 # Add any paths that contain templates here, relative to this directory.

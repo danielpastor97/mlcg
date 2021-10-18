@@ -1,6 +1,7 @@
 API Reference
 =============
 
+TODO: split this file into respective files where both API reference and some more high level information is provided to the reader.
 
 Atomic Data
 -----------
@@ -22,7 +23,7 @@ Coarse graining utilities
 
 TODO: document the CG mapping format.
 
-.. automodule:: mlcg.data.projection
+.. automodule:: mlcg.cg.projection
    :members:
 
 
@@ -53,5 +54,11 @@ Main interface to the computation of neighborlists with a finite spherical cutof
 Torch geometric implementation
 
 .. automodule:: mlcg.neighbor_list.torch_impl
+   :members:
+   :undoc-members:
+
+Utilities to compute the internal coordinates
+
+.. automodule:: mlcg.geometry.internal_coordinates
    :members:
    :undoc-members:
