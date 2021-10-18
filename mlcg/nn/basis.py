@@ -25,7 +25,7 @@ def visualize_basis(rbf_layer):
     plt.show()
 
 
-class GaussianSmearing(nn.Module):
+class GaussianBasis(nn.Module):
     """Class that generates a set of equidistant 1-D gaussian basis functions
     scattered between a specified lower and upper cutoff.
 
@@ -53,7 +53,7 @@ class GaussianSmearing(nn.Module):
         num_rbf: int = 50,
         trainable: bool = False,
     ):
-        super(GaussianSmearing, self).__init__()
+        super(GaussianBasis, self).__init__()
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
         self.num_rbf = num_rbf
@@ -103,7 +103,7 @@ class GaussianSmearing(nn.Module):
         return torch.exp(self.coeff * torch.pow(dist, 2))
 
 
-class ExpNormalSmearing(nn.Module):
+class ExpNormalBasis(nn.Module):
     """Class for generating a set of exponential normal radial basis functions, as described in
     the following paper:
 
@@ -132,7 +132,7 @@ class ExpNormalSmearing(nn.Module):
         num_rbf: int = 50,
         trainable: bool = True,
     ):
-        super(ExpNormalSmearing, self).__init__()
+        super(ExpNormalBasis, self).__init__()
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
         self.num_rbf = num_rbf

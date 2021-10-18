@@ -4,4 +4,4 @@ from .schnet import (SchNet,
     InteractionBlock,
     CFConv,
     create_schnet)
-from .basis import (GaussianSmearing, ExpNormalSmearing, CosineCutoff)
+from .basis import (GaussianBasis, ExpNormalBasis, CosineCutoff)

@@ -2,7 +2,7 @@ from typing import Optional, List
 from torch import nn
 from torch_geometric.nn import MessagePassing
 from torch_cluster import radius_graph
-from .basis import GaussianSmearing, ExpNormalSmearing, CosineCutoff
+from .basis import GaussianBasis, ExpNormalBasis, CosineCutoff
 from ..geometry.internal_coordinates import compute_distances
 
 
@@ -54,7 +54,7 @@ class SchNet(nn.Module):
                 "a list of InteractionBlocks"
             )
         # warn the user if cutoffs in RBFs and CFConv are different
-        if isinstance(self.rbf_layer, (GaussianSmearing, ExpNormalSmearing)):
+        if isinstance(self.rbf_layer, (GaussianBasis, ExpNormalBasis)):
             for block in self.interaction_blocks:
                 if block.conv.cutoff != None:
                     if (
@@ -285,7 +285,7 @@ def create_schnet(
 
     """Helper function to create a typical SchNet"""
 
-    defined_bases = {"gauss": GaussianSmearing, "expnorm": ExpNormalSmearing}
+    defined_bases = {"gauss": GaussianBasis, "expnorm": ExpNormalBasis}
 
     if rbf_type not in defined_bases.keys():
         raise RuntimeError(
