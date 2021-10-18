@@ -85,7 +85,7 @@ class SchNet(nn.Module):
         x: torch.tensor,
            SchNet features, of shape (num_examples * num_atoms, hidden_channels)
         """
-        x = self.embedding_layer(data.z)
+        x = self.embedding_layer(data.atomic_types)
         edge_index = radius_graph(
             data.pos,
             r=self.rbf_layer.cutoff_upper,
