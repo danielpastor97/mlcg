@@ -25,6 +25,8 @@ Some special installs that are one well handled by requirements.txt:
 Documentation
 -------------
 
+Documentation is available `here <https://clementigroup.github.io/mlcg-tools/>`_.
+
 Dependencies
 ~~~~~~~~~~~~
 
