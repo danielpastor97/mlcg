@@ -43,6 +43,7 @@ class GaussianBasis(_RadialBasis):
     scattered between a specified lower and upper cutoff:
 
     .. math::
+
         f_n = \exp{\gamma(r-c_n)^2}
 
     Parameters
@@ -128,18 +129,19 @@ class ExpNormalBasis(_RadialBasis):
     The functions have the following form:
 
     .. math::
+
         \f_n(r_{ij};\alpha, r_{low},r_{high}) = f_{cut}(r_{ij},r_{low},r_{high}) \times \exp\left[-\beta_n \left(e^{\alpha (r_{ij} -r_{high}) } - \mu_n \right)^2\right]
 
     where
 
     .. math::
+
         \alpha = 5.0/(r_{high} - r_{low})
 
-    is a distance rescaling factor.
-
-    and
+    is a distance rescaling factor, and
 
     .. math::
+
         f_{cut}(r_{ij},r_{low},r_{high}) =  \cos{ r_{ij} \times \pi / r_{high}) + 1.0
     Parameters
     ----------

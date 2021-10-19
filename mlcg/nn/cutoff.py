@@ -32,13 +32,15 @@ class IdentityCutoff(_Cutoff):
 
     Parameters
     ----------
-    cutoff_lower: 
+    cutoff_lower:
         left bound for the radial cutoff distance
-    cutoff_upper: 
+    cutoff_upper:
         right bound for the radial cutoff distance
     """
 
-    def __init__(self, cutoff_lower:float=0, cutoff_upper:float=torch.inf):
+    def __init__(
+        self, cutoff_lower: float = 0, cutoff_upper: float = torch.inf
+    ):
         super(IdentityCutoff, self).__init__()
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
@@ -59,10 +61,11 @@ class IdentityCutoff(_Cutoff):
 
 
 class CosineCutoff(_Cutoff):
-    """Class implementing a cutoff envelope based a cosine signal in the interval  
+    """Class implementing a cutoff envelope based a cosine signal in the interval
     `[lower_cutoff, upper_cutoff]`:
 
     .. math::
+
         \cos{ r_{ij} \times \pi / r_{high}) + 1.0
 
     NOTE: The behavior of the cutoff is qualitatively different for lower
@@ -70,6 +73,7 @@ class CosineCutoff(_Cutoff):
     We recommend visualizing your basis to see if it makes physical sense.
 
     .. math::
+
         0.5 \times ( \cos{ ( \pi (2 \frac{r_{ij} - r_{low}}{r_{high} - r_{low}} + 1.0))} + 1.0 )
 
     """
