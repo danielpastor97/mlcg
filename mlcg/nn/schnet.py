@@ -1,7 +1,7 @@
 from typing import Optional, List
 from torch import nn
 from torch_geometric.nn import MessagePassing
-from torch_cluster import radius_graph
+from ..neighbor_list.torch_impl import torch_neighbor_list
 from .radial_basis import GaussianBasis, ExpNormalBasis
 from .cutoff import CosineCutoff
 from ..geometry.internal_coordinates import compute_distances
@@ -28,6 +28,8 @@ class SchNet(nn.Module):
         to (num_examples * num atoms, 1).
     cutoff_fn: torch.nn.Module (default=None)
         Cutoff function to apply to basis-expanded distances before filter generation.
+    self_interaction: bool (default=False)
+        If True, self interactions/distancess are calculated.
     max_num_neighbors: int (default=100)
         Maximum number of neighbors to return for a
         given node/atom when constructing the molecular graph during forward passes.
@@ -44,6 +46,7 @@ class SchNet(nn.Module):
         rbf_layer: nn.Module,
         output_network: nn.Module,
         cutoff_fn: nn.Module = None,
+        self_interaction: bool =False,
         max_num_neighbors: int = 1000,
     ):
 
@@ -53,6 +56,7 @@ class SchNet(nn.Module):
         self.rbf_layer = rbf_layer
         self.cutoff_fn = cutoff_fn
         self.max_num_neighbors = max_num_neighbors
+        self.self_interaction = self_interaction
 
         if isinstance(interaction_blocks, List):
             self.interaction_blocks = nn.Sequential(*interaction_blocks)
@@ -95,12 +99,13 @@ class SchNet(nn.Module):
            (num_examples * num_atoms, 1).
         """
         x = self.embedding_layer(data.atomic_types)
-        edge_index = radius_graph(
-            data.pos,
-            r=self.rbf_layer.cutoff_upper,
-            batch=data.batch,
-            max_num_neighbors=self.max_num_neighbors,
-        )
+
+        edge_i, edge_j, self_interaction_mask = torch_neighbor_list(data, self.rbf_layer.cutoff_upper)
+
+        if self.self_interaction
+            edge_index = torch.vstack(edge_i, edge_j)
+        else:
+            edge_index = torch.vstack(edge_i, edge_j) * self_interaction_mask
 
         distances = compute_distances(data.pos, edge_index)
         rbf_expansion = self.rbf_layer(distances)
@@ -119,6 +124,9 @@ class SchNet(nn.Module):
             f"embedding={self.embedding_layer}, "
             f"interaction_blocks={self.interaction_blocks}, "
             f"rbf_layer={self.rbf_layer}, "
+            f"cutoff_fn={self.cutoff_fn},"
+            f"self_interaction={self.self_interaction}, "
+            f"outpu_network={self.output_network}, "
         )
 
 
