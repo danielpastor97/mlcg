@@ -17,14 +17,14 @@ class CosineCutoff(_Cutoff):
     lower and upper cutoff:
 
     .. math::
-        \cos{ r \times \pi / r_high) + 1.0
+        \cos{ r_{ij} \times \pi / r_{high}) + 1.0
 
     NOTE: The behavior of the cutoff is qualitatively different for lower
     cutoff values greater than zero when compared to the zero lower cutoff default.
     We recommend visualizing your basis to see if it makes physical sense.
 
     .. math::
-        0.5 \times ( \cos{ ( \pi (2 \frac{r - r_low}{r_high - r_low} + 1.0))} + 1.0 )
+        0.5 \times ( \cos{ ( \pi (2 \frac{r_{ij} - r_{low}}{r_{high} - r_{low}} + 1.0))} + 1.0 )
 
     """
 

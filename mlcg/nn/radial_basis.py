@@ -135,6 +135,10 @@ class ExpNormalBasis(_RadialBasis):
 
     is a distance rescaling factor.
 
+    and
+
+    .. math::
+        f_{cut}(r_{ij},r_{low},r_{high}) =  \cos{ r_{ij} \times \pi / r_{high}) + 1.0
     Parameters
     ----------
     cutoff_lower: float (default=0.0)
