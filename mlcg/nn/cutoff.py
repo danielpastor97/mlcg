@@ -59,8 +59,8 @@ class IdentityCutoff(_Cutoff):
 
 
 class CosineCutoff(_Cutoff):
-    """Class implementing a cutoff envelope based a cosine signal between a specified
-    lower and upper cutoff:
+    """Class implementing a cutoff envelope based a cosine signal in the interval  
+    `[lower_cutoff, upper_cutoff]`:
 
     .. math::
         \cos{ r_{ij} \times \pi / r_{high}) + 1.0
