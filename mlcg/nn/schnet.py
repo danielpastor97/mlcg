@@ -9,7 +9,8 @@ from ..geometry.internal_coordinates import compute_distances
 
 class SchNet(nn.Module):
     """PyTorch Geometric implementation of SchNet
-    Code adapted from https://github.com/rusty1s/pytorch_geometric/blob/d7d8e5e2edada182d820bbb1eec5f016f50db1e0/torch_geometric/nn/models/schnet.py#L38
+    Code adapted from [PT_geom_schnet]_ .
+    Based on the architecture described in [Schnet]_ .
 
     Parameters
     ----------
