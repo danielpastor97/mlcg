@@ -125,12 +125,12 @@ class SchNet(nn.Module):
         """
         x = self.embedding_layer(data.atomic_types)
 
-        neighbor_list_dict = atomic_data2neighbor_list(
+        data.neighbor_list = atomic_data2neighbor_list(
             data, self.cutoff_fn.cutoff_upper, self.self_interaction
         )
 
         distances = compute_distances(
-            data.pos, neighbor_list_dict["index_mapping"]
+            data.pos, data.["neighbor_list"]["index_mapping"], data.["neighbor_list"]["cell_shifts"]
         )
         rbf_expansion = self.rbf_layer(distances)
         if self.cutoff_fn != None:
