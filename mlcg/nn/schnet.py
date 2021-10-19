@@ -113,7 +113,7 @@ class SchNet(nn.Module):
 
         Parameters
         ----------
-        data: torch_geometric.data.Data object
+        data: mlcg.data.AtomicData 
             Input data object containing batch atom/bead positions
             and atom/bead types.
 
