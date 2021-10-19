@@ -11,7 +11,7 @@ CGnet references
 
 .. [CGSchnet] Husic, B. E. et al. `Coarse graining molecular dynamics with graph neural networks <https://doi.org/10.1063/5.0026133>`_ . J. Chem. Phys. 153, 194101 (2020).
 
-Code & Architectures
+Neural Network Architectures & Implementations
 --------------------
 .. [Schnet] Schütt, K. T. et al. `SchNet – A deep learning architecture for molecules and materials` <https://doi.org/10.1063/1.5019779>`_ J. Chem. Phys. 148(24), 241722. (2018).
 
