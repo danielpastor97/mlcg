@@ -129,7 +129,9 @@ class SchNet(nn.Module):
             data, self.cutoff_fn.cutoff_upper, self.self_interaction
         )
 
-        distances = compute_distances(data.pos, neighbor_list_dict["index_mapping"])
+        distances = compute_distances(
+            data.pos, neighbor_list_dict["index_mapping"]
+        )
         rbf_expansion = self.rbf_layer(distances)
         if self.cutoff_fn != None:
             rbf_expansion = rbf_expansion * self.cutoff_fn(distances)
