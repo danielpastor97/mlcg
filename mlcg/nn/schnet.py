@@ -31,7 +31,7 @@ class SchNet(nn.Module):
         Output neural network that predicts scalar energies from SchNet
         features. This network should transform (num_examples * num_atoms,
         hidden_channels) to (num_examples * num atoms, 1).
-    cutoff_fn:
+    cutoff:
         Cutoff function to apply to basis-expanded distances before filter
         generation.
     self_interaction:
@@ -50,8 +50,8 @@ class SchNet(nn.Module):
         embedding_layer: nn.Module,
         interaction_blocks: List[nn.Module],
         rbf_layer: nn.Module,
+        cutoff: nn.Module,
         output_network: nn.Module,
-        cutoff_fn: nn.Module = nn.Module,
         self_interaction: bool = False,
         max_num_neighbors: int = 1000,
     ):
@@ -60,7 +60,7 @@ class SchNet(nn.Module):
 
         self.embedding_layer = embedding_layer
         self.rbf_layer = rbf_layer
-        self.cutoff_fn = cutoff_fn
+        self.cutoff = cutoff
         self.max_num_neighbors = max_num_neighbors
         self.self_interaction = self_interaction
 
@@ -74,26 +74,20 @@ class SchNet(nn.Module):
                 "a list of InteractionBlocks"
             )
 
-        if (
-            rbf_layer.cutoff_lower != None
-            and self.cutoff_fn.cutoff_lower != None
-        ):
-            if self.cutoff_fn.cutoff_lower != self.rbf_layer.cutoff_lower:
+        if rbf_layer.cutoff_lower != None and self.cutoff.cutoff_lower != None:
+            if self.cutoff.cutoff_lower != self.rbf_layer.cutoff_lower:
                 warnings.warn(
                     "Cutoff function lower cutoff, {}, and radial basis function "
                     " lower cutoff, {}, do not match.".format(
-                        self.cutoff_fn.cutoff_lower, self.rbf_layer.cutoff_lower
+                        self.cutoff.cutoff_lower, self.rbf_layer.cutoff_lower
                     )
                 )
-        if (
-            rbf_layer.cutoff_upper != None
-            and self.cutoff_fn.cutoff_upper != None
-        ):
-            if self.cutoff_fn.cutoff_upper != self.rbf_layer.cutoff_upper:
+        if rbf_layer.cutoff_upper != None and self.cutoff.cutoff_upper != None:
+            if self.cutoff.cutoff_upper != self.rbf_layer.cutoff_upper:
                 warnings.warn(
                     "Cutoff function upper cutoff, {}, and radial basis function "
                     " upper cutoff, {}, do not match.".format(
-                        self.cutoff_fn.cutoff_upper, self.rbf_layer.cutoff_upper
+                        self.cutoff.cutoff_upper, self.rbf_layer.cutoff_upper
                     )
                 )
 
@@ -132,7 +126,7 @@ class SchNet(nn.Module):
         x = self.embedding_layer(data.atomic_types)
 
         data.neighbor_list = atomic_data2neighbor_list(
-            data, self.cutoff_fn.cutoff_upper, self.self_interaction
+            data, self.cutoff.cutoff_upper, self.self_interaction
         )
 
         distances = compute_distances(
@@ -141,8 +135,8 @@ class SchNet(nn.Module):
             data["neighbor_list"]["cell_shifts"],
         )
         rbf_expansion = self.rbf_layer(distances)
-        if self.cutoff_fn != None:
-            rbf_expansion = rbf_expansion * self.cutoff_fn(distances)
+        if self.cutoff != None:
+            rbf_expansion = rbf_expansion * self.cutoff(distances)
 
         for block in self.interaction_blocks:
             x = x + block(x, edge_index, distances, rbf_expansion)
@@ -156,7 +150,7 @@ class SchNet(nn.Module):
             f"embedding={self.embedding_layer}, "
             f"interaction_blocks={self.interaction_blocks}, "
             f"rbf_layer={self.rbf_layer}, "
-            f"cutoff_fn={self.cutoff_fn},"
+            f"cutoff={self.cutoff},"
             f"self_interaction={self.self_interaction}, "
             f"outpu_network={self.output_network}, "
         )
@@ -336,6 +330,7 @@ class CFConv(MessagePassing):
 
 def create_schnet(
     rbf_layer: nn.Module,
+    cutoff: nn.Module,
     output_network: nn.Module,
     hidden_channels: int = 128,
     max_z: int = 100,
@@ -344,7 +339,6 @@ def create_schnet(
     activation: type = nn.Tanh,
     cutoff_lower: float = 0.0,
     cutoff_upper: float = 0.5,
-    cutoff_fn: nn.Module = None,
     max_num_neighbors: int = 1000,
     aggr: str = "add",
 ) -> SchNet:
@@ -378,7 +372,7 @@ def create_schnet(
         interaction_blocks,
         rbf_layer,
         output_network,
-        cutoff_fn,
+        cutoff,
         max_num_neighbors=max_num_neighbors,
     )
 

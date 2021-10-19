@@ -176,7 +176,7 @@ class ExpNormalBasis(_RadialBasis):
         self.num_rbf = num_rbf
         self.trainable = trainable
 
-        self.cutoff_fn = CosineCutoff(0, cutoff_upper)
+        self.cutoff = CosineCutoff(0, cutoff_upper)
         self.alpha = 5.0 / (cutoff_upper - cutoff_lower)
 
         means, betas = self._initial_params()
@@ -224,7 +224,7 @@ class ExpNormalBasis(_RadialBasis):
         """
 
         dist = dist.unsqueeze(-1)
-        return self.cutoff_fn(dist) * torch.exp(
+        return self.cutoff(dist) * torch.exp(
             -self.betas
             * (torch.exp(self.alpha * (-dist + self.cutoff_lower)) - self.means)
             ** 2
