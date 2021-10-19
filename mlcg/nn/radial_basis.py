@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch_geometric.nn import MessagePassing
 from .cutoff import CosineCutoff
 
+
 def visualize_basis(rbf_layer):
     """Function for quickly visualizing a specific basis. This is useful for inspecting
     the distance coverage of basis functions for non-default lower and upper cutoffs.
@@ -24,6 +25,7 @@ def visualize_basis(rbf_layer):
         plt.plot(distances.numpy(), expanded_distances[:, i].detach().numpy())
     plt.show()
 
+
 class _RadialBasis(nn.Module):
     """Abstract radial basis function class"""
 
@@ -32,6 +34,7 @@ class _RadialBasis(nn.Module):
 
     def forward(self):
         raise NotImplementedError
+
 
 class GaussianBasis(_RadialBasis):
     """Class that generates a set of equidistant 1-D gaussian basis functions
