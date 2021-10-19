@@ -1,7 +1,16 @@
 import torch
 import torch.nn as nn
 
-class CosineCutoff(nn.Module):
+class _Cutoff(nn.Module):
+    """Abstract cutoff class"""
+
+    def __init__(self)
+        super(_Cutoff, self).__init__()
+
+    def forward(self)
+        raise NotImplementedError
+
+class CosineCutoff(_Cutoff):
     """Class implementing a cutoff envelope based a cosine signal.
 
     NOTE: The behavior of the cutoff is qualitatively different for lower

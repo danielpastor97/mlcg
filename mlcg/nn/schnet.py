@@ -26,6 +26,8 @@ class SchNet(nn.Module):
         Output neural network that predicts scalar energies from SchNet features.
         This network should transform (num_examples * num_atoms, hidden_channels)
         to (num_examples * num atoms, 1).
+    cutoff_fn: torch.nn.Module (default=None)
+        Cutoff function to apply to basis-expanded distances before filter generation.
     max_num_neighbors: int (default=100)
         Maximum number of neighbors to return for a
         given node/atom when constructing the molecular graph during forward passes.
@@ -41,6 +43,7 @@ class SchNet(nn.Module):
         interaction_blocks: List[nn.Module],
         rbf_layer: nn.Module,
         output_network: nn.Module,
+        cutoff_fn: nn.Module = None,
         max_num_neighbors: int = 1000,
     ):
 
@@ -48,6 +51,7 @@ class SchNet(nn.Module):
 
         self.embedding_layer = embedding_layer
         self.rbf_layer = rbf_layer
+        self.cutoff_fn = cutoff_fn
         self.max_num_neighbors = max_num_neighbors
 
         if isinstance(interaction_blocks, List):
@@ -59,17 +63,6 @@ class SchNet(nn.Module):
                 "interaction_blocks must be a single InteractionBlock or "
                 "a list of InteractionBlocks"
             )
-        # warn the user if cutoffs in RBFs and CFConv are different
-        if isinstance(self.rbf_layer, (GaussianBasis, ExpNormalBasis)):
-            for block in self.interaction_blocks:
-                if block.conv.cutoff != None:
-                    if (
-                        block.conv.cutoff.cutoff_upper
-                        != self.rbf_layer.cutoff_upper
-                    ):
-                        warnings.warn(
-                            "Convolution lower cutoff and RBF lower cutoff do not match."
-                        )
         self.output_network = output_network
 
     def reset_parameters(self):
@@ -111,6 +104,8 @@ class SchNet(nn.Module):
 
         distances = compute_distances(data.pos, edge_index)
         rbf_expansion = self.rbf_layer(distances)
+        if self.cutoff_fn != None:
+            rbf_expansion = rbf_expansion * self.cutoff_fn(distances)
 
         for block in self.interaction_blocks:
             x = x + block(x, edge_index, distances, rbf_expansion)
@@ -194,8 +189,6 @@ class CFConv(MessagePassing):
     ----------
     filter_net: nn.Module
         Neural network for generating filters from expanded pairwise distances
-    cutoff: nn.Module (default=None)
-        Cutoff envelope to apply to pariwise distances
     in_channels: int (default=128)
         Hidden input dimensions
     out_channels: int (default=128)
@@ -220,10 +213,6 @@ class CFConv(MessagePassing):
         self.lin1 = nn.Linear(in_channels, num_filters, bias=False)
         self.lin2 = nn.Linear(num_filters, out_channels)
         self.filter_network = filter_network
-        if cutoff != None:
-            self.cutoff = cutoff
-        else:
-            self.cutoff = None
 
         self.reset_parameters()
 
@@ -256,11 +245,7 @@ class CFConv(MessagePassing):
         x: torch.Tensor
             Updated embedded features of shape (num_examples * num_atoms, hidden_channels)
         """
-        if self.cutoff:
-            C = self.cutoff(edge_weight)
-            W = self.filter_network(edge_attr) * C.view(-1, 1)
-        else:
-            W = self.filter_network(edge_attr)
+        W = self.filter_network(edge_attr)
 
         x = self.lin1(x)
         # propagate_type: (x: Tensor, W: Tensor)
@@ -285,44 +270,26 @@ class CFConv(MessagePassing):
 
 
 def create_schnet(
+    rbf_layer: nn.Module,
+    output_network: nn.Module,
     hidden_channels: int = 128,
     max_z: int = 100,
     num_filters: int = 128,
     num_interactions: int = 3,
-    num_rbf: int = 50,
-    rbf_type: str = "gauss",
-    trainable_rbf: bool = False,
     activation: type = nn.Tanh,
     cutoff_lower: float = 0.0,
     cutoff_upper: float = 0.5,
-    conv_cutoff: bool = True,
+    cutoff_fn: nn.Module = None,
     max_num_neighbors: int = 1000,
     aggr: str = "add",
 ) -> SchNet:
 
     """Helper function to create a typical SchNet"""
 
-    defined_bases = {"gauss": GaussianBasis, "expnorm": ExpNormalBasis}
-
-    if rbf_type not in defined_bases.keys():
-        raise RuntimeError(
-            "Specified RBF type '{}' is not defined.".format(rbf_type)
-        )
     if num_interactions < 1:
         raise RuntimeError("At least one interaction block must be specified")
-    if num_rbf < 1:
-        raise RuntimeError(
-            "The number of RBFs must be greater than or equal to 1"
-        )
-    if cutoff_upper < cutoff_lower:
-        raise RuntimeError(
-            "Upper cutoff must be greater than or equal to lower cutoff"
-        )
 
     embedding_layer = nn.Embedding(max_z, hidden_channels)
-    rbf_layer = defined_bases[rbf_type](
-        cutoff_lower, cutoff_upper, num_rbf, trainable=trainable_rbf
-    )
 
     interaction_blocks = []
     for _ in range(num_interactions):
@@ -331,16 +298,9 @@ def create_schnet(
             activation(),
             nn.Linear(num_filters, num_filters),
         )
-        if conv_cutoff != None:
-            conv_cutoff = CosineCutoff(
-                cutoff_lower=cutoff_lower, cutoff_upper=cutoff_upper
-            )
-        else:
-            conv_cutoff = None
         cfconv = CFConv(
             filter_network,
             num_filters=num_filters,
-            cutoff=conv_cutoff,
             in_channels=hidden_channels,
             out_channels=hidden_channels,
             aggr=aggr,
@@ -352,6 +312,8 @@ def create_schnet(
         embedding_layer,
         interaction_blocks,
         rbf_layer,
+        output_network,
+        cutoff_fn,
         max_num_neighbors=max_num_neighbors,
     )
 
