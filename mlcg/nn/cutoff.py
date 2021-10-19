@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 
 class _Cutoff(nn.Module):
-    """Abstract cutoff class"""
+    r"""Abstract cutoff class"""
 
     def __init__(self):
         super(_Cutoff, self).__init__()
@@ -15,7 +16,7 @@ class _Cutoff(nn.Module):
 
 
 class _OneSidedCutoff(nn.Module):
-    """Abstract classs for cutoff functions with a fuxed lower cutoff of 0"""
+    r"""Abstract classs for cutoff functions with a fuxed lower cutoff of 0"""
 
     def __init__(self):
         super(_OneSidedCutoff, self).__init__()
@@ -27,7 +28,7 @@ class _OneSidedCutoff(nn.Module):
 
 
 class IdentityCutoff(_Cutoff):
-    """Cutoff function that applies an identity transform, but retains
+    r"""Cutoff function that applies an identity transform, but retains
     cutoff_lower and cutoff_upper attributes
 
     Parameters
@@ -38,15 +39,13 @@ class IdentityCutoff(_Cutoff):
         right bound for the radial cutoff distance
     """
 
-    def __init__(
-        self, cutoff_lower: float = 0, cutoff_upper: float = torch.inf
-    ):
+    def __init__(self, cutoff_lower: float = 0, cutoff_upper: float = np.inf):
         super(IdentityCutoff, self).__init__()
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
 
     def forwawrd(self, dist: torch.Tensor) -> torch.Tensor:
-        """Applies identity transform to input distances
+        r"""Applies identity transform to input distances
 
         Parameters
         ----------
@@ -61,12 +60,12 @@ class IdentityCutoff(_Cutoff):
 
 
 class CosineCutoff(_Cutoff):
-    """Class implementing a cutoff envelope based a cosine signal in the
-     interval `[lower_cutoff, upper_cutoff]`:
+    r"""Class implementing a cutoff envelope based a cosine signal in the
+    interval `[lower_cutoff, upper_cutoff]`:
 
     .. math::
 
-        \cos{ r_{ij} \times \pi / r_{high}) + 1.0
+        \cos{\left( r_{ij} \times \pi / r_{high})\right)} + 1.0
 
     NOTE: The behavior of the cutoff is qualitatively different for lower
     cutoff values greater than zero when compared to the zero lower cutoff

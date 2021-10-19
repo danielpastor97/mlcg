@@ -7,7 +7,7 @@ from .cutoff import CosineCutoff
 
 
 def visualize_basis(rbf_layer: nn.Module):
-    """Function for quickly visualizing a specific basis. This is useful for
+    r"""Function for quickly visualizing a specific basis. This is useful for
     inspecting the distance coverage of basis functions for non-default lower
     and upper cutoffs.
 
@@ -28,7 +28,7 @@ def visualize_basis(rbf_layer: nn.Module):
 
 
 class _RadialBasis(nn.Module):
-    """Abstract radial basis function class"""
+    r"""Abstract radial basis function class"""
 
     def __init__(self):
         super(_RadialBasis, self).__init__()
@@ -40,28 +40,29 @@ class _RadialBasis(nn.Module):
 
 
 class GaussianBasis(_RadialBasis):
-    """Class that generates a set of equidistant 1-D gaussian basis functions
+    r"""Class that generates a set of equidistant 1-D gaussian basis functions
     scattered between a specified lower and upper cutoff:
 
     .. math::
 
-        f_n = \exp{\gamma(r-c_n)^2}
+        f_n = \exp{ \left( -\gamma(r-c_n)^2 \right) }
 
     Parameters
     ----------
-    cutoff_lower: float (default=0.0)
+    cutoff_lower:
         Lower distance cutoff, corresponding to the center of the first gaussian
         function in the basis.
-    cutoff_upper: float (default=5.0)
+    cutoff_upper:
         Upper distance cutoff, corresponding to the center of the last gaussian
         function in the basis.
-    num_rbf: int (default=50)
+    num_rbf:
         The number of gaussian functions in the basis set.
-    trainable: bool (default=False)
+    trainable:
         If True, the parameters of the gaussian basis (the centers and widths of
         each function) are registered as optimizable parameters that will be
         updated during backpropagation. If False, these parameters will be
         instead fixed in an unoptimizable buffer.
+
     """
 
     def __init__(
@@ -86,7 +87,7 @@ class GaussianBasis(_RadialBasis):
             self.register_buffer("offset", offset)
 
     def _initial_params(self):
-        """Method for generating the initial parameters of the basis.
+        r"""Method for generating the initial parameters of the basis.
         The functions are set to have equidistant centers between the
         lower and cupper cutoff, while the variance of each function
         is set based on the difference between the lower and upper
@@ -99,13 +100,13 @@ class GaussianBasis(_RadialBasis):
         return offset, coeff
 
     def reset_parameters(self):
-        """Method for resetting the basis to its initial state"""
+        r"""Method for resetting the basis to its initial state"""
         offset, coeff = self._initial_params()
         self.offset.data.copy_(offset)
         self.coeff.data.copy_(coeff)
 
     def forward(self, dist: torch.Tensor) -> torch.Tensor:
-        """Expansion of distances through the radial basis function set.
+        r"""Expansion of distances through the radial basis function set.
 
         Parameters
         ----------
@@ -124,14 +125,14 @@ class GaussianBasis(_RadialBasis):
 
 
 class ExpNormalBasis(_RadialBasis):
-    """Class for generating a set of exponential normal radial basis functions,
-     as described in [Physnet]_ . The functions have the following form:
+    r"""Class for generating a set of exponential normal radial basis functions,
+    as described in [Physnet]_ . The functions have the following form:
 
     .. math::
 
-        \f_n(r_{ij};\alpha, r_{low},r_{high}) = f_{cut}(r_{ij},r_{low},r_{high})
+        f_n(r_{ij};\alpha, r_{low},r_{high}) = f_{cut}(r_{ij},r_{low},r_{high})
         \times \exp\left[-\beta_n \left(e^{\alpha (r_{ij} -r_{high}) }
-         - \mu_n \right)^2\right]
+        - \mu_n \right)^2\right]
 
     where
 
@@ -143,8 +144,7 @@ class ExpNormalBasis(_RadialBasis):
 
     .. math::
 
-        f_{cut}(r_{ij},r_{low},r_{high}) =  \cos{ r_{ij}
-        \times \pi / r_{high}) + 1.0
+        f_{cut} ( r_{ij},r_{low},r_{high} ) =  \cos{\left( r_{ij} \times \pi / r_{high}\right)} + 1.0
 
     Parameters
     ----------
@@ -188,7 +188,7 @@ class ExpNormalBasis(_RadialBasis):
             self.register_buffer("betas", betas)
 
     def _initial_params(self):
-        """Method for initializing the basis function parameters, as described in
+        r"""Method for initializing the basis function parameters, as described in
         https://pubs.acs.org/doi/10.1021/acs.jctc.9b00181 .
         """
 
@@ -202,7 +202,7 @@ class ExpNormalBasis(_RadialBasis):
         return means, betas
 
     def reset_parameters(self):
-        """Method to reset the parameters of the basis functions to their
+        r"""Method to reset the parameters of the basis functions to their
         initial values.
         """
         means, betas = self._initial_params()
@@ -210,7 +210,7 @@ class ExpNormalBasis(_RadialBasis):
         self.betas.data.copy_(betas)
 
     def forward(self, dist: torch.Tensor) -> torch.Tensor:
-        """Expansion of distances through the radial basis function set.
+        r"""Expansion of distances through the radial basis function set.
 
         Parameters
         ----------

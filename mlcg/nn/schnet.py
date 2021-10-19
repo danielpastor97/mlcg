@@ -1,15 +1,17 @@
 from typing import Optional, List
+import torch
 from torch import nn
 from torch_geometric.nn import MessagePassing
-from ..neighbor_list.torch_impl import atomic_data2neighbor_list
+from ..neighbor_list.neighbor_list import atomic_data2neighbor_list
+from ..data.atomic_data import AtomicData
 from .radial_basis import GaussianBasis, ExpNormalBasis
 from .cutoff import CosineCutoff
 from ..geometry.internal_coordinates import compute_distances
 
 
 class SchNet(nn.Module):
-    """PyTorch Geometric implementation of SchNet
-    Code adapted from [PT_geom_schnet]_  which is based on the architecture
+    r"""PyTorch Geometric implementation of SchNet
+    Code adapted from `[PT_geom_schnet]_`  which is based on the architecture
     described in [Schnet]_ .
 
     https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/models/schnet.html
@@ -111,8 +113,8 @@ class SchNet(nn.Module):
                 nn.init.xavier_uniform_(layer.weight)
                 layer.bias.fill_(0)
 
-    def forward(self, data: mlcg.data.AtomicData) -> mlcg.data.AtomicData:
-        """Forward pass through the SchNet architecture.
+    def forward(self, data: AtomicData) -> AtomicData:
+        r"""Forward pass through the SchNet architecture.
 
         Parameters
         ----------
@@ -161,7 +163,7 @@ class SchNet(nn.Module):
 
 
 class InteractionBlock(nn.Module):
-    """Interaction blocks for SchNet. Consists of atomwise
+    r"""Interaction blocks for SchNet. Consists of atomwise
     transformations of embedded features that are continuously
     convolved with filters generated from radial basis function-expanded
     pairwise distances.
@@ -202,7 +204,7 @@ class InteractionBlock(nn.Module):
         edge_weight: torch.Tensor,
         edge_attr: torch.Tensor,
     ) -> torch.Tensor:
-        """Forward pass through the interaction block.
+        r"""Forward pass through the interaction block.
 
         Parameters
         ----------
@@ -231,7 +233,7 @@ class InteractionBlock(nn.Module):
 
 
 class CFConv(MessagePassing):
-    """Forward pass through the interaction block.
+    r"""Forward pass through the interaction block.
 
     Parameters
     ----------
@@ -265,7 +267,7 @@ class CFConv(MessagePassing):
         self.reset_parameters()
 
     def reset_parameters(self):
-        """Method for resetting the weights of the linear
+        r"""Method for resetting the weights of the linear
         layers according the the Xavier uniform strategy. Biases
         are set to 0.
         """
@@ -281,7 +283,7 @@ class CFConv(MessagePassing):
         edge_weight: torch.Tensor,
         edge_attr: torch.Tensor,
     ) -> torch.Tensor:
-        """Forward pass through the continuous filter convolution.
+        r"""Forward pass through the continuous filter convolution.
 
         Parameters
         ----------
@@ -312,7 +314,7 @@ class CFConv(MessagePassing):
         return x
 
     def message(self, x_j: torch.Tensor, W: torch.Tensor) -> torch.Tensor:
-        """Message passing operation to perform the continuous filter
+        r"""Message passing operation to perform the continuous filter
         convolution through element-wise multiplcation of embedded
         features with the output of the filter network.
 
@@ -347,7 +349,7 @@ def create_schnet(
     aggr: str = "add",
 ) -> SchNet:
 
-    """Helper function to create a typical SchNet"""
+    r"""Helper function to create a typical SchNet"""
 
     if num_interactions < 1:
         raise RuntimeError("At least one interaction block must be specified")

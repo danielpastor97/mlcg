@@ -16,7 +16,7 @@ Neural Network Architectures & Implementations
 .. [Schnet] Schütt, K. T. et al. `SchNet – A deep learning architecture for molecules and materials` <https://doi.org/10.1063/1.5019779>`_ J. Chem. Phys. 148(24), 241722. (2018).
 
 
-.. [PyTorchGeometricSchnet] https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/models/schnet.html
+.. [PT_geom_schnet] https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/models/schnet.html
 
 .. [Physnet] Unke, O. T. et al. PhysNet: A Neural Network for Predicting Energies, Forces, Dipole Moments and Partial Charges. `<https://doi.org/10.1021/acs.jctc.9b00181>`_ Journal of Chemical Theory and Computation, 15(6). 3678–3693. (2019).
 
