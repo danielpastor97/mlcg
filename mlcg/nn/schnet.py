@@ -125,16 +125,11 @@ class SchNet(nn.Module):
         """
         x = self.embedding_layer(data.atomic_types)
 
-        neighbor_list = atomic_data2neighbor_list(
-            data, self.cutoff_fn.cutoff_upper
+        neighbor_list_dict = atomic_data2neighbor_list(
+            data, self.cutoff_fn.cutoff_upper, self.self_interaction
         )
 
-        if self.self_interaction:
-            edge_index = torch.vstack(edge_i, edge_j)
-        else:
-            edge_index = torch.vstack(edge_i, edge_j) * self_interaction_mask
-
-        distances = compute_distances(data.pos, edge_index)
+        distances = compute_distances(data.pos, neighbor_list_dict["index_mapping"])
         rbf_expansion = self.rbf_layer(distances)
         if self.cutoff_fn != None:
             rbf_expansion = rbf_expansion * self.cutoff_fn(distances)
