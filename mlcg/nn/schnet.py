@@ -142,17 +142,6 @@ class SchNet(nn.Module):
         data.energy = energy
         return data
 
-    def __repr__(self):
-        return (
-            f"{self.__class__.__name__}("
-            f"embedding={self.embedding_layer}, "
-            f"interaction_blocks={self.interaction_blocks}, "
-            f"rbf_layer={self.rbf_layer}, "
-            f"cutoff={self.cutoff},"
-            f"self_interaction={self.self_interaction}, "
-            f"outpu_network={self.output_network}, "
-        )
-
 
 class InteractionBlock(nn.Module):
     r"""Interaction blocks for SchNet. Consists of atomwise
