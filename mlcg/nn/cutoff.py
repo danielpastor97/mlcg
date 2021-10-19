@@ -45,12 +45,12 @@ class IdentityCutoff(_Cutoff):
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
 
-    def forwawrd(self, dist):
+    def forwawrd(self, dist: torch.Tensor) -> torch.Tensor:
         """Applies identity transform to input distances
 
         Parameters
         ----------
-        dist: torch.Tensor
+        dist:
             Input distances of shape (total_num_distances)
 
         Returns
@@ -61,20 +61,22 @@ class IdentityCutoff(_Cutoff):
 
 
 class CosineCutoff(_Cutoff):
-    """Class implementing a cutoff envelope based a cosine signal in the interval
-    `[lower_cutoff, upper_cutoff]`:
+    """Class implementing a cutoff envelope based a cosine signal in the
+     interval `[lower_cutoff, upper_cutoff]`:
 
     .. math::
 
         \cos{ r_{ij} \times \pi / r_{high}) + 1.0
 
     NOTE: The behavior of the cutoff is qualitatively different for lower
-    cutoff values greater than zero when compared to the zero lower cutoff default.
-    We recommend visualizing your basis to see if it makes physical sense.
+    cutoff values greater than zero when compared to the zero lower cutoff
+    default. We recommend visualizing your basis to see if it makes physical
+    sense.
 
     .. math::
 
-        0.5 \times ( \cos{ ( \pi (2 \frac{r_{ij} - r_{low}}{r_{high} - r_{low}} + 1.0))} + 1.0 )
+        0.5 \times ( \cos{ ( \pi (2 \frac{r_{ij} - r_{low}}{r_{high}
+         - r_{low}} + 1.0))} + 1.0 )
 
     """
 
@@ -83,18 +85,19 @@ class CosineCutoff(_Cutoff):
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
 
-    def forward(self, distances):
+    def forward(self, dist: torch.Tensor) -> torch.Tensor:
         """Applies cutoff envelope to distances.
 
         Parameters
         ----------
-        distances: torch.Tensor
+        dist:
             Distances of shape (total_num_edges)
 
         Returns
         -------
-        cutoffs: torch.Tensor
-            Distances multiplied by the cutoff envelope, with shape (total_num_edges)
+        cutoffs:
+            Distances multiplied by the cutoff envelope, with shape
+            (total_num_edges)
         """
         if self.cutoff_lower > 0:
             cutoffs = 0.5 * (

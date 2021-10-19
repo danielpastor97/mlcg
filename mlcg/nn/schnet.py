@@ -9,36 +9,38 @@ from ..geometry.internal_coordinates import compute_distances
 
 class SchNet(nn.Module):
     """PyTorch Geometric implementation of SchNet
-    Code adapted from [PT_geom_schnet]_  which is based on the architecture described in [Schnet]_ .
+    Code adapted from [PT_geom_schnet]_  which is based on the architecture
+    described in [Schnet]_ .
 
     https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/models/schnet.html
 
     Parameters
     ----------
-    embedding_layer: torch.nn.Module
+    embedding_layer:
         Initial embedding layer that transforms atoms/coarse grain bead
         types into embedded features
     interaction_blocks: list of torch.nn.Module or torch.nn.Sequential
         Sequential interaction blocks of the model, where each interaction
         block applies
-    rbf_layer: torch.nn.Module
-        The set of radial basis functions that expands pairwise distances between
-        atoms/CG beads.
-    output_network: torch.nn.Module
-        Output neural network that predicts scalar energies from SchNet features.
-        This network should transform (num_examples * num_atoms, hidden_channels)
-        to (num_examples * num atoms, 1).
-    cutoff_fn: torch.nn.Module
-        Cutoff function to apply to basis-expanded distances before filter generation.
-    self_interaction: bool (default=False)
+    rbf_layer:
+        The set of radial basis functions that expands pairwise distances
+        between atoms/CG beads.
+    output_network:
+        Output neural network that predicts scalar energies from SchNet
+        features. This network should transform (num_examples * num_atoms,
+        hidden_channels) to (num_examples * num atoms, 1).
+    cutoff_fn:
+        Cutoff function to apply to basis-expanded distances before filter
+        generation.
+    self_interaction:
         If True, self interactions/distancess are calculated.
-    max_num_neighbors: int (default=100)
+    max_num_neighbors:
         Maximum number of neighbors to return for a
-        given node/atom when constructing the molecular graph during forward passes.
-        This attribute is passed to the torch_cluster radius_graph routine keyword
-        max_num_neighbors, which normally defaults to 32. Users should set this to
-        higher values if they are using higher upper distance cutoffs and expect more
-        than 32 neighbors per node/atom.
+        given node/atom when constructing the molecular graph during forward
+        passes. This attribute is passed to the torch_cluster radius_graph
+        routine keyword max_num_neighbors, which normally defaults to 32.
+        Users should set this to higher values if they are using higher upper
+        distance cutoffs and expect more than 32 neighbors per node/atom.
     """
 
     def __init__(
@@ -76,7 +78,8 @@ class SchNet(nn.Module):
         ):
             if self.cutoff_fn.cutoff_lower != self.rbf_layer.cutoff_lower:
                 warnings.warn(
-                    "Cutoff function lower cutoff, {}, and radial basis function lower cutoff, {}, do not match.".format(
+                    "Cutoff function lower cutoff, {}, and radial basis function "
+                    " lower cutoff, {}, do not match.".format(
                         self.cutoff_fn.cutoff_lower, self.rbf_layer.cutoff_lower
                     )
                 )
@@ -86,7 +89,8 @@ class SchNet(nn.Module):
         ):
             if self.cutoff_fn.cutoff_upper != self.rbf_layer.cutoff_upper:
                 warnings.warn(
-                    "Cutoff function upper cutoff, {}, and radial basis function upper cutoff, {}, do not match.".format(
+                    "Cutoff function upper cutoff, {}, and radial basis function "
+                    " upper cutoff, {}, do not match.".format(
                         self.cutoff_fn.cutoff_upper, self.rbf_layer.cutoff_upper
                     )
                 )
@@ -107,20 +111,21 @@ class SchNet(nn.Module):
                 nn.init.xavier_uniform_(layer.weight)
                 layer.bias.fill_(0)
 
-    def forward(self, data):
+    def forward(self, data: mlcg.data.AtomicData) -> mlcg.data.AtomicData:
         """Forward pass through the SchNet architecture.
 
         Parameters
         ----------
-        data: mlcg.data.AtomicData
+        data:
             Input data object containing batch atom/bead positions
             and atom/bead types.
 
         Returns
         -------
-        data: torch_geometric.data.Data object,
+        data:
            Data dictionary, updated with predicted energy of shape
-           (num_examples * num_atoms, 1).
+           (num_examples * num_atoms, 1), as well as neighbor list
+           information.
         """
         x = self.embedding_layer(data.atomic_types)
 
@@ -156,18 +161,19 @@ class SchNet(nn.Module):
 
 
 class InteractionBlock(nn.Module):
-    """Interaction blocks for SchNet. Consists of atomwise transformations
-    of embedded features that are continuously convolved with filters generated
-    from radial basis function-expanded pairwise distances.
+    """Interaction blocks for SchNet. Consists of atomwise
+    transformations of embedded features that are continuously
+    convolved with filters generated from radial basis function-expanded
+    pairwise distances.
 
     Parameters
     ----------
-    cfconv_layer: CFConv object
+    cfconv_layer:
         Continuous filter convolution layer for convolutions of radial basis
         function-expanded distances with embedded features
-    hidden_channels: int (default=128)
+    hidden_channels:
         Hidden dimension of embedded features
-    activation: type
+    activation:
         Activation function applied to linear layer outputs
     """
 
@@ -175,7 +181,7 @@ class InteractionBlock(nn.Module):
         self,
         cfconv_layer: nn.Module,
         hidden_channels: int = 128,
-        activation: nn.Module = nn.Tanh,
+        activation: type = nn.Tanh,
     ):
         super(InteractionBlock, self).__init__()
         self.conv = cfconv_layer
@@ -189,24 +195,33 @@ class InteractionBlock(nn.Module):
         nn.init.xavier_uniform_(self.lin.weight)
         self.lin.bias.data.fill_(0)
 
-    def forward(self, x, edge_index, edge_weight, edge_attr):
+    def forward(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_weight: torch.Tensor,
+        edge_attr: torch.Tensor,
+    ) -> torch.Tensor:
         """Forward pass through the interaction block.
 
         Parameters
         ----------
-        x: torch.Tensor
-            Embedded features of shape (num_examples, num_atoms, hidden_channels)
-        edge_index: torch.Tensor
+        x:
+            Embedded features of shape (num_examples, num_atoms,
+            hidden_channels)
+        edge_index:
             Graph edge index tensor of shape (2, total_num_edges)
-        edge_weight: torch.Tensor
+        edge_weight:
             Graph edge weight (eg, distances), of shape (total_num_edges)
-        edge_attr: torch.Tensor
-            Graph edge attributes (eg, expanded distances), of shape (total_num_edges, num_rbf)
+        edge_attr:
+            Graph edge attributes (eg, expanded distances), of shape
+            (total_num_edges, num_rbf)
 
         Returns
         -------
-        x: torch.Tensor
-            Updated embedded features of shape (num_examples * num_atoms, hidden_channels)
+        x:
+            Updated embedded features of shape (num_examples * num_atoms,
+            hidden_channels)
         """
 
         x = self.conv(x, edge_index, edge_weight, edge_attr)
@@ -220,15 +235,15 @@ class CFConv(MessagePassing):
 
     Parameters
     ----------
-    filter_net: nn.Module
+    filter_net:
         Neural network for generating filters from expanded pairwise distances
-    in_channels: int (default=128)
+    in_channels:
         Hidden input dimensions
-    out_channels: int (default=128)
+    out_channels:
         Hidden output dimensions
-    num_filters: int (default=128)
+    num_filters:
         Number of filters
-    aggr: str (default='add')
+    aggr:
         Aggregation scheme for continuous filter output. For all options,
         see https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class
     """
@@ -259,24 +274,33 @@ class CFConv(MessagePassing):
         nn.init.xavier_uniform_(self.lin2.weight)
         self.lin2.bias.data.fill_(0)
 
-    def forward(self, x, edge_index, edge_weight, edge_attr):
-        """Forward pass through the interaction block.
+    def forward(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_weight: torch.Tensor,
+        edge_attr: torch.Tensor,
+    ) -> torch.Tensor:
+        """Forward pass through the continuous filter convolution.
 
         Parameters
         ----------
-        x: torch.Tensor
-            Embedded features of shape (num_examples * num_atoms, hidden_channels)
-        edge_index: torch.Tensor
+        x:
+            Embedded features of shape (num_examples * num_atoms,
+            hidden_channels)
+        edge_index
             Graph edge index tensor of shape (2, total_num_edges)
-        edge_weight: torch.Tensor
+        edge_weight:
             Graph edge weight (eg, distances), of shape (total_num_edges)
-        edge_attr: torch.Tensor
-            Graph edge attributes (eg, expanded distances), of shape (total_num_edges, num_rbf)
+        edge_attr:
+            Graph edge attributes (eg, expanded distances), of shape
+            (total_num_edges, num_rbf)
 
         Returns
         -------
-        x: torch.Tensor
-            Updated embedded features of shape (num_examples * num_atoms, hidden_channels)
+        x:
+            Updated embedded features of shape (num_examples * num_atoms,
+            hidden_channels)
         """
         W = self.filter_network(edge_attr)
 
@@ -287,17 +311,23 @@ class CFConv(MessagePassing):
         x = self.lin2(x)
         return x
 
-    def message(self, x_j, W):
-        """Message passing operation to perform the continuous filter convolution
-        through element-wise multiplcation of embedded features with the output
-        of the filter network.
+    def message(self, x_j: torch.Tensor, W: torch.Tensor) -> torch.Tensor:
+        """Message passing operation to perform the continuous filter
+        convolution through element-wise multiplcation of embedded
+        features with the output of the filter network.
 
         Parameters
         ----------
-        x_j: torch.Tensor
-            Tensor of embedded features of shape (total_num_edges, hidden_channels)
-        W: torch.Tensor
+        x_j:
+            Tensor of embedded features of shape (total_num_edges,
+            hidden_channels)
+        W:
             Tensor of filter values of shape (total_num_edges, num_filters)
+
+        Returns
+        -------
+        x_j * W:
+            Elementwise multiplication of the filters with embedded features.
         """
         return x_j * W
 

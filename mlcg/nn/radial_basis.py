@@ -6,13 +6,14 @@ from torch_geometric.nn import MessagePassing
 from .cutoff import CosineCutoff
 
 
-def visualize_basis(rbf_layer):
-    """Function for quickly visualizing a specific basis. This is useful for inspecting
-    the distance coverage of basis functions for non-default lower and upper cutoffs.
+def visualize_basis(rbf_layer: nn.Module):
+    """Function for quickly visualizing a specific basis. This is useful for
+    inspecting the distance coverage of basis functions for non-default lower
+    and upper cutoffs.
 
     Parameters
     ----------
-    rbf_layer: nn.Module
+    rbf_layer:
         Input radial basis function layer to visualize.
     """
 
@@ -57,10 +58,10 @@ class GaussianBasis(_RadialBasis):
     num_rbf: int (default=50)
         The number of gaussian functions in the basis set.
     trainable: bool (default=False)
-        If True, the parameters of the gaussian basis (the centers and widths of each
-        function) are registered as optimizable parameters that will be updated during
-        backpropagation. If False, these parameters will be instead fixed in an
-        unoptimizable buffer.
+        If True, the parameters of the gaussian basis (the centers and widths of
+        each function) are registered as optimizable parameters that will be
+        updated during backpropagation. If False, these parameters will be
+        instead fixed in an unoptimizable buffer.
     """
 
     def __init__(
@@ -85,10 +86,11 @@ class GaussianBasis(_RadialBasis):
             self.register_buffer("offset", offset)
 
     def _initial_params(self):
-        """Method for generating the initial parameters of the basis. The functions
-        are set to have equidistant centers between the lower and cupper cutoff, while
-        the variance of each function is set based on the difference between the lower
-        and upper cutoffs.
+        """Method for generating the initial parameters of the basis.
+        The functions are set to have equidistant centers between the
+        lower and cupper cutoff, while the variance of each function
+        is set based on the difference between the lower and upper
+        cutoffs.
         """
         offset = torch.linspace(
             self.cutoff_lower, self.cutoff_upper, self.num_rbf
@@ -102,18 +104,19 @@ class GaussianBasis(_RadialBasis):
         self.offset.data.copy_(offset)
         self.coeff.data.copy_(coeff)
 
-    def forward(self, dist):
+    def forward(self, dist: torch.Tensor) -> torch.Tensor:
         """Expansion of distances through the radial basis function set.
 
         Parameters
         ----------
-        dist: torch.Tensor
+        dist:
             Input pairwise distances of shape (total_num_edges)
 
         Return
         ------
-        expanded_distances: torch.Tensor
-            Distances expanded in the radial basis with shape (total_num_edges, num_rbf)
+        expanded_distances:
+            Distances expanded in the radial basis with shape (total_num_edges,
+            num_rbf)
         """
 
         dist = dist.unsqueeze(-1) - self.offset
@@ -121,16 +124,14 @@ class GaussianBasis(_RadialBasis):
 
 
 class ExpNormalBasis(_RadialBasis):
-    """Class for generating a set of exponential normal radial basis functions, as described in
-    the following paper:
-
-    Unke, O. T., & Meuwly, M. (2019). PhysNet: A Neural Network for Predicting Energies, Forces, Dipole Moments and Partial Charges. Journal of Chemical Theory and Computation, 15(6), 3678–3693. https://doi.org/10.1021/acs.jctc.9b00181
-
-    The functions have the following form:
+    """Class for generating a set of exponential normal radial basis functions,
+     as described in [Physnet]_ . The functions have the following form:
 
     .. math::
 
-        \f_n(r_{ij};\alpha, r_{low},r_{high}) = f_{cut}(r_{ij},r_{low},r_{high}) \times \exp\left[-\beta_n \left(e^{\alpha (r_{ij} -r_{high}) } - \mu_n \right)^2\right]
+        \f_n(r_{ij};\alpha, r_{low},r_{high}) = f_{cut}(r_{ij},r_{low},r_{high})
+        \times \exp\left[-\beta_n \left(e^{\alpha (r_{ij} -r_{high}) }
+         - \mu_n \right)^2\right]
 
     where
 
@@ -142,21 +143,24 @@ class ExpNormalBasis(_RadialBasis):
 
     .. math::
 
-        f_{cut}(r_{ij},r_{low},r_{high}) =  \cos{ r_{ij} \times \pi / r_{high}) + 1.0
+        f_{cut}(r_{ij},r_{low},r_{high}) =  \cos{ r_{ij}
+        \times \pi / r_{high}) + 1.0
+
     Parameters
     ----------
-    cutoff_lower: float (default=0.0)
+    cutoff_lower:
         Lower distance cutoff, corresponding to the center of the first gaussian
         function in the basis.
-    cutoff_upper: float (default=5.0)
-        Upper distance cutoff, corresponding to the zero point off the cutoff envelope.
-    num_rbf: int (default=50)
+    cutoff_upper:
+        Upper distance cutoff, corresponding to the zero point off the cutoff
+        envelope.
+    num_rbf:
         The number of functions in the basis set.
-    trainable: bool (default=False)
+    trainable:
         If True, the parameters of the basis (the centers and widths of each
-        function) are registered as optimizable parameters that will be updated during
-        backpropagation. If False, these parameters will be instead fixed in an
-        unoptimizable buffer.
+        function) are registered as optimizable parameters that will be updated
+        during backpropagation. If False, these parameters will be instead fixed
+        in an unoptimizable buffer.
     """
 
     def __init__(
@@ -198,12 +202,14 @@ class ExpNormalBasis(_RadialBasis):
         return means, betas
 
     def reset_parameters(self):
-        """Method to reset the parameters of the basis functions to their initial values."""
+        """Method to reset the parameters of the basis functions to their
+        initial values.
+        """
         means, betas = self._initial_params()
         self.means.data.copy_(means)
         self.betas.data.copy_(betas)
 
-    def forward(self, dist):
+    def forward(self, dist: torch.Tensor) -> torch.Tensor:
         """Expansion of distances through the radial basis function set.
 
         Parameters
