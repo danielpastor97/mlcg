@@ -2,7 +2,8 @@ from typing import Optional, List
 from torch import nn
 from torch_geometric.nn import MessagePassing
 from torch_cluster import radius_graph
-from .basis import GaussianBasis, ExpNormalBasis, CosineCutoff
+from .radial_basis import GaussianBasis, ExpNormalBasis
+from .cutoff import CosineCutoff
 from ..geometry.internal_coordinates import compute_distances
 
 
@@ -21,6 +22,10 @@ class SchNet(nn.Module):
     rbf_layer: torch.nn.Module
         The set of radial basis functions that expands pairwise distances between
         atoms/CG beads.
+    output_network: torch.nn.Module
+        Output neural network that predicts scalar energies from SchNet features.
+        This network should transform (num_examples * num_atoms, hidden_channels)
+        to (num_examples * num atoms, 1).
     max_num_neighbors: int (default=100)
         Maximum number of neighbors to return for a
         given node/atom when constructing the molecular graph during forward passes.
@@ -35,6 +40,7 @@ class SchNet(nn.Module):
         embedding_layer: nn.Module,
         interaction_blocks: List[nn.Module],
         rbf_layer: nn.Module,
+        output_network: nn.Module,
         max_num_neighbors: int = 1000,
     ):
 
@@ -64,12 +70,21 @@ class SchNet(nn.Module):
                         warnings.warn(
                             "Convolution lower cutoff and RBF lower cutoff do not match."
                         )
+        self.output_network = output_network
 
     def reset_parameters(self):
-        self.embedding_layer.reset_parameters()
+        """Method for resetting linear layers in each SchNet component"""
+        for layer in self.embedding_layer:
+            if isinstance(layer, nn.Linear):
+                nn.init.xavier_uniform_(layer.weight)
+                layer.bias.fill_(0)
         self.rbf_layer.reset_parameters()
         for block in self.interaction_blocks:
             interaction.reset_parameters()
+        for layer in self.output_network:
+            if isinstance(layer, nn.Linear):
+                nn.init.xavier_uniform_(layer.weight)
+                layer.bias.fill_(0)
 
     def forward(self, data):
         """Forward pass through the SchNet architecture.
@@ -82,8 +97,9 @@ class SchNet(nn.Module):
 
         Returns
         -------
-        x: torch.tensor,
-           SchNet features, of shape (num_examples * num_atoms, hidden_channels)
+        data: torch_geometric.data.Data object,
+           Data dictionary, updated with predicted energy of shape
+           (num_examples * num_atoms, 1).
         """
         x = self.embedding_layer(data.atomic_types)
         edge_index = radius_graph(
@@ -98,8 +114,9 @@ class SchNet(nn.Module):
 
         for block in self.interaction_blocks:
             x = x + block(x, edge_index, distances, rbf_expansion)
-
-        return x
+        energy = self.output_network(x)
+        data.energy = energy
+        return data
 
     def __repr__(self):
         return (

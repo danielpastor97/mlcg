@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch_geometric.nn import MessagePassing
-
+from .cutoff import CosineCutoff
 
 def visualize_basis(rbf_layer):
     """Function for quickly visualizing a specific basis. This is useful for inspecting
