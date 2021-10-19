@@ -8,31 +8,31 @@ from typing import List, Final
 import sys
 
 # == Define allowed keys as constants ==
-# The positions of the atoms in the system
+#: The positions of the atoms in the system
 POSITIONS_KEY: Final[str] = "pos"
 N_ATOMS_KEY: Final[str] = "n_atoms"
-
+#: conectivity information
 NEIGHBOR_LIST_KEY: Final[str] = "neighbor_list"
-
+#: metadata about the structures
 TAG_KEY: Final[str] = "tag"
 
-# A [n_edge, 3] tensor of displacement vectors associated to edges
+#: A [n_edge, 3] tensor of direction vectors associated to edges
 DIRECTION_VECTORS_KEY: Final[str] = "direction_vectors"
-# A [n_edge] tensor of the lengths of EDGE_VECTORS
+#: A [n_edge] tensor of the lengths of EDGE_VECTORS
 DISTANCES_KEY: Final[str] = "distances"
-# [n_edge, dim] (possibly equivariant) attributes of each edge
+#: [n_edge, dim] (possibly equivariant) attributes of each edge
 EDGE_ATTRS_KEY: Final[str] = "edge_attrs"
-# [n_edge, dim] invariant embedding of the edges
+#: [n_edge, dim] invariant embedding of the edges
 EDGE_EMBEDDING_KEY: Final[str] = "edge_embedding"
-# [3, 3] unit cell of the atomic structure. Lattice vectors are defined row wise
+#: [3, 3] unit cell of the atomic structure. Lattice vectors are defined row wise
 CELL_KEY: Final[str] = "cell"
-# [3] periodic boundary conditions
+#: [3] periodic boundary conditions
 PBC_KEY: Final[str] = "pbc"
 
 NODE_FEATURES_KEY: Final[str] = "node_features"
 NODE_ATTRS_KEY: Final[str] = "node_attrs"
-# if atoms then it's the atomic number, if it's a CG bead then it's a number
-# defined by the CG mapping
+#: if atoms then it's the atomic number, if it's a CG bead then it's a number
+#: defined by the CG mapping
 ATOM_TYPE_KEY: Final[str] = "atom_types"
 
 ENERGY_KEY: Final[str] = "energy"
@@ -42,7 +42,7 @@ PROPERTY_KEYS: Final[List[str]] = (ENERGY_KEY, FORCE_KEY)
 
 BATCH_KEY: Final[str] = "batch"
 
-# Make a list of allowed keys
+#: Make a list of allowed keys
 ALLOWED_KEYS: List[str] = [
     getattr(sys.modules[__name__], k)
     for k in sys.modules[__name__].__dict__.keys()

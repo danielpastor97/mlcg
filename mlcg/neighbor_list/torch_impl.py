@@ -120,7 +120,6 @@ def strides_of(v: torch.Tensor) -> torch.Tensor:
 def torch_neighbor_list_no_pbc(
     data, rcut, self_interaction=True, num_workers=1, max_num_neighbors=1000
 ):
-    # assert data.n_atoms.shape[0] == 1, 'data should contain only one structure'
     if "batch" not in data:
         batch = torch.zeros(
             data.pos.shape[0], dtype=torch.long, device=data.pos.device
@@ -234,8 +233,6 @@ def wrap_positions(data, eps=1e-7):
 
     # Don't change coordinates when pbc is False
     shift[torch.logical_not(pbc)] = 0.0
-
-    # assert np.asarray(cell)[np.asarray(pbc)].any(axis=1).all(), (cell, pbc)
 
     cell = data.cell
     positions = data.pos

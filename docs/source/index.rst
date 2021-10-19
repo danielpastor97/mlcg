@@ -6,11 +6,25 @@
 Welcome to mlcg-tools's documentation!
 ======================================
 
+
+.. include:: ../../README.rst
+   :start-after: start-intro
+   :end-before: end-intro
+
+
+
+.. role:: python(code)
+   :language: python
+
+
+Contents
+----------
+
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
-
+   
    autodoc
+   bibliography
 
 Indices and tables
 ==================

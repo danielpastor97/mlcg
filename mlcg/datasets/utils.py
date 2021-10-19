@@ -4,6 +4,9 @@ from ..data._keys import FORCE_KEY
 
 
 def remove_baseline_forces(data, models):
+    """Compute the forces on the input :obj:`data` with the :obj:`models` and
+    remove them from the reference forces contained in :obj:`data`.
+    """
     baseline_forces = []
     for k in models.keys():
         models[k].eval()
