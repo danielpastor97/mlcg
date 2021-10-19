@@ -14,6 +14,18 @@ class _Cutoff(nn.Module):
         raise NotImplementedError
 
 
+class _OneSidedCutoff(nn.Module):
+    """Abstract classs for cutoff functions with a fuxed lower cutoff of 0"""
+
+    def __init__(self):
+        super(_OneSidedCutoff, self).__init__()
+        self.cutoff_lower = 0
+        self.cutoff_upper = None
+
+    def forward(self):
+        raise NotImplementedError
+
+
 class IdentityCutoff(_Cutoff):
     """Cutoff function that applies an identity transform, but retains
     cutoff_lower and cutoff_upper attributes
