@@ -12,6 +12,34 @@ class _Cutoff(nn.Module):
         raise NotImplementedError
 
 
+class IdentityCutoff(_Cutoff):
+    """Cutoff function that applies an identity transform, but retains
+    cutoff_lower and cutoff_upper attributes
+
+    Parameters
+    ----------
+    cutoff_lower: float (default=0)
+    cutoff_upper: float (default=inf)
+    """
+
+    def __init__(self, cutoff_lower=0, cutoff_upper=torch.inf)
+        super(IdentityCutoff, self).__init__()
+
+    def forwawrd(self, dist):
+        """Applies identity transform to input distances
+
+        Parameters
+        ----------
+        dist: torch.Tensor
+            Input distances of shape (total_num_distances)
+
+        Returns
+        -------
+            Identity-transformed output distances of shape (total_num_edges)
+        """
+        return dist
+
+
 class CosineCutoff(_Cutoff):
     """Class implementing a cutoff envelope based a cosine signal between a specified
     lower and upper cutoff:
