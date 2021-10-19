@@ -71,25 +71,23 @@ class SchNet(nn.Module):
         else:
             raise RuntimeError(
                 "interaction_blocks must be a single InteractionBlock or "
-                "a list of InteractionBlocks"
+                "a list of InteractionBlocks."
             )
 
-        if rbf_layer.cutoff_lower != None and self.cutoff.cutoff_lower != None:
-            if self.cutoff.cutoff_lower != self.rbf_layer.cutoff_lower:
-                warnings.warn(
-                    "Cutoff function lower cutoff, {}, and radial basis function "
-                    " lower cutoff, {}, do not match.".format(
-                        self.cutoff.cutoff_lower, self.rbf_layer.cutoff_lower
-                    )
+        if self.cutoff.cutoff_lower != self.rbf_layer.cutoff_lower:
+            warnings.warn(
+                "Cutoff function lower cutoff, {}, and radial basis function "
+                " lower cutoff, {}, do not match.".format(
+                    self.cutoff.cutoff_lower, self.rbf_layer.cutoff_lower
                 )
-        if rbf_layer.cutoff_upper != None and self.cutoff.cutoff_upper != None:
-            if self.cutoff.cutoff_upper != self.rbf_layer.cutoff_upper:
-                warnings.warn(
-                    "Cutoff function upper cutoff, {}, and radial basis function "
-                    " upper cutoff, {}, do not match.".format(
-                        self.cutoff.cutoff_upper, self.rbf_layer.cutoff_upper
-                    )
+            )
+        if self.cutoff.cutoff_upper != self.rbf_layer.cutoff_upper:
+            warnings.warn(
+                "Cutoff function upper cutoff, {}, and radial basis function "
+                " upper cutoff, {}, do not match.".format(
+                    self.cutoff.cutoff_upper, self.rbf_layer.cutoff_upper
                 )
+            )
 
         self.output_network = output_network
 
