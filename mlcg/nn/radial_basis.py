@@ -31,6 +31,8 @@ class _RadialBasis(nn.Module):
 
     def __init__(self):
         super(_RadialBasis, self).__init__()
+        self.cutoff_lower = None
+        self.cutoff_upper = None
 
     def forward(self):
         raise NotImplementedError

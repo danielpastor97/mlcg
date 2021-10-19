@@ -7,6 +7,8 @@ class _Cutoff(nn.Module):
 
     def __init__(self):
         super(_Cutoff, self).__init__()
+        self.cutoff_lower = None
+        self.cutoff_upper = None
 
     def forward(self):
         raise NotImplementedError
@@ -22,8 +24,10 @@ class IdentityCutoff(_Cutoff):
     cutoff_upper: float (default=inf)
     """
 
-    def __init__(self, cutoff_lower=0, cutoff_upper=torch.inf)
+    def __init__(self, cutoff_lower=0, cutoff_upper=torch.inf):
         super(IdentityCutoff, self).__init__()
+        self.cutoff_lower = cutoff_lower
+        self.cutoff_upper = cutoff_upper
 
     def forwawrd(self, dist):
         """Applies identity transform to input distances

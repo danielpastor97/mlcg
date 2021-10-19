@@ -1,7 +1,7 @@
 from typing import Optional, List
 from torch import nn
 from torch_geometric.nn import MessagePassing
-from ..neighbor_list.torch_impl import torch_neighbor_list
+from ..neighbor_list.torch_impl import atomic_data2neighbor_list
 from .radial_basis import GaussianBasis, ExpNormalBasis
 from .cutoff import CosineCutoff
 from ..geometry.internal_coordinates import compute_distances
@@ -29,7 +29,7 @@ class SchNet(nn.Module):
         Output neural network that predicts scalar energies from SchNet features.
         This network should transform (num_examples * num_atoms, hidden_channels)
         to (num_examples * num atoms, 1).
-    cutoff_fn: torch.nn.Module (default=None)
+    cutoff_fn: torch.nn.Module
         Cutoff function to apply to basis-expanded distances before filter generation.
     self_interaction: bool (default=False)
         If True, self interactions/distancess are calculated.
@@ -48,8 +48,8 @@ class SchNet(nn.Module):
         interaction_blocks: List[nn.Module],
         rbf_layer: nn.Module,
         output_network: nn.Module,
-        cutoff_fn: nn.Module = None,
-        self_interaction: bool =False,
+        cutoff_fn: nn.Module = nn.Module,
+        self_interaction: bool = False,
         max_num_neighbors: int = 1000,
     ):
 
@@ -70,6 +70,28 @@ class SchNet(nn.Module):
                 "interaction_blocks must be a single InteractionBlock or "
                 "a list of InteractionBlocks"
             )
+
+        if (
+            rbf_layer.cutoff_lower != None
+            and self.cutoff_fn.cutoff_lower != None
+        ):
+            if self.cutoff_fn.cutoff_lower != self.rbf_layer.cutoff_lower:
+                warnings.warn(
+                    "Cutoff function lower cutoff, {}, and radial basis function lower cutoff, {}, do not match.".format(
+                        self.cutoff_fn.cutoff_lower, self.rbf_layer.cutoff_lower
+                    )
+                )
+        if (
+            rbf_layer.cutoff_upper != None
+            and self.cutoff_fn.cutoff_upper != None
+        ):
+            if self.cutoff_fn.cutoff_upper != self.rbf_layer.cutoff_upper:
+                warnings.warn(
+                    "Cutoff function upper cutoff, {}, and radial basis function upper cutoff, {}, do not match.".format(
+                        self.cutoff_fn.cutoff_upper, self.rbf_layer.cutoff_upper
+                    )
+                )
+
         self.output_network = output_network
 
     def reset_parameters(self):
@@ -103,9 +125,11 @@ class SchNet(nn.Module):
         """
         x = self.embedding_layer(data.atomic_types)
 
-        edge_i, edge_j, self_interaction_mask = torch_neighbor_list(data, self.rbf_layer.cutoff_upper)
+        neighbor_list = atomic_data2neighbor_list(
+            data, self.cutoff_fn.cutoff_upper
+        )
 
-        if self.self_interaction
+        if self.self_interaction:
             edge_index = torch.vstack(edge_i, edge_j)
         else:
             edge_index = torch.vstack(edge_i, edge_j) * self_interaction_mask
