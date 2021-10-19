@@ -35,7 +35,10 @@ class _RadialBasis(nn.Module):
 
 class GaussianBasis(_RadialBasis):
     """Class that generates a set of equidistant 1-D gaussian basis functions
-    scattered between a specified lower and upper cutoff.
+    scattered between a specified lower and upper cutoff:
+
+    .. math::
+        f_n = \exp{\gamma(r-c_n)^2}
 
     Parameters
     ----------
@@ -116,6 +119,18 @@ class ExpNormalBasis(_RadialBasis):
     the following paper:
 
     Unke, O. T., & Meuwly, M. (2019). PhysNet: A Neural Network for Predicting Energies, Forces, Dipole Moments and Partial Charges. Journal of Chemical Theory and Computation, 15(6), 3678–3693. https://doi.org/10.1021/acs.jctc.9b00181
+
+    The functions have the following form:
+
+    .. math::
+        \f_n(r_{ij};\alpha, r_{low},r_{high}) = f_{cut}(r_{ij},r_{low},r_{high}) \times \exp\left[-\beta_n \left(e^{\alpha (r_{ij} -r_{high}) } - \mu_n \right)^2\right]
+
+    where
+
+    .. math::
+        \alpha = 5.0/(r_{high} - r_{low})
+
+    is a distance rescaling factor.
 
     Parameters
     ----------

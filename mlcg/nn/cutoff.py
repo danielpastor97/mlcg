@@ -11,11 +11,19 @@ class _Cutoff(nn.Module):
         raise NotImplementedError
 
 class CosineCutoff(_Cutoff):
-    """Class implementing a cutoff envelope based a cosine signal.
+    """Class implementing a cutoff envelope based a cosine signal between a specified
+    lower and upper cutoff:
+
+    .. math::
+        \cos{ r \times \pi / r_high) + 1.0
 
     NOTE: The behavior of the cutoff is qualitatively different for lower
     cutoff values greater than zero when compared to the zero lower cutoff default.
     We recommend visualizing your basis to see if it makes physical sense.
+
+    .. math::
+        0.5 \times ( \cos{ ( \pi (2 \frac{r - r_low}{r_high - r_low} + 1.0))} + 1.0 )
+
     """
 
     def __init__(self, cutoff_lower: float = 0.0, cutoff_upper: float = 5.0):
