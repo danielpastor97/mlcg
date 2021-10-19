@@ -32,11 +32,13 @@ class IdentityCutoff(_Cutoff):
 
     Parameters
     ----------
-    cutoff_lower: float (default=0)
-    cutoff_upper: float (default=inf)
+    cutoff_lower: 
+        left bound for the radial cutoff distance
+    cutoff_upper: 
+        right bound for the radial cutoff distance
     """
 
-    def __init__(self, cutoff_lower=0, cutoff_upper=torch.inf):
+    def __init__(self, cutoff_lower:float=0, cutoff_upper:float=torch.inf):
         super(IdentityCutoff, self).__init__()
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
