@@ -1,5 +1,5 @@
 mdtraj
-jsonargparse[signatures]
+pytorch-lightning[extra]
 tqdm
 ase
 e3nn

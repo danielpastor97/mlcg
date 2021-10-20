@@ -17,9 +17,6 @@ Some special installs that are one well handled by requirements.txt:
 
     conda install pyg=2.0.1 -c pyg -c conda-forge
 
-    pip install git+https://github.com/PyTorchLightning/pytorch-lightning.git
-
-
 .. end-install
 
 Documentation
