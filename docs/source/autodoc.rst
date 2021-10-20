@@ -6,7 +6,6 @@ TODO: split this file into respective files where both API reference and some mo
 Atomic Data
 -----------
 
-
 ..
    .. automodule:: mlcg.data._keys
       :members:
@@ -30,7 +29,22 @@ TODO: document the CG mapping format.
 Models
 ------
 
-[CGnet]_
+Neural network models for coarse grain property predictions
+
+.. automodule:: mlcg.nn.schnet
+   :members:
+
+
+Radial basis functions
+
+.. automodule:: mlcg.nn.radial_basis
+   :members:
+
+
+Cutoff functions
+
+.. automodule:: mlcg.nn.cutoff
+   :members:
 
 
 Datasets
@@ -40,12 +54,10 @@ Datasets
    :members:
 
 
-
-
 Neighbor List
 -------------
 
-Main interface to the computation of neighborlists with a finite spherical cutoff.
+Main interface to the computation of neighborlists with a finite spherical cutoff
 
 .. automodule:: mlcg.neighbor_list.neighbor_list
    :members:
