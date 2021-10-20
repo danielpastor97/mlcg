@@ -6,7 +6,7 @@ from ..data._keys import FORCE_KEY, ENERGY_KEY
 class GradientsOut(torch.nn.Module):
     _targets = {FORCE_KEY: ENERGY_KEY}
 
-    def __init__(self, model, targets=FORCE_KEY):
+    def __init__(self, model: torch.nn.Module, targets: str = FORCE_KEY):
         super(GradientsOut, self).__init__()
         self.model = model
         self.name = self.model.name

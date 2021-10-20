@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Final
 import torch
 from torch import nn
 from torch_geometric.nn import MessagePassing
@@ -44,6 +44,8 @@ class SchNet(nn.Module):
         Users should set this to higher values if they are using higher upper
         distance cutoffs and expect more than 32 neighbors per node/atom.
     """
+
+    name: Final[str] = 'Schnet'
 
     def __init__(
         self,
@@ -168,7 +170,7 @@ class InteractionBlock(nn.Module):
     ):
         super(InteractionBlock, self).__init__()
         self.conv = cfconv_layer
-        self.activation = activation()
+        self.activation = activation
         self.lin = nn.Linear(hidden_channels, hidden_channels)
 
         self.reset_parameters()
@@ -340,8 +342,8 @@ def create_schnet(
     interaction_blocks = []
     for _ in range(num_interactions):
         filter_network = nn.Sequential(
-            nn.Linear(num_rbf, num_filters),
-            activation(),
+            nn.Linear(rbf_layer.num_rbf, num_filters),
+            activation,
             nn.Linear(num_filters, num_filters),
         )
         cfconv = CFConv(

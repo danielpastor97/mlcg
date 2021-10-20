@@ -84,12 +84,12 @@ class CosineCutoff(_Cutoff):
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
 
-    def forward(self, dist: torch.Tensor) -> torch.Tensor:
+    def forward(self, distances: torch.Tensor) -> torch.Tensor:
         """Applies cutoff envelope to distances.
 
         Parameters
         ----------
-        dist:
+        distances:
             Distances of shape (total_num_edges)
 
         Returns
