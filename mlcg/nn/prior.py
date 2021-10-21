@@ -184,3 +184,66 @@ class Repulsion(torch.nn.Module, _Prior):
                 Repulsion._neighbor_list_name
             )
         }
+
+class Dihedral(torch.nn.Module, _Prior):
+    _name = "dihedral"
+    _order = "4"
+
+    def __init__(self, statistics) -> None:
+        super(Dihedral, self).__init__()
+        keys = torch.tensor(list(statistics.keys()), dtype=torch.long)
+        self.allowed_interaction_keys = list(statistics.keys())
+        self.order = 4
+        self.name = self._name
+        unique_types = torch.unique(keys.flatten())
+        assert unique_types.min() >= 0
+        max_type = unique_types.max()
+        sizes = tuple([max_type + 1 for _ in range(self.order)])
+        theta_0s = torch.zeros(sizes)
+        ks = torch.zeros(sizes)
+        ns = torch.zeros(sizes)
+        for key in statistics.keys():
+            theta_0s[key] = statistics[key]["theta_0s"]
+            ks[key] = statistics[key]["ks"]
+            ns[key] = statistics[key]["ns"]
+
+        self.register_buffer("theta_0s", theta_0s)
+        self.register_buffer("ks", ks)
+        self.register_buffer("ns",ns)
+
+    def data2features(self, data):
+        mapping = data.neighbor_list[self.name]["index_mapping"]
+        return Dihedral.compute_features(data.pos, mapping)
+
+    def forward(self, data):
+        mapping = data.neighbor_list[self.name]["index_mapping"]
+        interaction_types = [
+            data.atom_types[mapping[ii]] for ii in range(self.order)
+        ]
+        features = self.data2features(data).flatten()
+        y = Dihedral.compute(
+            features, self.theta_0s[interaction_types], self.ks[interaction_types], self.ns[interaction_types]
+        )
+        data.out[self.name] = {"energy": y}
+        return data
+
+    @staticmethod
+    def compute_features(pos, mapping):
+        return compute_distances(pos, mapping)
+
+    @staticmethod
+    def compute(theta, theta_0s, ks, ns):
+        V = 0
+        for ix in range(ns):
+            V += ks[ix] * ( 1-torch.cos(ns[ix]*theta-theta_0s[ix]) )
+        return V
+
+    @staticmethod
+    def fit_from_potential_estimates(bin_centers_nz, dG_nz):
+        delta = bin_centers_nz[1] - bin_centers_nz[0]
+        stat = {"k": 000, "theta_0": 000}
+        return stat
+
+    @staticmethod
+    def neighbor_list(topology) -> None:
+        return {  }
