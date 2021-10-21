@@ -1,4 +1,5 @@
 mdtraj
+pyyaml>=6.0
 pytorch-lightning[extra]
 tqdm
 ase
