@@ -84,11 +84,4 @@ def compute_dihedrals(pos: torch.Tensor, mapping: torch.Tensor):
     x = torch.dot(n1,n2)
     theta = torch.atan2(y,x)
 
-    # N1 = torch.cross(pos[mapping[0]]-pos[mapping[2]],pos[mapping[1]]-pos[mapping[2]])
-    # N2 = -torch.cross(pos[mapping[0]]-pos[mapping[3]],pos[mapping[1]]-pos[mapping[3]])
-    # # N1 = N1.type(torch.FloatTensor)
-    # # N2 = N2.type(torch.FloatTensor)
-    # N1 = N1 / N1.norm()
-    # N2 = N2 / N2.norm()
-    # theta = torch.arccos(torch.dot(N1,N2))
     return theta
