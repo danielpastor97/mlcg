@@ -4,62 +4,27 @@ These annotations are stored using their string representation, e.g. `"typing.Op
 """
 
 import inspect
-import re
 import yaml
 import builtins
-from pydoc import locate
-
-
-def areBracketsBalanced(expr):
-    stack = []
-
-    # Traversing the Expression
-    for char in expr:
-        if char in ["(", "{", "["]:
-
-            # Push the element in the stack
-            stack.append(char)
-        else:
-
-            # IF current character is not opening
-            # bracket, then it must be closing.
-            # So stack cannot be empty at this point.
-            if not stack:
-                return False
-            current_char = stack.pop()
-            if current_char == '(':
-                if char != ")":
-                    return False
-            if current_char == '{':
-                if char != "}":
-                    return False
-            if current_char == '[':
-                if char != "]":
-                    return False
-
-    # Check Empty Stack
-    if stack:
-        return False
-    return True
 
 
 def split_on_comma_not_in_bracket(string):
-    out = ['']
+    out = [""]
     # count the brackets so that select comma only when they are balanced
-    brackets = {'[':0, ']':0}
+    brackets = {"[": 0, "]": 0}
     # to skip the space after the comma
     skip_next = False
     for c in string:
         if skip_next:
             skip_next = False
-            if c == ' ':
+            if c == " ":
                 continue
-        if c == '[':
-            brackets['['] += 1
-        if c == ']':
-            brackets[']'] -= 1
-        if c == ',' and sum(brackets.values()) == 0:
-            out.append('')
+        if c == "[":
+            brackets["["] += 1
+        if c == "]":
+            brackets["]"] -= 1
+        if c == "," and sum(brackets.values()) == 0:
+            out.append("")
             skip_next = True
             continue
         out[-1] += c
@@ -91,7 +56,6 @@ def string2typing(string):
     if is_sbrk(string):
         ll = string.find("[") + 1
         rr = string.rfind("]")
-        print(string)
         args = tuple(
             [
                 string2typing(sss)
@@ -107,7 +71,6 @@ def string2typing(string):
 
 
 def represent_inspect_parameter(dumper, data):
-    # print("############### ", type(data.annotation))
     out = {
         "name": data.name,
         "kind": data.kind.value,
@@ -119,7 +82,6 @@ def represent_inspect_parameter(dumper, data):
 
 def construct_inspect_parameter(loader, node):
     dd = loader.construct_mapping(node)
-    print(dd)
     dd["annotation"] = string2typing(dd["annotation"])
     return inspect.Parameter(**dd)
 
