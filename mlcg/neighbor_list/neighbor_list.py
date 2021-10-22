@@ -19,7 +19,7 @@ def atomic_data2neighbor_list(
     rcut:
         cutoff radius used to compute the connectivity
     self_interaction:
-        wether the mapping includes self refferring mappings, e.g. mappings where `i` == `j`.
+        whether the mapping includes self referring mappings, e.g. mappings where `i` == `j`.
     """
     rcut = float(rcut)
     idx_i, idx_j, cell_shifts, _ = torch_neighbor_list(
@@ -67,7 +67,7 @@ def make_neighbor_list(
     rcut:
         cutoff radius used to compute the connectivity
     self_interaction:
-        wether the mapping includes self refferring mappings, e.g. mappings where `i` == `j`.
+        whether the mapping includes self referring mappings, e.g. mappings where `i` == `j`.
     """
 
     return dict(
@@ -80,7 +80,7 @@ def make_neighbor_list(
     )
 
 
-class EmptyField:
+class _EmptyField:
     pass
 
 
@@ -95,7 +95,7 @@ def validate_neighborlist(inp: dict) -> bool:
         "self_interaction": [bool],
     }
     for k, ts in validator.items():
-        v = inp.get(k, EmptyField())
+        v = inp.get(k, _EmptyField())
         assert all(
             [isinstance(v, t) for t in ts]
         ), f"entry {k} is {type(v)} but should be in {ts}"

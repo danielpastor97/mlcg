@@ -3,11 +3,22 @@ import torch
 from scipy.integrate import trapezoid
 
 from ..data import AtomicData
-from ..nn.prior import Harmonic, Repulsion, _Prior
+from ..nn.prior import Harmonic, _Prior
 from ..utils import tensor2tuple
 
 
-def symmetrise_angle_interaction(unique_interaction_types):
+def _symmetrise_angle_interaction(unique_interaction_types):
+    """For angles defined as::
+
+      2---3
+     /
+    1
+
+    atom 1 and 3 can be exchanged without changing the angle so the resulting
+    interaction is symmetric w.r.t such transformations. Hence the need for only
+    considering interactions (a,b,c) with a < c.
+
+    """
     mask = unique_interaction_types[0] > unique_interaction_types[2]
     ee = unique_interaction_types[0, mask]
     unique_interaction_types[0, mask] = unique_interaction_types[2, mask]
@@ -16,7 +27,10 @@ def symmetrise_angle_interaction(unique_interaction_types):
     return unique_interaction_types
 
 
-def symmetrise_distance_interaction(unique_interaction_types):
+def _symmetrise_distance_interaction(unique_interaction_types):
+    """Distance based interactions are symmetric w.r.t. the direction hence
+    the need for only considering interactions (a,b) with a < b.
+    """
     mask = unique_interaction_types[0] > unique_interaction_types[1]
     ee = unique_interaction_types[0, mask]
     unique_interaction_types[0, mask] = unique_interaction_types[1, mask]
@@ -25,26 +39,27 @@ def symmetrise_distance_interaction(unique_interaction_types):
     return unique_interaction_types
 
 
-symmetrise_map = {
-    2: symmetrise_distance_interaction,
-    3: symmetrise_angle_interaction,
+_symmetrise_map = {
+    2: _symmetrise_distance_interaction,
+    3: _symmetrise_angle_interaction,
 }
-flip_map = {
+
+_flip_map = {
     2: lambda tup: torch.tensor([tup[1], tup[0]], dtype=torch.long),
     3: lambda tup: torch.tensor([tup[2], tup[1], tup[0]], dtype=torch.long),
 }
 
 
-def get_all_unique_keys(unique_types, order):
+def _get_all_unique_keys(unique_types, order):
     # get all combinations of size order between the elements of unique_types
     keys = torch.cartesian_prod(*[unique_types for ii in range(order)]).t()
     # symmetrize the keys and keep only unique entries
-    sym_keys = symmetrise_map[order](keys)
+    sym_keys = _symmetrise_map[order](keys)
     unique_sym_keys = torch.unique(sym_keys, dim=1)
     return unique_sym_keys
 
 
-def get_bin_centers(a, nbins):
+def _get_bin_centers(a, nbins):
     bin_centers = torch.zeros((nbins,), dtype=torch.float64)
     a_min = a.min()
     a_max = a.max()
@@ -64,10 +79,11 @@ def compute_statistics(
     TargetPrior: _Prior = Harmonic,
     nbins: int = 100,
 ):
+    """TODO add doc"""
 
     unique_types = torch.unique(data.atom_types)
     order = data.neighbor_list[target]["index_mapping"].shape[0]
-    unique_keys = get_all_unique_keys(unique_types, order)
+    unique_keys = _get_all_unique_keys(unique_types, order)
 
     mapping = data.neighbor_list[target]["index_mapping"]
     values = TargetPrior.compute_features(data.pos, mapping)
@@ -92,7 +108,7 @@ def compute_statistics(
         if len(val) == 0:
             continue
 
-        bin_centers = get_bin_centers(val, nbins)
+        bin_centers = _get_bin_centers(val, nbins)
         hist = torch.histc(val, bins=nbins)
 
         mask = hist > 0
@@ -110,13 +126,14 @@ def compute_statistics(
         statistics[kk]["V"] = dG_nz
         statistics[kk]["V_bin"] = bin_centers_nz
 
-        kf = tensor2tuple(flip_map[order](unique_key))
+        kf = tensor2tuple(_flip_map[order](unique_key))
         statistics[kf] = deepcopy(statistics[kk])
 
     return statistics
 
 
 def fit_baseline_models(data, beta, priors_cls, nbins: int = 100):
+    """TODO add doc"""
     statistics = {}
     models = torch.nn.ModuleDict()
     for TargetPrior in priors_cls:
