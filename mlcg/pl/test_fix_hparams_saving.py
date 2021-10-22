@@ -17,8 +17,8 @@ def my_inspect_Parameter():
                 typing.Optional[int],
             ]
         ],
-        # typing.Optional[torch.Tensor],
-        # typing.Tuple[int, float, str, torch.Tensor, typing.List[float]],
+        typing.Optional[torch.Tensor],
+        typing.Tuple[int, float, str, torch.Tensor, typing.List[float]],
     ]
     kind = 1
     default = None
