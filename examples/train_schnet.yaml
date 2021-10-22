@@ -1,9 +1,13 @@
 seed_everything: 19384
 trainer:
+  # Work directory for the session
+  default_root_dir: /local_scratch/musil/tests/t1
   resume_from_checkpoint: null
   profiler: null
+  # Training on one/multiple GPU
   # accelerator: 'ddp'
   # gpus: 2
+  # Training on the CPU
   accelerator:
     class_path: pytorch_lightning.accelerators.CPUAccelerator
     init_args:
@@ -32,15 +36,15 @@ trainer:
       init_args:
         monitor: 'validation_loss'
         patience: 10
+    # Save states of the model a regular interval
     - class_path: pytorch_lightning.callbacks.model_checkpoint.ModelCheckpoint
       init_args:
         dirpath: default_root_dir
         monitor: 'validation_loss'
-        save_top_k: 5
+        save_top_k: -1
         every_n_epochs: 2
         filename: '{epoch}-{validation_loss:.4f}'
         save_last: true
-  default_root_dir: /local_scratch/musil/tests/t1
   log_every_n_steps: 10
   gradient_clip_val: 0
   gradient_clip_algorithm: norm
