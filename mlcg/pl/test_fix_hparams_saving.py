@@ -45,3 +45,5 @@ def test_yaml_load_dump(param):
     ]
     for k in keys:
         assert getattr(duplicate, k) == getattr(param, k)
+
+    assert duplicate == param
