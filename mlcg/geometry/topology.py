@@ -246,6 +246,4 @@ def add_bonded_angles(
         bonded_atoms = np.argwhere(edge_row != 0).flatten()
         end_points = list(combinations(bonded_atoms, 2))
         for points in end_points:
-            topology.angles[0].append(points[0])
-            topology.angles[1].append(atom)
-            topology.angles[2].append(points[1])
+            topology.add_angle(points[0], atom, points[1])
