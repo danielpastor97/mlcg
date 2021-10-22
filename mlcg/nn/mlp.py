@@ -35,4 +35,3 @@ class MLP(nn.Module):
     def forward(self, x):
         """Forward pass"""
         return self.layers(x)
-
