@@ -37,13 +37,9 @@ def get_cls(class_path):
         module = __import__(class_module, fromlist=[class_name])
         args_class = getattr(module, class_name)
     else:
-        # print('path ', class_path)
         args_class = builtins.__dict__.get(class_path)
         assert args_class is not None
-        # args_class = locate(class_path)
-        # print('type ',args_class)
     return args_class
-
 
 def is_sbrk(string):
     if "[" in string and "]" in string:

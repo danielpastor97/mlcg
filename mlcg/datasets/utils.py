@@ -13,6 +13,9 @@ def remove_baseline_forces(data, models):
 
         data = models[k](data)
         baseline_forces.append(data.out[k][FORCE_KEY].flatten())
+        # make sure predicted properties don't require gradient anymore
+        for key, v in data.out[k].items():
+            data.out[k][key] = v.detach()
     baseline_forces = torch.sum(torch.vstack(baseline_forces), dim=0).view(
         -1, 3
     )

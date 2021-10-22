@@ -1,8 +1,10 @@
 # Workaround for apple M1 which does not support mdtraj in a simple manner
+import warnings
+
 try:
     import mdtraj
 except ModuleNotFoundError:
-    print(f"Failed to import mdtraj")
+    warnings(f"Failed to import mdtraj")
 
 from typing import NamedTuple, List, Optional, Tuple
 import torch

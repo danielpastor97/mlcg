@@ -24,7 +24,6 @@ class DataModule(pl.LightningDataModule):
 
         super(DataModule, self).__init__()
         # assume dataset is similart to torch_geometric.dataset.Dataset
-        print(dataset)
         self.dataset_init_kwargs = {
             "root": dataset.root,
             "transform": dataset.transform,

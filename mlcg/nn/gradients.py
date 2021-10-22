@@ -24,9 +24,11 @@ class GradientsOut(torch.nn.Module):
         if self.name not in data.out:
             data.out[self.name] = {}
 
-        if ENERGY_KEY not in data.out[self.name]:
-            data.pos.requires_grad_(True)
-            data = self.model(data)
+        # if ENERGY_KEY not in data.out[self.name]:
+        #     data.pos.requires_grad_(True)
+        #     data = self.model(data)
+        data.pos.requires_grad_(True)
+        data = self.model(data)
 
         if FORCE_KEY in self.targets:
             y = data.out[self.name][ENERGY_KEY]
@@ -40,4 +42,5 @@ class GradientsOut(torch.nn.Module):
 
             data.out[self.name][FORCE_KEY] = -dy_dr
             assert not torch.any(torch.isnan(dy_dr)), f"nan in {self.name}"
+        data.pos.requires_grad_(False)
         return data
