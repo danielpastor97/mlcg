@@ -17,10 +17,14 @@ Some special installs that are one well handled by requirements.txt:
 
     conda install pyg=2.0.1 -c pyg -c conda-forge
 
-    pip install git+https://github.com/PyTorchLightning/pytorch-lightning.git
-
-
 .. end-install
+
+CLI
+---
+
+The models defined in this library can be convinietly trained using the pytorch-lightning
+`cli <https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_cli.html>`_ utilities.
+
 
 Documentation
 -------------

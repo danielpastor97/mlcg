@@ -1,5 +1,6 @@
 mdtraj
-jsonargparse[signatures]
+pyyaml>=6.0
+pytorch-lightning[extra]
 tqdm
 ase
 e3nn

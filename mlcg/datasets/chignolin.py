@@ -61,6 +61,10 @@ class ChignolinDataset(InMemoryDataset):
         path_coord = download_url(url_coords, self.raw_dir)
         path_forces = download_url(url_forces, self.raw_dir)
 
+        # extract files
+        for fn in tqdm(self.raw_paths, desc="Extracting archives"):
+            extract_tar(fn, self.raw_dir, mode="r:gz")
+
     @property
     def raw_file_names(self):
         return [
@@ -91,9 +95,7 @@ class ChignolinDataset(InMemoryDataset):
         return coord_fns, forces_fns
 
     def process(self):
-        # extract files
-        for fn in tqdm(self.raw_paths, desc="Extracting archives"):
-            extract_tar(fn, self.raw_dir, mode="r:gz")
+
         coord_dir = join(self.raw_dir, "coords_nowater")
         force_dir = join(self.raw_dir, "forces_nowater")
 
