@@ -181,6 +181,31 @@ class Topology(object):
         return Topology.from_mdtraj(topo)
 
 
+def get_connectivity_matrix(topology: Topology) -> torch.tensor:
+    """Produces a full connectivity matrix from the bonded edge list
+
+    Parameters
+    ----------
+    topology:
+        Topology for which a connectivity matrix will be constructed
+
+    Returns
+    -------
+    connectivity_matrix:
+        Torch tensor of shape (n_atoms, n_atoms) representing the
+        connectivity/adjacency matrix from the bonded graph
+    """
+
+    if len(topology.bonds[0]) == 0 and len(topology.bonds[1]) == 0:
+        raise ValueError("No bonds in the topology.")
+    connectivity_matrix = np.zeros((topology.n_atoms, topology.n_atoms))
+    bonds = np.array(topology.bonds)
+    for bond in range(bonds.shape[1]):
+        connectivity_matrix[bonds[:, bond][0], bonds[:, bond][1]] = 1
+        connectivity_matrix[bonds[:, bond][1], bonds[:, bond][0]] = 1
+    return torch.tensor(connectivity_matrix)
+
+
 def add_chain_bonds(topology: Topology) -> None:
     """Add bonds to the topology assuming a chain-like pattern, i.e. atoms are
     linked together following their insertion order.
@@ -197,3 +222,30 @@ def add_chain_angles(topology: Topology) -> None:
     """
     for i in range(topology.n_atoms - 2):
         topology.add_angle(i, i + 1, i + 2)
+
+
+def add_bonded_angles(
+    topology: Topology, connectivity_matrix: torch.tensor
+) -> None:
+    """Add sequential angles that are formed from a bonded topology, including those
+    that are possibly branched in structure.
+
+    Parameters
+    ----------
+    topology:
+        Topology object to which the angles will be added
+    connectivity_matrix:
+        Symmetric connectivity or adjacency matrix where the [i,j] entry
+        is 1 if atom i and atom j are connected, and zero otherwise
+    """
+
+    central_atoms = (torch.sum(connectivity_matrix, axis=1) >= 2).nonzero()
+    bonded_angles = ([], [], [])
+    for atom in central_atoms:
+        edge_row = connectivity_matrix[atom, :].flatten()
+        bonded_atoms = np.argwhere(edge_row != 0).flatten()
+        end_points = list(combinations(bonded_atoms, 2))
+        for points in end_points:
+            topology.angles[0].append(points[0])
+            topology.angles[1].append(atom)
+            topology.angles[2].append(points[1])
