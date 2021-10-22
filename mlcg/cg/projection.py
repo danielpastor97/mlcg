@@ -64,7 +64,7 @@ def build_cg_topology(
         bonds(cg_topo)
     if angles is not None:
         angles(cg_topo)
-    if dihedrals in not None:
+    if dihedrals is not None:
         dihedrals(cg_topo)
 
     return cg_topo
