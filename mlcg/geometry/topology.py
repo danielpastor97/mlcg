@@ -193,7 +193,8 @@ def get_connectivity_matrix(topology: Topology) -> torch.tensor:
     -------
     connectivity_matrix:
         Torch tensor of shape (n_atoms, n_atoms) representing the
-        connectivity/adjacency matrix from the bonded graph
+        connectivity/adjacency matrix from the bonded graph. This
+        graph is not directed.
     """
 
     if len(topology.bonds[0]) == 0 and len(topology.bonds[1]) == 0:
@@ -265,7 +266,7 @@ def get_n_pairs(
     return pairs
 
 
-def get_n_paths(connectivity_matrix, n=3, symmetrise=True):
+def get_n_paths(connectivity_matrix, n=3, symmetrise=True) -> torch.tensor:
     """This function use networkx to grab all connected paths defined
     by n connecting edges. Paths are found using Dijkstra's algorithm.
 
@@ -281,8 +282,8 @@ def get_n_paths(connectivity_matrix, n=3, symmetrise=True):
 
     Returns
     -------
-    paths:
-        Edge index tensor of shape (n, n_pairs)
+    final_paths:
+        Path index tensor of shape (n, n_pairs)
     """
 
     if n != 3 and symmetrise == True:
