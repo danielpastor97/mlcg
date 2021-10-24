@@ -6,7 +6,7 @@ except ModuleNotFoundError:
 
 from typing import NamedTuple, List, Optional, Tuple
 import torch
-
+import networkx as nx
 from ..neighbor_list.neighbor_list import make_neighbor_list
 
 
@@ -224,26 +224,83 @@ def add_chain_angles(topology: Topology) -> None:
         topology.add_angle(i, i + 1, i + 2)
 
 
-def add_bonded_angles(
-    topology: Topology, connectivity_matrix: torch.tensor
-) -> None:
-    """Add sequential angles that are formed from a bonded topology, including those
-    that are possibly branched in structure.
+def get_n_pairs(
+    connectivity_matrix: numpy.array, n: int = 3, symmetrise: bool = True
+) -> torch.tensor:
+    """This function uses networkx to identify those pairs
+    that are exactly n atoms away. Paths are found using Dijkstra's algorithm.
 
     Parameters
     ----------
-    topology:
-        Topology object to which the angles will be added
     connectivity_matrix:
-        Symmetric connectivity or adjacency matrix where the [i,j] entry
-        is 1 if atom i and atom j are connected, and zero otherwise
+        Connectivity/adjacency matrix of the molecular graph of shape (n_atoms, n_atoms)
+    n:
+        Number of atoms to count away from the starting atom, with the starting atom counting as n=1
+    symmetrise:
+        If True, the returned pairs will be symmetrised such that the lower bead index precedes
+        the higher bead index in each pair.
+
+    Returns
+    -------
+    pairs:
+        Edge index tensor of shape (2, n_pairs)
+    """
+    graph = nx.Graph(connectivity_matrix.numpy())
+    pairs = ([], [])
+    for atom in graph.nodes:
+        n_hop_paths = nx.single_source_dijkstra_path(graph, atom, cutoff=n)
+        termini = [
+            path[-1] for sub_atom, path in n_hop_paths.items() if len(path) == n
+        ]
+        for child_atom in termini:
+            sorted_pair = sorted((atom, child_atom))
+            pairs[0].append(sorted_pair[0])
+            pairs[1].append(sorted_pair[1])
+            connections.append((sorted_pair[0], sorted_pair[1]))
+
+    if symmetrise:
+        pairs = _symmetrise_distance_interaction(torch.tensor(pairs))
+    else:
+        pairs = torch.tensor(pairs)
+    return pairs
+
+
+def get_n_paths(connectivity_matrix, n=3, symmetrise=True):
+    """This function use networkx to grab all connected paths defined
+    by n connecting edges. Paths are found using Dijkstra's algorithm.
+
+    Parameters
+    ----------
+    connectivity_matrix:
+        Connectivity/adjacency matrix of the molecular graph of shape (n_atoms, n_atoms)
+    n:
+        Number of atoms to count away from the starting atom, with the starting atom counting as n=1
+    symmetrise:
+        If True, the returned pairs will be symmetrised such that the lower bead index precedes
+        the higher bead index in each pair.
+
+    Returns
+    -------
+    paths:
+        Edge index tensor of shape (n, n_pairs)
     """
 
-    central_atoms = (torch.sum(connectivity_matrix, axis=1) >= 2).nonzero()
-    bonded_angles = ([], [], [])
-    for atom in central_atoms:
-        edge_row = connectivity_matrix[atom, :].flatten()
-        bonded_atoms = np.argwhere(edge_row != 0).flatten()
-        end_points = list(combinations(bonded_atoms, 2))
-        for points in end_points:
-            topology.add_angle(points[0], atom, points[1])
+    if n != 3 and symmetrise == True:
+        raise NotImplementedError("Symmetrise only works for n=3.")
+
+    graph = nx.Graph(connectivity_matrix.numpy())
+    final_paths = [[] for i in range(n)]
+    for atom in graph.nodes:
+        n_hop_paths = nx.single_source_dijkstra_path(graph, atom, cutoff=n)
+        paths = [path for _, path in n_hop_paths.items() if len(path) == n]
+        # print(paths)
+        for path in paths:
+            # print(path)
+            for k, sub_atom in enumerate(path):
+                # print(sub_atom)
+                final_paths[k].append(sub_atom)
+    if symmetrise:
+        final_paths = _symmetrise_angle_interaction(torch.tensor(final_paths))
+    else:
+        final_paths = torch.tensor(final_paths)
+    return final_paths
