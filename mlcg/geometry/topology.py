@@ -286,7 +286,7 @@ def get_n_paths(connectivity_matrix, n=3, symmetrise=True) -> torch.tensor:
         Path index tensor of shape (n, n_pairs)
     """
 
-    if n != 3 and symmetrise == True:
+    if n in [2, 3] and symmetrise == True:
         raise NotImplementedError("Symmetrise only works for n=3.")
 
     graph = nx.Graph(connectivity_matrix.numpy())
@@ -301,7 +301,14 @@ def get_n_paths(connectivity_matrix, n=3, symmetrise=True) -> torch.tensor:
                 # print(sub_atom)
                 final_paths[k].append(sub_atom)
     if symmetrise:
-        final_paths = _symmetrise_angle_interaction(torch.tensor(final_paths))
+        if n == 2:
+            final_paths = _symmetrise_distance_interaction(
+                torch.tensor(final_paths)
+            )
+        if n == 3:
+            final_paths = _symmetrise_angle_interaction(
+                torch.tensor(final_paths)
+            )
     else:
         final_paths = torch.tensor(final_paths)
     return final_paths
