@@ -2,7 +2,8 @@ import torch
 from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit
 
-from ..geometry.internal_coordinates import compute_distances, compute_angles
+from ..geometry.internal_coordinates import (compute_distances, compute_angles,
+                                             compute_dihedrals,)
 
 
 class _Prior(object):
@@ -229,7 +230,7 @@ class Dihedral(torch.nn.Module, _Prior):
 
     @staticmethod
     def compute_features(pos, mapping):
-        return compute_distances(pos, mapping)
+        return compute_dihedrals(pos, mapping)
 
     @staticmethod
     def compute(theta, theta_0s, ks, ns):
