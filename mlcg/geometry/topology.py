@@ -317,12 +317,11 @@ def get_n_pairs(
             sorted_pair = sorted((atom, child_atom))
             pairs[0].append(sorted_pair[0])
             pairs[1].append(sorted_pair[1])
-            connections.append((sorted_pair[0], sorted_pair[1]))
 
     pairs = torch.tensor(pairs)
     if symmetrise:
         pairs = _symmetrise_distance_interaction(pairs)
-
+        pairs = torch.unique(pairs, dim=1)
     return pairs
 
 
@@ -360,8 +359,10 @@ def get_n_paths(connectivity_matrix, n=3, symmetrise=True) -> torch.tensor:
             for k, sub_atom in enumerate(path):
                 # print(sub_atom)
                 final_paths[k].append(sub_atom)
-    if symmetrise:
-        final_paths = _symmertise_map[n](torch.tensor(final_paths))
+    if symmetrise and n in [2,3]:
+        final_paths = _symmetrise_map[n](torch.tensor(final_paths))
+    elif symmetrise and n not in [2,3]:
+        raise ValueError("Symmetrizing is currently only implemented for n=2,3")
     else:
         final_paths = torch.tensor(final_paths)
     return final_paths
