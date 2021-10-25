@@ -316,10 +316,10 @@ def get_n_pairs(
             pairs[1].append(sorted_pair[1])
             connections.append((sorted_pair[0], sorted_pair[1]))
 
-    if symmetrise:
-        pairs = _symmetrise_distance_interaction(torch.tensor(pairs))
-    else:
-        pairs = torch.tensor(pairs)
+     pairs = torch.tensor(pairs)
+     if symmetrise:
+        pairs = _symmetrise_distance_interaction(pairs)
+    
     return pairs
 
 
