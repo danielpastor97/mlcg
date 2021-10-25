@@ -6,7 +6,7 @@ jobs:
       - image: nec4/pytorch_geometric_cpu:v1.1
     steps:
       - checkout
-      - name:
+      - run:
           name: "Install dependencies and repo"
           command: "pip install --use-feature=in-tree-build ."
       - run:
