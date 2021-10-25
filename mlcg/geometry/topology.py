@@ -149,6 +149,62 @@ class Topology(object):
         self.dihedrals[2].append(idx3)
         self.dihedrals[3].append(idx4)
 
+    def bonds_from_edge_index(self, edge_index: torch.tensor):
+        """Overwrites the internal bond list with the bonds
+        defined in the supplied bond edge_index
+
+        Parameters
+        ----------
+        edge_index:
+            Edge index tensor of shape (2, n_bonds)
+        """
+        if edge_index.shape[0] != 2:
+            raise ValueError("Bond edge index must have shape (2, n_bonds)")
+
+        self.bonds = ([], [])
+
+        for edge in range(edge_index.shape[1]):
+            atom_1, atom_2 = edge_index[:, edge]
+            self.add_bond(atom_1, atom_2)
+
+    def angles_from_edge_index(self, edge_index: torch.tensor):
+        """Overwrites the internal angle list with the angles
+        defined in the supplied angle edge_index
+
+        Parameters
+        ----------
+        edge_index:
+            Edge index tensor of shape (3, n_angles)
+        """
+        if edge_index.shape[0] != 3:
+            raise ValueError("Angle edge index must have shape (3, n_angles)")
+
+        self.angles = ([], [], [])
+
+        for edge in range(edge_index.shape[1]):
+            atom_1, atom_2, atom_3 = edge_index[:, edge]
+            self.add_angle(atom_1, atom_2, atom_3)
+
+    def dihedrals_from_edge_index(self, edge_index: torch.tensor):
+        """Overwrites the internal dihedral list with the dihedral
+        defined in the supplied dihedral edge_index
+
+        Parameters
+        ----------
+        edge_index:
+            Edge index tensor of shape (4, n_dihedrals)
+        """
+        if edge_index.shape[0] != 4:
+            raise ValueError(
+                "Dihedral edge index must have shape (4, n_dihedrals)"
+            )
+
+        self.dihedrals([], [], [], [])
+
+        for edge in range(edge_index.shape[1]):
+            atom_1, atom_2, atom_3, atom_4 = edge_index[:, edge]
+            self.add_dihedral(atom_1, atom_2, atom_3, atom_4)
+
     def to_mdtraj(self):
         """Convert to mdtraj format"""
         topo = mdtraj.Topology()
