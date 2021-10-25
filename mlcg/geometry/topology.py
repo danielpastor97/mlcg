@@ -79,7 +79,7 @@ class Topology(object):
         mapping = mapping[:, mapping[0] != mapping[1]]
         return mapping
 
-    def neighbor_list(self, type: str, device: str = "cpu"):
+    def neighbor_list(self, type: str, device: str = "cpu") -> Dict:
         """Build Neighborlist from a :ref:`mlcg.neighbor_list.neighbor_list.Topology`.
 
         Parameters
@@ -205,7 +205,7 @@ class Topology(object):
             atom_1, atom_2, atom_3, atom_4 = edge_index[:, edge]
             self.add_dihedral(atom_1, atom_2, atom_3, atom_4)
 
-    def to_mdtraj(self):
+    def to_mdtraj(self) -> mdtraj.Topology:
         """Convert to mdtraj format"""
         topo = mdtraj.Topology()
         chain = topo.add_chain()
@@ -218,7 +218,7 @@ class Topology(object):
         return topo
 
     @staticmethod
-    def from_mdtraj(topology):
+    def from_mdtraj(topology) -> Topology:
         """Build topology from an existing mdtraj topology."""
         assert (
             topology.n_chains == 1
@@ -231,13 +231,15 @@ class Topology(object):
         return topo
 
     @staticmethod
-    def from_file(filename: str):
+    def from_file(filename: str) -> Topology:
         """Uses mdtraj reader to read the input topology."""
         topo = mdtraj.load(filename).topology
         return Topology.from_mdtraj(topo)
 
 
-def get_connectivity_matrix(topology: Topology) -> torch.tensor:
+def get_connectivity_matrix(
+    topology: Topology, directed: bool = False
+) -> torch.tensor:
     """Produces a full connectivity matrix from the bonded edge list
 
     Parameters
@@ -249,17 +251,23 @@ def get_connectivity_matrix(topology: Topology) -> torch.tensor:
     -------
     connectivity_matrix:
         Torch tensor of shape (n_atoms, n_atoms) representing the
-        connectivity/adjacency matrix from the bonded graph. This
-        graph is not directed.
+        connectivity/adjacency matrix from the bonded graph.
+    directed:
+        If True, an asymmetric connectivity matrix will be returned
+        correspending to a directed graph. If false, the connectivity
+        matrix will be symmetric and the corresponding graph will be
+        undirected.
     """
 
     if len(topology.bonds[0]) == 0 and len(topology.bonds[1]) == 0:
         raise ValueError("No bonds in the topology.")
     connectivity_matrix = np.zeros((topology.n_atoms, topology.n_atoms))
     bonds = np.array(topology.bonds)
+
     for bond in range(bonds.shape[1]):
         connectivity_matrix[bonds[:, bond][0], bonds[:, bond][1]] = 1
-        connectivity_matrix[bonds[:, bond][1], bonds[:, bond][0]] = 1
+        if directed != None:
+            connectivity_matrix[bonds[:, bond][1], bonds[:, bond][0]] = 1
     return torch.tensor(connectivity_matrix)
 
 
