@@ -191,11 +191,7 @@ class Topology(object):
                 "Dihedral edge index must have shape (4, n_dihedrals)"
             )
 
-        self.dihedrals([], [], [], [])
-
-        for edge in range(edge_index.shape[1]):
-            atom_1, atom_2, atom_3, atom_4 = edge_index[:, edge]
-            self.add_dihedral(atom_1, atom_2, atom_3, atom_4)
+        self.dihedrals = tuple(edge_index.numpy().tolist())
 
     def to_mdtraj(self) -> mdtraj.Topology:
         """Convert to mdtraj format"""
