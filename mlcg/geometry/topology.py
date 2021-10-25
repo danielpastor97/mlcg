@@ -30,7 +30,7 @@ class Topology(object):
     names: List[str]
     #: name of the residue containing the atoms
     resnames: List[str]
-    #: list of bonds between the atoms
+    #: list of bonds between the atoms. Defines the bonded topology.
     bonds: Tuple[List[int], List[int]]
     #: list of angles formed by triplets of atoms
     angles: Tuple[List[int], List[int], List[int]]
@@ -228,7 +228,8 @@ class Topology(object):
 def get_connectivity_matrix(
     topology: Topology, directed: bool = False
 ) -> torch.tensor:
-    """Produces a full connectivity matrix from the bonded edge list
+    """Produces a full connectivity matrix from the graph structure
+    implied by Topology.bonds
 
     Parameters
     ----------
