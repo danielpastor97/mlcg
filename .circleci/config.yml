@@ -5,8 +5,7 @@ jobs:
     docker:
       - image: nec4/pytorch_geometric_cpu:v1
     steps:
-      - checkout:
-        name: "Clone the repo"
+      - checkout
       - install:
         name: Install dependencies and repo
         command: pip install . --use-feature=in-tree-build
