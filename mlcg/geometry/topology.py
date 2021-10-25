@@ -4,7 +4,7 @@ try:
 except ModuleNotFoundError:
     print(f"Failed to import mdtraj")
 
-from typing import NamedTuple, List, Optional, Tuple
+from typing import NamedTuple, List, Optional, Tuple, Dict
 import torch
 import networkx as nx
 from ..neighbor_list.neighbor_list import make_neighbor_list
@@ -211,7 +211,7 @@ class Topology(object):
         return topo
 
     @staticmethod
-    def from_mdtraj(topology) -> Topology:
+    def from_mdtraj(topology):
         """Build topology from an existing mdtraj topology."""
         assert (
             topology.n_chains == 1
@@ -224,7 +224,7 @@ class Topology(object):
         return topo
 
     @staticmethod
-    def from_file(filename: str) -> Topology:
+    def from_file(filename: str):
         """Uses mdtraj reader to read the input topology."""
         topo = mdtraj.load(filename).topology
         return Topology.from_mdtraj(topo)
@@ -255,13 +255,16 @@ def get_connectivity_matrix(
 
     if len(topology.bonds[0]) == 0 and len(topology.bonds[1]) == 0:
         raise ValueError("No bonds in the topology.")
-    connectivity_matrix = np.zeros((topology.n_atoms, topology.n_atoms))
-    bonds = topology.bonds2torch()
-    connectivity_matrix[bonds[:, 0], bonds[:, 1]] = 1
-    if directed == False:
-        connectivity_matrix[bonds[:, 1], bonds[:, 0]] = 1
+    if topology.n_atoms == 0:
+        raise ValueError("n_atoms is not specified in the topology")
 
-    return torch.tensor(connectivity_matrix)
+    connectivity_matrix = torch.zeros(topology.n_atoms, topology.n_atoms)
+    bonds = topology.bonds2torch()
+    connectivity_matrix[bonds[0, :], bonds[1, :]] = 1
+    if directed == False:
+        connectivity_matrix[bonds[1, :], bonds[0, :]] = 1
+
+    return connectivity_matrix
 
 
 def add_chain_bonds(topology: Topology) -> None:
@@ -319,7 +322,7 @@ def get_n_pairs(
     pairs = torch.tensor(pairs)
     if symmetrise:
         pairs = _symmetrise_distance_interaction(pairs)
-    
+
     return pairs
 
 
