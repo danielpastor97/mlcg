@@ -359,9 +359,9 @@ def get_n_paths(connectivity_matrix, n=3, symmetrise=True) -> torch.tensor:
             for k, sub_atom in enumerate(path):
                 # print(sub_atom)
                 final_paths[k].append(sub_atom)
-    if symmetrise and n in [2,3]:
+    if symmetrise and n in [2, 3]:
         final_paths = _symmetrise_map[n](torch.tensor(final_paths))
-    elif symmetrise and n not in [2,3]:
+    elif symmetrise and n not in [2, 3]:
         raise ValueError("Symmetrizing is currently only implemented for n=2,3")
     else:
         final_paths = torch.tensor(final_paths)
