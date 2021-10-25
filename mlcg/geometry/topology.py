@@ -8,6 +8,11 @@ from typing import NamedTuple, List, Optional, Tuple
 import torch
 import networkx as nx
 from ..neighbor_list.neighbor_list import make_neighbor_list
+from .statistics import (
+    _symmetrise_map,
+    _symmetrise_angle_interaction,
+    _symmetrise_distance_interaction,
+)
 
 
 class Atom(NamedTuple):
@@ -353,14 +358,7 @@ def get_n_paths(connectivity_matrix, n=3, symmetrise=True) -> torch.tensor:
                 # print(sub_atom)
                 final_paths[k].append(sub_atom)
     if symmetrise:
-        if n == 2:
-            final_paths = _symmetrise_distance_interaction(
-                torch.tensor(final_paths)
-            )
-        if n == 3:
-            final_paths = _symmetrise_angle_interaction(
-                torch.tensor(final_paths)
-            )
+        final_paths = _symmertise_map[n](torch.tensor(final_paths))
     else:
         final_paths = torch.tensor(final_paths)
     return final_paths
