@@ -9,7 +9,7 @@ jobs:
         name: "Clone the repo"
       - install:
         name: Install dependencies and repo
-        command: conda activate mlcg && pip install -r requirements.txt && pip install .
+        command: pip install . --use-feature=in-tree-build
       - run:
           name: "Run tests"
           command: pytest .
