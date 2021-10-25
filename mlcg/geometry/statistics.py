@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 from copy import deepcopy
 import torch
 from scipy.integrate import trapezoid
