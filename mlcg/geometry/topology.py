@@ -251,12 +251,11 @@ def get_connectivity_matrix(
     if len(topology.bonds[0]) == 0 and len(topology.bonds[1]) == 0:
         raise ValueError("No bonds in the topology.")
     connectivity_matrix = np.zeros((topology.n_atoms, topology.n_atoms))
-    bonds = np.array(topology.bonds)
+    bonds = topology.bonds2torch()
+    connectivity_matrix[bonds[:, 0], bonds[:, 1]] = 1
+    if directed == False:
+        connectivity_matrix[bonds[:, 1], bonds[:, 0]] = 1
 
-    for bond in range(bonds.shape[1]):
-        connectivity_matrix[bonds[:, bond][0], bonds[:, bond][1]] = 1
-        if directed != None:
-            connectivity_matrix[bonds[:, bond][1], bonds[:, bond][0]] = 1
     return torch.tensor(connectivity_matrix)
 
 
