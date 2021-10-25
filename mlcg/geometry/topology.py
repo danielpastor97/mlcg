@@ -161,11 +161,7 @@ class Topology(object):
         if edge_index.shape[0] != 2:
             raise ValueError("Bond edge index must have shape (2, n_bonds)")
 
-        self.bonds = ([], [])
-
-        for edge in range(edge_index.shape[1]):
-            atom_1, atom_2 = edge_index[:, edge]
-            self.add_bond(atom_1, atom_2)
+        self.bonds = tuple(edge_index.numpy().tolist())
 
     def angles_from_edge_index(self, edge_index: torch.tensor):
         """Overwrites the internal angle list with the angles
