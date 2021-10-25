@@ -13,7 +13,13 @@ RUN pip3 install --upgrade --force-reinstall torch-scatter -f https://pytorch-ge
     pip3 install --upgrade --force-reinstall torch-spline-conv -f https://pytorch-geometric.com/whl/torch-${TORCH}+${CUDA}.html; \
     pip3 install torch_geometric
 
+RUN pip3 install ipython
 
+RUN apt update -y  && \
+    apt install build-essential  -y && \
+    apt install cmake  -y
+
+    
 # SHELL ["/bin/bash", "-c"]
 
 # ARG username=dev
