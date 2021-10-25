@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 NAME = "mlcg"
 VERSION = "0.1"
 
-with open('requirements.txt') as f:
+with open("requirements.txt") as f:
     install_requires = f.read().splitlines()
 
 setup(
