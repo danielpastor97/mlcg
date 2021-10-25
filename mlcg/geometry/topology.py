@@ -283,7 +283,7 @@ def add_chain_angles(topology: Topology) -> None:
 
 
 def get_n_pairs(
-    connectivity_matrix: numpy.array, n: int = 3, symmetrise: bool = True
+    connectivity_matrix: torch.Tensor, n: int = 3, symmetrise: bool = True
 ) -> torch.tensor:
     """This function uses networkx to identify those pairs
     that are exactly n atoms away. Paths are found using Dijkstra's algorithm.
