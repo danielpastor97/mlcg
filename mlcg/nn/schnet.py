@@ -121,6 +121,9 @@ class SchNet(nn.Module):
            (num_examples * num_atoms, 1), as well as neighbor list
            information.
         """
+
+        assert all(data.neighborlist["self_interaction"]) == False
+
         x = self.embedding_layer(data.atomic_types)
 
         data.neighbor_list = atomic_data2neighbor_list(
