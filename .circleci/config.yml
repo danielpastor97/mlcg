@@ -5,10 +5,14 @@ jobs:
     docker:
       - image: nec4/pytorch_geometric_cpu:v1
     steps:
-      - checkout
+      - checkout:
+        name: "Clone the repo"
+      - install:
+        name: Install dependencies and repo
+        command: conda activate mlcg && pip install -r requirements.txt && pip install .
       - run:
           name: "Run tests"
-          command: pip install . --use-feature=in-tree-build ;pytest .
+          command: pytest .
 
 workflows:
   version: 2
