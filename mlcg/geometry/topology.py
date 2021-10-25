@@ -175,11 +175,7 @@ class Topology(object):
         if edge_index.shape[0] != 3:
             raise ValueError("Angle edge index must have shape (3, n_angles)")
 
-        self.angles = ([], [], [])
-
-        for edge in range(edge_index.shape[1]):
-            atom_1, atom_2, atom_3 = edge_index[:, edge]
-            self.add_angle(atom_1, atom_2, atom_3)
+        self.angles = tuple(edge_index.numpy().tolist())
 
     def dihedrals_from_edge_index(self, edge_index: torch.tensor):
         """Overwrites the internal dihedral list with the dihedral
