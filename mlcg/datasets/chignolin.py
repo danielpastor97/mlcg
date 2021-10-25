@@ -17,6 +17,7 @@ from ..nn import (
     HarmonicBonds,
     HarmonicAngles,
     Repulsion,
+    Dihedral,
     GradientsOut,
 )
 from .utils import remove_baseline_forces
@@ -35,7 +36,7 @@ class ChignolinDataset(InMemoryDataset):
     #:Boltzmann constan in kcal/mol/K
     kB = 0.0019872041
     #:
-    _priors_cls = [HarmonicBonds, HarmonicAngles, Repulsion]
+    _priors_cls = [HarmonicBonds, HarmonicAngles, Repulsion, Dihedral]
 
     def __init__(
         self, root, transform=None, pre_transform=None, pre_filter=None
