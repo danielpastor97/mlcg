@@ -286,7 +286,7 @@ def add_chain_angles(topology: Topology) -> None:
 
 
 def get_n_pairs(
-    connectivity_matrix: torch.Tensor, n: int = 3, symmetrise: bool = True
+    connectivity_matrix: torch.Tensor, n: int = 3, unique: bool = True
 ) -> torch.tensor:
     """This function uses networkx to identify those pairs
     that are exactly n atoms away. Paths are found using Dijkstra's algorithm.
@@ -294,12 +294,13 @@ def get_n_pairs(
     Parameters
     ----------
     connectivity_matrix:
-        Connectivity/adjacency matrix of the molecular graph of shape (n_atoms, n_atoms)
+        Connectivity/adjacency matrix of the molecular graph of shape
+        (n_atoms, n_atoms)
     n:
-        Number of atoms to count away from the starting atom, with the starting atom counting as n=1
-    symmetrise:
-        If True, the returned pairs will be symmetrised such that the lower bead index precedes
-        the higher bead index in each pair.
+        Number of atoms to count away from the starting atom, with the starting
+        atom counting as n=1
+    unique:
+        If True, the returned pairs will be unique and symmetrised.
 
     Returns
     -------
@@ -314,18 +315,17 @@ def get_n_pairs(
             path[-1] for sub_atom, path in n_hop_paths.items() if len(path) == n
         ]
         for child_atom in termini:
-            sorted_pair = sorted((atom, child_atom))
-            pairs[0].append(sorted_pair[0])
-            pairs[1].append(sorted_pair[1])
+            pairs[0].append(atom)
+            pairs[1].append(child_atom)
 
     pairs = torch.tensor(pairs)
-    if symmetrise:
+    if unique:
         pairs = _symmetrise_distance_interaction(pairs)
         pairs = torch.unique(pairs, dim=1)
     return pairs
 
 
-def get_n_paths(connectivity_matrix, n=3, symmetrise=True) -> torch.tensor:
+def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
     """This function use networkx to grab all connected paths defined
     by n connecting edges. Paths are found using Dijkstra's algorithm.
 
@@ -335,8 +335,8 @@ def get_n_paths(connectivity_matrix, n=3, symmetrise=True) -> torch.tensor:
         Connectivity/adjacency matrix of the molecular graph of shape (n_atoms, n_atoms)
     n:
         Number of atoms to count away from the starting atom, with the starting atom counting as n=1
-    symmetrise:
-        If True, the returned pairs will be symmetrised such that the lower bead index precedes
+    unique:
+        If True, the returned pairs will be unique and symmetrised such that the lower bead index precedes
         the higher bead index in each pair.
 
     Returns
