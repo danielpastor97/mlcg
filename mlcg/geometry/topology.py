@@ -6,10 +6,15 @@ try:
 except ModuleNotFoundError:
     warnings(f"Failed to import mdtraj")
 
-from typing import NamedTuple, List, Optional, Tuple
+from typing import NamedTuple, List, Optional, Tuple, Dict
 import torch
-
+import networkx as nx
 from ..neighbor_list.neighbor_list import make_neighbor_list
+from .statistics import (
+    _symmetrise_map,
+    _symmetrise_angle_interaction,
+    _symmetrise_distance_interaction,
+)
 
 
 class Atom(NamedTuple):
@@ -32,7 +37,7 @@ class Topology(object):
     names: List[str]
     #: name of the residue containing the atoms
     resnames: List[str]
-    #: list of bonds between the atoms
+    #: list of bonds between the atoms. Defines the bonded topology.
     bonds: Tuple[List[int], List[int]]
     #: list of angles formed by triplets of atoms
     angles: Tuple[List[int], List[int], List[int]]
@@ -81,7 +86,7 @@ class Topology(object):
         mapping = mapping[:, mapping[0] != mapping[1]]
         return mapping
 
-    def neighbor_list(self, type: str, device: str = "cpu"):
+    def neighbor_list(self, type: str, device: str = "cpu") -> Dict:
         """Build Neighborlist from a :ref:`mlcg.neighbor_list.neighbor_list.Topology`.
 
         Parameters
@@ -151,7 +156,51 @@ class Topology(object):
         self.dihedrals[2].append(idx3)
         self.dihedrals[3].append(idx4)
 
-    def to_mdtraj(self):
+    def bonds_from_edge_index(self, edge_index: torch.tensor):
+        """Overwrites the internal bond list with the bonds
+        defined in the supplied bond edge_index
+
+        Parameters
+        ----------
+        edge_index:
+            Edge index tensor of shape (2, n_bonds)
+        """
+        if edge_index.shape[0] != 2:
+            raise ValueError("Bond edge index must have shape (2, n_bonds)")
+
+        self.bonds = tuple(edge_index.numpy().tolist())
+
+    def angles_from_edge_index(self, edge_index: torch.tensor):
+        """Overwrites the internal angle list with the angles
+        defined in the supplied angle edge_index
+
+        Parameters
+        ----------
+        edge_index:
+            Edge index tensor of shape (3, n_angles)
+        """
+        if edge_index.shape[0] != 3:
+            raise ValueError("Angle edge index must have shape (3, n_angles)")
+
+        self.angles = tuple(edge_index.numpy().tolist())
+
+    def dihedrals_from_edge_index(self, edge_index: torch.tensor):
+        """Overwrites the internal dihedral list with the dihedral
+        defined in the supplied dihedral edge_index
+
+        Parameters
+        ----------
+        edge_index:
+            Edge index tensor of shape (4, n_dihedrals)
+        """
+        if edge_index.shape[0] != 4:
+            raise ValueError(
+                "Dihedral edge index must have shape (4, n_dihedrals)"
+            )
+
+        self.dihedrals = tuple(edge_index.numpy().tolist())
+
+    def to_mdtraj(self) -> mdtraj.Topology:
         """Convert to mdtraj format"""
         topo = mdtraj.Topology()
         chain = topo.add_chain()
@@ -183,6 +232,43 @@ class Topology(object):
         return Topology.from_mdtraj(topo)
 
 
+def get_connectivity_matrix(
+    topology: Topology, directed: bool = False
+) -> torch.tensor:
+    """Produces a full connectivity matrix from the graph structure
+    implied by Topology.bonds
+
+    Parameters
+    ----------
+    topology:
+        Topology for which a connectivity matrix will be constructed
+
+    Returns
+    -------
+    connectivity_matrix:
+        Torch tensor of shape (n_atoms, n_atoms) representing the
+        connectivity/adjacency matrix from the bonded graph.
+    directed:
+        If True, an asymmetric connectivity matrix will be returned
+        correspending to a directed graph. If false, the connectivity
+        matrix will be symmetric and the corresponding graph will be
+        undirected.
+    """
+
+    if len(topology.bonds[0]) == 0 and len(topology.bonds[1]) == 0:
+        raise ValueError("No bonds in the topology.")
+    if topology.n_atoms == 0:
+        raise ValueError("n_atoms is not specified in the topology")
+
+    connectivity_matrix = torch.zeros(topology.n_atoms, topology.n_atoms)
+    bonds = topology.bonds2torch()
+    connectivity_matrix[bonds[0, :], bonds[1, :]] = 1
+    if directed == False:
+        connectivity_matrix[bonds[1, :], bonds[0, :]] = 1
+
+    return connectivity_matrix
+
+
 def add_chain_bonds(topology: Topology) -> None:
     """Add bonds to the topology assuming a chain-like pattern, i.e. atoms are
     linked together following their insertion order.
@@ -199,3 +285,85 @@ def add_chain_angles(topology: Topology) -> None:
     """
     for i in range(topology.n_atoms - 2):
         topology.add_angle(i, i + 1, i + 2)
+
+
+def get_n_pairs(
+    connectivity_matrix: torch.Tensor, n: int = 3, unique: bool = True
+) -> torch.tensor:
+    """This function uses networkx to identify those pairs
+    that are exactly n atoms away. Paths are found using Dijkstra's algorithm.
+
+    Parameters
+    ----------
+    connectivity_matrix:
+        Connectivity/adjacency matrix of the molecular graph of shape
+        (n_atoms, n_atoms)
+    n:
+        Number of atoms to count away from the starting atom, with the starting
+        atom counting as n=1
+    unique:
+        If True, the returned pairs will be unique and symmetrised.
+
+    Returns
+    -------
+    pairs:
+        Edge index tensor of shape (2, n_pairs)
+    """
+    graph = nx.Graph(connectivity_matrix.numpy())
+    pairs = ([], [])
+    for atom in graph.nodes:
+        n_hop_paths = nx.single_source_dijkstra_path(graph, atom, cutoff=n)
+        termini = [
+            path[-1] for sub_atom, path in n_hop_paths.items() if len(path) == n
+        ]
+        for child_atom in termini:
+            pairs[0].append(atom)
+            pairs[1].append(child_atom)
+
+    pairs = torch.tensor(pairs)
+    if unique:
+        pairs = _symmetrise_distance_interaction(pairs)
+        pairs = torch.unique(pairs, dim=1)
+    return pairs
+
+
+def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
+    """This function use networkx to grab all connected paths defined
+    by n connecting edges. Paths are found using Dijkstra's algorithm.
+
+    Parameters
+    ----------
+    connectivity_matrix:
+        Connectivity/adjacency matrix of the molecular graph of shape (n_atoms, n_atoms)
+    n:
+        Number of atoms to count away from the starting atom, with the starting atom counting as n=1
+    unique:
+        If True, the returned pairs will be unique and symmetrised such that the lower bead index precedes
+        the higher bead index in each pair.
+
+    Returns
+    -------
+    final_paths:
+        Path index tensor of shape (n, n_pairs)
+    """
+
+    if n not in [2, 3] and unique == True:
+        raise NotImplementedError("Unique currently only works for n=2,3")
+
+    graph = nx.Graph(connectivity_matrix.numpy())
+    final_paths = [[] for i in range(n)]
+    for atom in graph.nodes:
+        n_hop_paths = nx.single_source_dijkstra_path(graph, atom, cutoff=n)
+        paths = [path for _, path in n_hop_paths.items() if len(path) == n]
+        # print(paths)
+        for path in paths:
+            # print(path)
+            for k, sub_atom in enumerate(path):
+                # print(sub_atom)
+                final_paths[k].append(sub_atom)
+    final_paths = torch.tensor(final_paths)
+    if unique and n in [2, 3]:
+        final_paths = _symmetrise_map[n](final_paths)
+        final_paths = torch.unique(final_paths, dim=1)
+
+    return final_paths
