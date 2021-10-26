@@ -19,6 +19,15 @@ edges_1_5 = torch.tensor(
         [5, 7, 8, 9, 10, 5, 7, 8, 9, 10, 7, 8],
     ]
 )
+
+bonded_angles = torch.tensor(
+    [
+        [0, 0, 1, 1, 2, 3, 3, 3, 4, 6, 6, 7, 9],
+        [1, 1, 3, 3, 1, 4, 6, 6, 3, 8, 8, 6, 8],
+        [2, 3, 4, 6, 3, 5, 7, 8, 6, 9, 10, 8, 10],
+    ]
+)
+
 cmat_undirected = torch.tensor(
     [
         [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -72,6 +81,13 @@ def test_connectivity_matrix(topo_input, cmat_expected, directed):
 def test_n_pairs(test_topo, pairs_expected):
     cmat = get_connectivity_matrix(test_topo)
     recovered_pairs = get_n_pairs(cmat, n=5).numpy()
-    print(pairs_expected)
-    print(recovered_pairs)
     np.testing.assert_array_equal(recovered_pairs, pairs_expected.numpy())
+
+
+@pytest.mark.parametrize(
+    "test_topo, edges_expected", [(test_topo, bonded_angles)]
+)
+def test_n_paths(test_topo, edges_expected):
+    cmat = get_connectivity_matrix(test_topo)
+    recovered_paths = get_n_paths(cmat, n=3).numpy()
+    np.testing.assert_array_equal(recovered_paths, edges_expected.numpy())
