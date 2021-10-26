@@ -116,8 +116,12 @@ def test_unique_species(
     unique_expected_groups = [
         tuple(sorted([*group])) for group in unique_expected_groups.T
     ]
-    print(sorted(unique_species_groups))
-    print(sorted(unique_expected_groups))
+
     assert len(unique_species_groups) == len(unique_expected_groups)
     for group in unique_species_groups:
         assert group in unique_expected_groups
+
+
+
+
+
