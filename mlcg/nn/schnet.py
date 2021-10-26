@@ -131,7 +131,9 @@ class SchNet(nn.Module):
         neighbor_list = data.neighbor_list.get(self.name)
 
         if not self.is_nl_compatible(neighbor_list):
-            neighbor_list = self.neighbor_list(data, self.cutoff.cutoff_upper, self.max_num_neighbors)
+            neighbor_list = self.neighbor_list(
+                data, self.cutoff.cutoff_upper, self.max_num_neighbors
+            )
 
         edge_index = neighbor_list["index_mapping"]
         distances = compute_distances(
@@ -164,12 +166,16 @@ class SchNet(nn.Module):
         return is_compatible
 
     @staticmethod
-    def neighbor_list(data: AtomicData, rcut: float, max_num_neighbors: int = 1000) -> dict:
-        """Computes the neighborlist for :obj:`data` using a scrict cutoff of :obj:`rcut`.
-        """
+    def neighbor_list(
+        data: AtomicData, rcut: float, max_num_neighbors: int = 1000
+    ) -> dict:
+        """Computes the neighborlist for :obj:`data` using a scrict cutoff of :obj:`rcut`."""
         return {
             SchNet.name: atomic_data2neighbor_list(
-                data, rcut, self_interaction=False, max_num_neighbors=max_num_neighbors
+                data,
+                rcut,
+                self_interaction=False,
+                max_num_neighbors=max_num_neighbors,
             )
         }
 
@@ -381,6 +387,7 @@ class StandardSchNet(SchNet):
          `aggr <https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class>`_
 
     """
+
     def __init__(
         self,
         rbf_layer: nn.Module,

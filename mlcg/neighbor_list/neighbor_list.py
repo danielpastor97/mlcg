@@ -9,7 +9,7 @@ def atomic_data2neighbor_list(
     data,
     rcut: float,
     self_interaction: bool = False,
-    max_num_neighbors: int = 1000
+    max_num_neighbors: int = 1000,
 ) -> dict:
     """Build a neighborlist from a :ref:`mlcg.data.atomic_data.AtomicData` by
     searching for neighboring atom within a maximum radius `rcut`.
@@ -29,7 +29,10 @@ def atomic_data2neighbor_list(
     """
     rcut = float(rcut)
     idx_i, idx_j, cell_shifts, _ = torch_neighbor_list(
-        data, rcut, self_interaction=self_interaction, max_num_neighbors=max_num_neighbors
+        data,
+        rcut,
+        self_interaction=self_interaction,
+        max_num_neighbors=max_num_neighbors,
     )
 
     mapping = torch.cat([idx_i.unsqueeze(0), idx_j.unsqueeze(0)], dim=0)
