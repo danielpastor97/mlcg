@@ -137,6 +137,20 @@ def compute_angles(
 
 @torch.jit.script
 def compute_dihedrals(pos: torch.Tensor, mapping: torch.Tensor):
+    '''
+    Compute the dihedral angle between positions in :obj:'pos' following the
+    :obj:`mapping` assuming that mapping indices follow::
+
+       j--k--l
+      /
+     i
+    Convention is to assign rotations w.r.t position of i&l as positive is l is rotated counterclockwise 
+    when starting down bond jk
+
+    In the case of periodic boundary conditions, :obj:`cell_shifts` must be
+    provided so that :math:`\mathbf{r}_j` can be outside of the original unit
+    cell.
+    '''
     assert mapping.dim() == 2
     assert mapping.shape[0] == 4
     dr1 = pos[mapping[1]]-pos[mapping[0]]
