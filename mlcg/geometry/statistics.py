@@ -110,11 +110,11 @@ def _get_bin_centers(
     if amin != None:
         a_min = amin
     else:
-        a_min = a.min()
-    if a_max != None:
+        a_min = feature.min()
+    if amax != None:
         a_max = amax
     else:
-        a_max = a.max()
+        a_max = feature.max()
 
     delta = (a_max - a_min) / nbins
     bin_centers = (
@@ -240,7 +240,7 @@ def compute_statistics(
         [data.atom_types[mapping[ii]] for ii in range(order)]
     )
 
-    interaction_types = _symmetrise_map[order](intereaction_types)
+    interaction_types = _symmetrise_map[order](interaction_types)
 
     statistics = {}
     for unique_key in unique_keys.t():
@@ -257,6 +257,11 @@ def compute_statistics(
         val = values[mask]
         if len(val) == 0:
             continue
+
+        if amin == None:
+            amin = val.min()
+        if amax == None:
+            amax = val.max()
 
         bin_centers = _get_bin_centers(val, nbins, amin=amin, amax=amax)
         hist = torch.histc(val, bins=nbins, min=amin, max=amax)
