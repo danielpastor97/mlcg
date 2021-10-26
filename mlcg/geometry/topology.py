@@ -345,8 +345,8 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
         Path index tensor of shape (n, n_pairs)
     """
 
-    if n not in [2, 3] and symmetrise == True:
-        raise NotImplementedError("Symmetrise only works for n=2,3")
+    if n not in [2, 3] and unique == True:
+        raise NotImplementedError("Unique currently only works for n=2,3")
 
     graph = nx.Graph(connectivity_matrix.numpy())
     final_paths = [[] for i in range(n)]
@@ -360,7 +360,7 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
                 # print(sub_atom)
                 final_paths[k].append(sub_atom)
     final_paths = torch.tensor(final_paths)
-    if symmetrise and n in [2, 3]:
+    if unique and n in [2, 3]:
         final_paths = _symmetrise_map[n](final_paths)
         final_paths = torch.unique(final_paths, dim=1)
 
