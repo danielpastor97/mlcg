@@ -9,3 +9,4 @@ scipy
 scikit-learn
 pytest
 e3nn
+ipython
