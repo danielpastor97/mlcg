@@ -102,11 +102,12 @@ def test_unique_species(
     statistics = compute_statistics(test_data, target, beta, target_prior)
     order = test_data.neighbor_list[target]["index_mapping"].shape[0]
     species_groups = torch.tensor(list(statistics.keys())).t()
+
+    # reduce to symmetrised and unique group tuples for comparison
     unique_expected_groups = torch.unique(
         _symmetrise_map[order](expected_species), dim=1
     ).numpy()
 
-    # reduce to symmetrised and unique group tuples for comparison
     unique_species_groups = torch.unique(
         _symmetrise_map[order](species_groups), dim=1
     ).numpy()
@@ -122,6 +123,7 @@ def test_unique_species(
         assert group in unique_expected_groups
 
 
+# Test to make sure histograms are okay
 
 
 
