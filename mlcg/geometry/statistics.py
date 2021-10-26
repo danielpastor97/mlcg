@@ -290,7 +290,7 @@ def fit_baseline_models(
     amin: float = None,
     amax: float = None,
 ) -> Tuple[List[nn.Module], Dict]:
-    """Function for parametrizing a list of priors based on type-specific interactions contained in
+    r"""Function for parametrizing a list of priors based on type-specific interactions contained in
     a collated AtomicData structure
 
     Parameters
