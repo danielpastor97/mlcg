@@ -54,14 +54,16 @@ test_topo.bonds_from_edge_index(bond_edges)
 # unique bond/angle species
 bond_species = torch.tensor(test_topo.types)[bond_edges]
 angle_species = torch.tensor(test_topo.types)[bonded_angles]
+non_bond_species = torch.tensor(test_topo.types)[edges_1_5]
 
 # Mock data - temporarily its random
 n_frames = 10
 rand_coords = torch.randn(10, 11, 3)
-nls_tags = ["bonds", "angles"]
-nls_orders = [2, 3]
-nls_edges = [bond_edges, bonded_angles]
+nls_tags = ["bonds", "angles", "non-bonded"]
+nls_orders = [2, 3, 2]
+nls_edges = [bond_edges, bonded_angles, edges_1_5]
 data_list = []
+
 for frame in range(rand_coords.shape[0]):
     neighbor_lists = {}
     for (tag, order, edge_list) in zip(nls_tags, nls_orders, nls_edges):
@@ -90,6 +92,7 @@ collated_data, _, _ = collate(
     [
         (collated_data, "bonds", beta, HarmonicBonds, bond_species),
         (collated_data, "angles", beta, HarmonicAngles, angle_species),
+        (collated_data, "non-bonded", beta, Repulsion, non_bond_species),
     ],
 )
 def test_unique_species(
@@ -99,6 +102,9 @@ def test_unique_species(
     statistics = compute_statistics(test_data, target, beta, target_prior)
     order = test_data.neighbor_list[target]["index_mapping"].shape[0]
     species_groups = torch.tensor(list(statistics.keys())).t()
+    unique_expected_groups = torch.unique(
+        _symmetrise_map[order](expected_species), dim=1
+    ).numpy()
 
     # reduce to symmetrised and unique group tuples for comparison
     unique_species_groups = torch.unique(
@@ -108,9 +114,10 @@ def test_unique_species(
         tuple(sorted([*group])) for group in unique_species_groups.T
     ]
     unique_expected_groups = [
-        tuple(sorted([*group])) for group in expected_species.T
+        tuple(sorted([*group])) for group in unique_expected_groups.T
     ]
-    print(unique_species_groups)
+    print(sorted(unique_species_groups))
+    print(sorted(unique_expected_groups))
     assert len(unique_species_groups) == len(unique_expected_groups)
     for group in unique_species_groups:
         assert group in unique_expected_groups
