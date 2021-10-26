@@ -86,10 +86,10 @@ model:
     init_args:
       targets: forces
       model:
-        class_path: mlcg.nn.schnet.SimpleSchNet
+        class_path: mlcg.nn.schnet.StandardSchNet
         init_args:
           hidden_channels: 128
-          max_z: 50
+          embedding_size: 50
           num_filters: 128
           num_interactions: 2
           output_hidden_layer_widths:

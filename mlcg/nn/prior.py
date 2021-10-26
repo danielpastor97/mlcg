@@ -178,7 +178,7 @@ class Repulsion(torch.nn.Module, _Prior):
         return stat
 
     @staticmethod
-    def neighbor_list(topology) -> None:
+    def neighbor_list(topology) -> dict:
         return {
             Repulsion._name: topology.neighbor_list(
                 Repulsion._neighbor_list_name
