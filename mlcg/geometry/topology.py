@@ -363,5 +363,5 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
     if symmetrise and n in [2, 3]:
         final_paths = _symmetrise_map[n](final_paths)
         final_paths = torch.unique(final_paths, dim=1)
-        
+
     return final_paths
