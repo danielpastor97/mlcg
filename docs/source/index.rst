@@ -22,9 +22,13 @@ Contents
 
 .. toctree::
    :maxdepth: 2
-   
+
+   training
    autodoc
+   dev/dev
    bibliography
+
+
 
 Indices and tables
 ==================

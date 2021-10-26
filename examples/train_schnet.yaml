@@ -50,7 +50,7 @@ trainer:
       init_args:
         # checkpoints will be saved to default_root_dir/ckpt
         dirpath: default_root_dir
-        monitor: 'validation_loss'
+        monitor: validation_loss
         save_top_k: -1
         every_n_epochs: 2
         filename: '{epoch}-{validation_loss:.4f}'
@@ -112,7 +112,7 @@ model:
               num_rbf: 30
               trainable: false
   # necessary parameters when using ReduceLROnPlateau
-  monitor: "validation_loss"
+  monitor: validation_loss
   interval: 'epoch'
   frequency: 1
 optimizer:

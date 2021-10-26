@@ -26,17 +26,19 @@ The models defined in this library can be convinietly trained using the pytorch-
 `cli <https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_cli.html>`_ utilities.
 
 
+.. start-doc
+
 Documentation
 -------------
 
-Documentation is available `here <https://clementigroup.github.io/mlcg-tools/>`_.
+Documentation is available `here <https://clementigroup.github.io/mlcg-tools/>`_ and here are some references on how to work with it.
 
 Dependencies
 ~~~~~~~~~~~~
 
 .. code:: bash
 
-    pip install sphinx sphinx_rtd_theme
+    pip install sphinx sphinx_rtd_theme sphinx-autodoc-typehints
 
 
 How to build
@@ -47,8 +49,8 @@ How to build
     cd docs
     sphinx-build -b html source build
 
-How to update the documentation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+How to update the online documentation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This udapte should be done after any update of the `main` branch so that the
 documentation is synchronised with the main version of the repository.
@@ -61,3 +63,5 @@ documentation is synchronised with the main version of the repository.
     sphinx-build -b html source ./
     git commit -a
     git push
+
+.. end-doc
