@@ -359,9 +359,9 @@ def get_n_paths(connectivity_matrix, n=3, symmetrise=True) -> torch.tensor:
             for k, sub_atom in enumerate(path):
                 # print(sub_atom)
                 final_paths[k].append(sub_atom)
+    final_paths = torch.tensor(final_paths)
     if symmetrise and n in [2, 3]:
-        final_paths = _symmetrise_map[n](torch.tensor(final_paths))
+        final_paths = _symmetrise_map[n](final_paths)
         final_paths = torch.unique(final_paths, dim=1)
-    else:
-        final_paths = torch.tensor(final_paths)
+        
     return final_paths
