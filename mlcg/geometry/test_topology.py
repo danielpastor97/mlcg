@@ -97,7 +97,9 @@ def test_n_pairs(test_topo, pairs_expected):
 
 @pytest.mark.parametrize(
     "test_topo, edges_expected, n, unique",
-    [(test_topo, bonded_angles, 3, True),],
+    [
+        (test_topo, bonded_angles, 3, True),
+    ],
 )
 def test_n_paths(test_topo, edges_expected, n, unique):
     """Test to make sure that the 1-5 pairs are correctly returned by
