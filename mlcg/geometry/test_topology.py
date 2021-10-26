@@ -85,9 +85,10 @@ def test_n_pairs(test_topo, pairs_expected):
 
 
 @pytest.mark.parametrize(
-    "test_topo, edges_expected", [(test_topo, bonded_angles)]
+    "test_topo, edges_expected, n, symmetrise",
+    [(test_topo, bonded_angles, 3, True),],
 )
-def test_n_paths(test_topo, edges_expected):
+def test_n_paths(test_topo, edges_expected, n, symmetrise):
     cmat = get_connectivity_matrix(test_topo)
-    recovered_paths = get_n_paths(cmat, n=3).numpy()
+    recovered_paths = get_n_paths(cmat, n=n, symmetrise=symmetrise).numpy()
     np.testing.assert_array_equal(recovered_paths, edges_expected.numpy())
