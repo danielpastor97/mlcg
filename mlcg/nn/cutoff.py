@@ -48,7 +48,7 @@ class IdentityCutoff(_Cutoff):
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
 
-        self.cutoff_check()
+        self.check_cutoff()
 
     def forwawrd(self, dist: torch.Tensor) -> torch.Tensor:
         r"""Applies identity transform to input distances
@@ -90,7 +90,7 @@ class CosineCutoff(_Cutoff):
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
 
-        self.cutoff_check()
+        self.check_cutoff()
 
     def forward(self, dist: torch.Tensor) -> torch.Tensor:
         """Applies cutoff envelope to distances.
