@@ -4,6 +4,7 @@ from os.path import join
 import numpy as np
 import torch
 from torch_geometric.data import InMemoryDataset, extract_tar
+from torch_geometric.loader import DataLoader
 from torch_geometric.data.collate import collate
 from shutil import copy
 import mdtraj
@@ -19,7 +20,7 @@ from ..nn import (
     Repulsion,
     GradientsOut,
 )
-from .utils import remove_baseline_forces
+from .utils import remove_baseline_forces, chunker
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -172,14 +173,16 @@ class ChignolinDataset(InMemoryDataset):
                 baseline_models[k], targets="forces"
             )
 
-        data_list_ = []
-        for data in tqdm(data_list, "Removing baseline forces"):
-            data = remove_baseline_forces(data, baseline_models)
-            data_list_.append(data)
+        batch_size = 256
+        chunks = tuple(chunker(data_list, batch_size))
+        for sub_data_list in tqdm(chunks, "Removing baseline forces"):
+            _ = remove_baseline_forces(
+                sub_data_list,
+                baseline_models,
+            )
 
         print("collating data_list")
-        datas, slices = self.collate(data_list_)
-
+        datas, slices = self.collate(data_list)
         torch.save((cg_topo), self.processed_paths[2])
         torch.save(baseline_models, self.processed_paths[3])
         torch.save((datas, slices), self.processed_paths[0])
