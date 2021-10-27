@@ -402,9 +402,7 @@ class StandardSchNet(SchNet):
     ):
 
         if num_interactions < 1:
-            raise RuntimeError(
-                "At least one interaction block must be specified"
-            )
+            raise ValueError("At least one interaction block must be specified")
 
         embedding_layer = nn.Embedding(embedding_size, hidden_channels)
 
