@@ -36,7 +36,7 @@ class ChignolinDataset(InMemoryDataset):
     #:Boltzmann constan in kcal/mol/K
     kB = 0.0019872041
     #:
-    _priors_cls = [HarmonicBonds, HarmonicAngles, Repulsion, Dihedral]
+    _priors_cls = [HarmonicBonds, HarmonicAngles, Repulsion]
 
     def __init__(
         self, root, transform=None, pre_transform=None, pre_filter=None
@@ -185,3 +185,18 @@ class ChignolinDataset(InMemoryDataset):
         torch.save((cg_topo), self.processed_paths[2])
         torch.save(baseline_models, self.processed_paths[3])
         torch.save((datas, slices), self.processed_paths[0])
+
+class ChignolinDatasetWithNewPriors(ChignolinDataset):
+    '''
+        Inherit from Chignolin Dataset and redefine priors to compute
+        Modify _prior_cls to include priors to compute
+        Must provide
+            -----
+    '''
+    _priors_cls = [HarmonicBonds, HarmonicAngles, Repulsion, Dihedral]
+
+    def __init__(
+        self, root, transform=None, pre_transform=None, pre_filter=None
+    ):
+        self.priors_cls = self._priors_cls
+        super(ChignolinDatasetWithNewPriors, self).__init__(ChignolinDataset)
