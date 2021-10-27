@@ -4,7 +4,7 @@ from mlcg.geometry.statistics import *
 from mlcg.geometry.statistics import _symmetrise_map
 from mlcg.nn.prior import *
 from mlcg.data import *
-from mlcg.neighbor_list.utils import ase_bonds2tensor, ase_angles2tensor
+from mlcg.geometry.utils import ase_bonds2tensor, ase_angles2tensor
 
 from torch_geometric.data.collate import collate
 from ase.build import molecule
@@ -22,13 +22,6 @@ beta = 1 / (temperature * kB)
 
 # Make a few pertubed frames of trans-butane using gaussian noise
 mol = molecule("trans-butane")
-analysis = Analysis(mol)  # , natural_cutoffs(mol))
-bond_edges = ase_bonds2tensor(analysis)
-angle_edges = ase_angles2tensor(analysis)
-# Add some non-bonded edges
-non_bonded_edges = torch.tensor(
-    [[0, 0, 0, 1, 2, 3, 3], [2, 3, 9, 5, 6, 10, 10],]
-)
 ref_coords = np.array(mol.get_positions())
 
 mock_data_frames = []
@@ -38,19 +31,21 @@ for i in range(1000):
 mock_data_frames = torch.stack(mock_data_frames, dim=0)
 
 # Topology object for the above molecule
-test_topo = Topology()
-
-# Adding atoms
-for atom_type, name in zip(
-    mol.get_atomic_numbers(), [str(num) for num in mol.get_atomic_numbers()]
-):
-    test_topo.add_atom(atom_type, name)
-
-# Adding bonds/angles
-test_topo.bonds_from_edge_index(bond_edges)
-test_topo.angles_from_edge_index(angle_edges)
+test_topo = Topology.from_ase(mol)
 
 # unique bond/angle species
+
+bond_edges = test_topo.bonds2torch()
+angle_edges = test_topo.angles2torch()
+print(bond_edges)
+# Add some nonbonded edges
+non_bonded_edges = torch.tensor(
+    [
+        [0, 0, 0, 1, 2, 3, 3],
+        [2, 3, 9, 5, 6, 10, 10],
+    ]
+)
+
 bond_species = torch.tensor(test_topo.types)[bond_edges]
 angle_species = torch.tensor(test_topo.types)[angle_edges]
 non_bond_species = torch.tensor(test_topo.types)[non_bonded_edges]

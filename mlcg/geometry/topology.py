@@ -5,7 +5,10 @@ try:
     import mdtraj
 except ModuleNotFoundError:
     warnings(f"Failed to import mdtraj")
-
+from ase.geometry.analysis import Analysis
+from ase.neighborlist import natural_cutoffs
+from ase import Atoms
+from ase.data import atomic_masses_iupac2016
 from typing import NamedTuple, List, Optional, Tuple, Dict
 import torch
 import networkx as nx
@@ -95,7 +98,7 @@ class Topology(object):
             kind of information to extract (should be in ["bonds", "angles",
             "dihedrals", "fully connected"]).
         device:
-            device onto which to return the nl
+            device upon which the neighborlist is returned
         """
         allowed_types = ["bonds", "angles", "dihedrals", "fully connected"]
         assert type in allowed_types, f"type should be any of {allowed_types}"
@@ -201,7 +204,14 @@ class Topology(object):
         self.dihedrals = tuple(edge_index.numpy().tolist())
 
     def to_mdtraj(self) -> mdtraj.Topology:
-        """Convert to mdtraj format"""
+        """Convert to mdtraj format
+
+        Returns
+        -------
+        topo:
+            MDTraj topology instance from Topology
+        """
+
         topo = mdtraj.Topology()
         chain = topo.add_chain()
         for i_at in range(self.n_atoms):
@@ -214,7 +224,19 @@ class Topology(object):
 
     @staticmethod
     def from_mdtraj(topology):
-        """Build topology from an existing mdtraj topology."""
+        """Build topology from an existing mdtraj topology.
+
+        Parameters
+        ----------
+        topology:
+            Input MDTraj topology
+
+        Returns
+        -------
+        topo:
+            Topology instance created from the input MDTraj topology
+        """
+
         assert (
             topology.n_chains == 1
         ), f"Does not support multiple chains but {topology.n_chains}"
@@ -223,6 +245,53 @@ class Topology(object):
             topo.add_atom(at.element.atomic_number, at.name, at.residue.name)
         for at1, at2 in topology.bonds:
             topo.add_bond(at1.index, at2.index)
+        return topo
+
+    @staticmethod
+    def from_ase(mol: Atoms, unique=True):
+        """Build topology from an ASE Atoms instance
+
+        Parameters
+        ----------
+        mol:
+            ASE atoms instance
+        unique:
+            If True, only the unique bonds and angles will be added to the
+            resulting Topology object. If False, all redundant (backwards)
+            bonds and angles will be added as well.
+
+        Returns
+        -------
+        topo:
+            Topology instance based on the ASE input
+        """
+
+        analysis = Analysis(mol)
+        topo = Topology()
+        types = mol.get_atomic_numbers()
+        names = [atomic_masses_iupac2016[anum] for anum in types]
+        for name, atom_type in zip(names, types):
+            topo.add_atom(atom_type, name)
+
+        if unique:
+            bond_list = analysis.unique_bonds
+        else:
+            bond_list = analysis.all_bonds
+
+        for atom, neighbors in enumerate(bond_list[0]):
+            for bonded_neighbor in neighbors:
+                topo.bonds[0].append(atom)
+                topo.bonds[1].append(bonded_neighbor)
+        if unique:
+            angle_list = analysis.unique_angles
+        else:
+            angle_list = analysis.all_angles
+
+        for atom, end_point_list in enumerate(angle_list[0]):
+            for end_points in end_point_list:
+                topo.angles[0].append(end_points[0])
+                topo.angles[1].append(atom)
+                topo.angles[2].append(end_points[1])
         return topo
 
     @staticmethod
