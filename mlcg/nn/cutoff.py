@@ -51,19 +51,19 @@ class IdentityCutoff(_Cutoff):
 
         self.check_cutoff()
 
-    def forward(self, dist: torch.Tensor) -> torch.Tensor:
+    def forward(self, distances: torch.Tensor) -> torch.Tensor:
         r"""Applies identity transform to input distances
 
         Parameters
         ----------
-        dist:
+        distances:
             Input distances of shape (total_num_distances)
 
         Returns
         -------
             Identity-transformed output distances of shape (total_num_edges)
         """
-        return dist
+        return distances
 
 
 class CosineCutoff(_Cutoff):
@@ -93,7 +93,7 @@ class CosineCutoff(_Cutoff):
 
         self.check_cutoff()
 
-    def forward(self, dist: torch.Tensor) -> torch.Tensor:
+    def forward(self, distances: torch.Tensor) -> torch.Tensor:
         """Applies cutoff envelope to distances.
 
         Parameters
