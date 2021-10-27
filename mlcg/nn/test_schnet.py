@@ -6,4 +6,13 @@ import numpy as np
 from mlcg.nn import *
 
 
-# def test
+@pytest.mark.parametrize(
+    "basis, cutoff, expected_warning",
+    [
+        (GaussianBasis(0, 5), CosineCutoff(0, 5), None),
+        (GaussianBasis(1, 5), CosineCutoff(0, 5), UserWarning),
+    ],
+)
+def test_cutoff_warning(basis, cutoff, expected_warning):
+    with pytest.warns(expected_warning):
+        StandardSchNet(basis, cutoff, [128, 128])
