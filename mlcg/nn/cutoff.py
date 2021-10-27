@@ -50,7 +50,7 @@ class IdentityCutoff(_Cutoff):
 
         self.check_cutoff()
 
-    def forwawrd(self, dist: torch.Tensor) -> torch.Tensor:
+    def forward(self, dist: torch.Tensor) -> torch.Tensor:
         r"""Applies identity transform to input distances
 
         Parameters
