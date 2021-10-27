@@ -48,7 +48,7 @@ class SchNet(nn.Module):
         distance cutoffs and expect more than 32 neighbors per node/atom.
     """
 
-    name: Final[str] = "Schnet"
+    name: Final[str] = "SchNet"
 
     def __init__(
         self,

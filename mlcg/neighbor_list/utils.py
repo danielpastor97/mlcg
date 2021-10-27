@@ -1,6 +1,7 @@
 import torch
 from torch_geometric.data import Data
 
+
 def ase2data(frame, energy_tag=None, force_tag=None):
     z = torch.from_numpy(frame.get_atomic_numbers())
     pos = torch.from_numpy(frame.get_positions())
