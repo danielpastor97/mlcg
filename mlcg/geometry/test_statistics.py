@@ -123,7 +123,7 @@ def test_unique_species(
 
 
 @pytest.mark.parametrize(
-    "test_data, target, beta, target_prior, nbins, amin, amax",
+    "test_data, target, beta, target_prior, nbins, b_min, b_max",
     [
         (collated_data, "bonds", beta, HarmonicBonds, 10, None, None),
         (collated_data, "bonds", beta, HarmonicBonds, 10, -2, None),
@@ -132,13 +132,13 @@ def test_unique_species(
     ],
 )
 def test_histogram_options(
-    test_data, target, beta, target_prior, nbins, amin, amax
+    test_data, target, beta, target_prior, nbins, b_min, b_max
 ):
     """Test to make sure histogram bin/range options are respected
     for various end options
     """
     statistics = compute_statistics(
-        test_data, target, beta, target_prior, nbins, amin, amax
+        test_data, target, beta, target_prior, nbins, b_min, b_max
     )
 
     for species_group in statistics.keys():
@@ -147,16 +147,16 @@ def test_histogram_options(
         assert len(p) == nbins
         assert len(p_bin) == nbins
         # case if lower bound is specified
-        if amin != None:
+        if b_min != None:
             delta = p_bin[1] - p_bin[0]
-            assert p_bin[0] == pytest.approx(amin + 0.5 * delta, 6)
+            assert p_bin[0] == pytest.approx(b_min + 0.5 * delta, 6)
         # case if upper bound is specified
-        if amax != None:
+        if b_max != None:
             delta = p_bin[1] - p_bin[0]
-            assert p_bin[-1] == pytest.approx(amax - 0.5 * delta, 6)
+            assert p_bin[-1] == pytest.approx(b_max - 0.5 * delta, 6)
         # case if both bounds are specified
-        if amin != None and amax != None:
-            bins = np.linspace(amin, amax, nbins + 1)
+        if b_min != None and b_max != None:
+            bins = np.linspace(b_min, b_max, nbins + 1)
             delta = bins[1] - bins[0]
-            assert p_bin[0] == (amin + 0.5 * delta)
-            assert p_bin[-1] == (amax - 0.5 * delta)
+            assert p_bin[0] == (b_min + 0.5 * delta)
+            assert p_bin[-1] == (b_max - 0.5 * delta)
