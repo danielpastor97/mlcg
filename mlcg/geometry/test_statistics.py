@@ -4,7 +4,12 @@ from mlcg.geometry.statistics import *
 from mlcg.geometry.statistics import _symmetrise_map
 from mlcg.nn.prior import *
 from mlcg.data import *
+from mlcg.neighbor_list.utils import ase_bonds2tensor, ase_angles2tensor
+
 from torch_geometric.data.collate import collate
+from ase.build import molecule
+from ase.geometry.analysis import Analysis
+from ase.neighborlist import natural_cutoffs
 import torch
 import pytest
 import numpy as np
@@ -15,56 +20,47 @@ temperature = 350  # K
 kB = 0.0019872041
 beta = 1 / (temperature * kB)
 
-# make a simple molecule defined by the following bonded
-# topology, with dummy atom types and names.
-
-atom_types = [1, 6, 2, 5, 4, 9, 8, 2, 6, 4, 7]
-atom_names = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"]
-bond_edges = torch.tensor(
-    [[0, 1, 1, 3, 4, 3, 6, 6, 8, 8], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+# Make a few pertubed frames of trans-butane using gaussian noise
+mol = molecule("trans-butane")
+analysis = Analysis(mol)  # , natural_cutoffs(mol))
+bond_edges = ase_bonds2tensor(analysis)
+angle_edges = ase_angles2tensor(analysis)
+# Add some non-bonded edges
+non_bonded_edges = torch.tensor(
+    [[0, 0, 0, 1, 2, 3, 3], [2, 3, 9, 5, 6, 10, 10],]
 )
+ref_coords = np.array(mol.get_positions())
 
-# All of the 1-5 (unique) distance pairs
-edges_1_5 = torch.tensor(
-    [
-        [0, 0, 0, 1, 1, 2, 2, 2, 4, 4, 5, 5],
-        [5, 7, 8, 9, 10, 5, 7, 8, 9, 10, 7, 8],
-    ]
-)
-
-# All of the (unique) 1-3 bonded angles
-bonded_angles = torch.tensor(
-    [
-        [0, 0, 1, 1, 2, 3, 3, 3, 4, 6, 6, 7, 9],
-        [1, 1, 3, 3, 1, 4, 6, 6, 3, 8, 8, 6, 8],
-        [2, 3, 4, 6, 3, 5, 7, 8, 6, 9, 10, 8, 10],
-    ]
-)
+mock_data_frames = []
+for i in range(1000):
+    perturbed_coords = ref_coords + np.random.rand(*ref_coords.shape)
+    mock_data_frames.append(torch.tensor(perturbed_coords))
+mock_data_frames = torch.stack(mock_data_frames, dim=0)
 
 # Topology object for the above molecule
 test_topo = Topology()
 
 # Adding atoms
-for atom_type, name in zip(atom_types, atom_names):
+for atom_type, name in zip(
+    mol.get_atomic_numbers(), [str(num) for num in mol.get_atomic_numbers()]
+):
     test_topo.add_atom(atom_type, name)
 
-# Adding bonds
+# Adding bonds/angles
 test_topo.bonds_from_edge_index(bond_edges)
+test_topo.angles_from_edge_index(angle_edges)
 
 # unique bond/angle species
 bond_species = torch.tensor(test_topo.types)[bond_edges]
-angle_species = torch.tensor(test_topo.types)[bonded_angles]
-non_bond_species = torch.tensor(test_topo.types)[edges_1_5]
+angle_species = torch.tensor(test_topo.types)[angle_edges]
+non_bond_species = torch.tensor(test_topo.types)[non_bonded_edges]
 
-# Mock data - temporarily its random
-n_frames = 10
-rand_coords = torch.randn(10, 11, 3)
 nls_tags = ["bonds", "angles", "non-bonded"]
 nls_orders = [2, 3, 2]
-nls_edges = [bond_edges, bonded_angles, edges_1_5]
+nls_edges = [bond_edges, angle_edges, non_bonded_edges]
 data_list = []
 
-for frame in range(rand_coords.shape[0]):
+for frame in range(mock_data_frames.shape[0]):
     neighbor_lists = {}
     for (tag, order, edge_list) in zip(nls_tags, nls_orders, nls_edges):
         neighbor_lists[tag] = {
@@ -76,8 +72,8 @@ for frame in range(rand_coords.shape[0]):
             "self_interaction": False,
         }
         data_point = AtomicData(
-            pos=rand_coords[frame],
-            atom_types=torch.tensor(atom_types),
+            pos=mock_data_frames[frame],
+            atom_types=torch.tensor(test_topo.types),
             neighbor_list=neighbor_lists,
         )
         data_list.append(data_point)
@@ -161,7 +157,6 @@ def test_histogram_options(
         # case if both bounds are specified
         if amin != None and amax != None:
             bins = np.linspace(amin, amax, nbins + 1)
-            print(p_bin)
             delta = bins[1] - bins[0]
             assert p_bin[0] == (amin + 0.5 * delta)
             assert p_bin[-1] == (amax - 0.5 * delta)
