@@ -6,10 +6,13 @@ from mlcg.data.atomic_data import AtomicData
 from ..data._keys import FORCE_KEY
 
 
-def chunker(seq: Sequence, size:int):
-    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+def chunker(seq: Sequence, size: int):
+    return (seq[pos : pos + size] for pos in range(0, len(seq), size))
 
-def remove_baseline_forces(data_list: List[AtomicData], models: Dict[str, torch.nn.Module]):
+
+def remove_baseline_forces(
+    data_list: List[AtomicData], models: Dict[str, torch.nn.Module]
+):
     """Compute the forces on the input :obj:`data_list` with the :obj:`models`
     and remove them from the reference forces contained in :obj:`data_list`.
     The computation of the forces is done on the whole :obj:`data_list` at once
