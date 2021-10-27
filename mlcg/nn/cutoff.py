@@ -14,7 +14,11 @@ class _Cutoff(nn.Module):
 
     def check_cutoff(self):
         if self.cutoff_upper < self.cutoff_lower:
-            raise ValueError("Upper cutoff is less than lower cutoff")
+            raise ValueError(
+                "Upper cutoff {} is less than lower cutoff {}".format(
+                    self.cutoff_upper, self.cutoff_lower
+                )
+            )
 
     def forward(self):
         raise NotImplementedError
