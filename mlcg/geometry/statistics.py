@@ -104,7 +104,9 @@ def _get_bin_centers(
     """
     if amin != None and amax != None:
         if amin >= amax:
-            raise ValueError("amin must be less than amax.")
+            raise ValueError(
+                "amin {} must be less than amax {}.".format(amin, amax)
+            )
 
     bin_centers = torch.zeros((nbins,), dtype=torch.float64)
     if amin != None:

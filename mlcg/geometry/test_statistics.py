@@ -126,4 +126,42 @@ def test_unique_species(
 # Test to make sure histograms are okay
 
 
+@pytest.mark.parametrize(
+    "test_data, target, beta, target_prior, nbins, amin, amax",
+    [
+        (collated_data, "bonds", beta, HarmonicBonds, 10, None, None),
+        (collated_data, "bonds", beta, HarmonicBonds, 10, -2, None),
+        (collated_data, "bonds", beta, HarmonicBonds, 10, None, 2),
+        (collated_data, "bonds", beta, HarmonicBonds, 10, -2, 2),
+    ],
+)
+def test_histogram_options(
+    test_data, target, beta, target_prior, nbins, amin, amax
+):
+    """Test to make sure histogram bin/range options are respected
+    for various end options
+    """
+    statistics = compute_statistics(
+        test_data, target, beta, target_prior, nbins, amin, amax
+    )
 
+    for species_group in statistics.keys():
+        p = statistics[species_group]["p"].numpy()
+        p_bin = statistics[species_group]["p_bin"].numpy()
+        assert len(p) == nbins
+        assert len(p_bin) == nbins
+        # case if lower bound is specified
+        if amin != None:
+            delta = p_bin[1] - p_bin[0]
+            assert p_bin[0] == pytest.approx(amin + 0.5 * delta, 6)
+        # case if upper bound is specified
+        if amax != None:
+            delta = p_bin[1] - p_bin[0]
+            assert p_bin[-1] == pytest.approx(amax - 0.5 * delta, 6)
+        # case if both bounds are specified
+        if amin != None and amax != None:
+            bins = np.linspace(amin, amax, nbins + 1)
+            print(p_bin)
+            delta = bins[1] - bins[0]
+            assert p_bin[0] == (amin + 0.5 * delta)
+            assert p_bin[-1] == (amax - 0.5 * delta)
