@@ -11,6 +11,8 @@ from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
 from torch_geometric.data.collate import collate, _collate
 
+from mlcg.datasets.chignolin import ChignolinDatasetWithNewPriors
+
 sys.path.insert(0, "./")
 from mlcg.data.atomic_data import AtomicData
 from mlcg.geometry.topology import Topology
@@ -27,3 +29,7 @@ if __name__ == "__main__":
 
     print(dataset.data.baseline_forces)
 
+    dataset0 = ChignolinDatasetWithNewPriors("/net/storage/clarkt/chignolin")
+    dataset0.process()
+
+    print(dataset0.data.baseline_forces)

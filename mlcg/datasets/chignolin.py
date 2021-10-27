@@ -199,4 +199,7 @@ class ChignolinDatasetWithNewPriors(ChignolinDataset):
         self, root, transform=None, pre_transform=None, pre_filter=None
     ):
         self.priors_cls = self._priors_cls
-        super(ChignolinDatasetWithNewPriors, self).__init__(ChignolinDataset)
+        super(ChignolinDatasetWithNewPriors, self).__init__(
+            root, transform, pre_transform, pre_filter
+        )
+        self.process()
