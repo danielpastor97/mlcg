@@ -41,6 +41,7 @@ def get_cls(class_path):
         assert args_class is not None
     return args_class
 
+
 def is_sbrk(string):
     if "[" in string and "]" in string:
         return True

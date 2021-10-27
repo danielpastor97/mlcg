@@ -8,6 +8,35 @@ from ..utils import make_splits
 
 
 class DataModule(pl.LightningDataModule):
+    """PL interface to train with datasets defined in mlcg.datasets.
+
+    Parameters
+    ----------
+
+    dataset:
+        a dataset from mlcg.datasets (or following the API of `torch_geometric.data.InMemoryDataset`)
+    log_dir:
+        where to store the data that might be produced during training.
+    val_ratio:
+        fraction of the dataset used for validation
+    test_ratio:
+        fraction of the dataset used for testing
+    splits:
+        filename of a file containing the indices for training, validation, and testing. It should be compatible with `np.load` and contain the fields `'idx_train'`, `'idx_val'`, and `'idx_test'`.
+        If None then the dataset is split randomly using the `val_ratio` and `test_ratio`.
+    batch_size:
+        number of structure to include in each training batches.
+    inference_batch_size:
+        number of structure to include in each validation/training batches.
+    num_workers;
+        number of `cpu` used for loading the dataset (see `here <https://pytorch-lightning.readthedocs.io/en/stable/guides/speed.html?highlight=num_workers#num-workers>`_ for more details).
+    train_stride:
+        stride used to subselect the training set. Useful parameter for debugging on a particular dataset.
+    save_local_copy:
+        saves the input dataset in log_dir
+
+    """
+
     def __init__(
         self,
         dataset: InMemoryDataset,
