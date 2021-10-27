@@ -1,12 +1,15 @@
-from typing import Optional, List
+import warnings
+from typing import Optional, List, Final
 import torch
 from torch import nn
 from torch_geometric.nn import MessagePassing
-from ..neighbor_list.neighbor_list import atomic_data2neighbor_list
-from ..data.atomic_data import AtomicData
-from .radial_basis import GaussianBasis, ExpNormalBasis
-from .cutoff import CosineCutoff
+from ..neighbor_list.neighbor_list import (
+    atomic_data2neighbor_list,
+    validate_neighborlist,
+)
+from ..data.atomic_data import AtomicData, ENERGY_KEY
 from ..geometry.internal_coordinates import compute_distances
+from .mlp import MLP
 
 
 class SchNet(nn.Module):
@@ -44,6 +47,8 @@ class SchNet(nn.Module):
         Users should set this to higher values if they are using higher upper
         distance cutoffs and expect more than 32 neighbors per node/atom.
     """
+
+    name: Final[str] = "Schnet"
 
     def __init__(
         self,
@@ -99,7 +104,7 @@ class SchNet(nn.Module):
                 layer.bias.fill_(0)
         self.rbf_layer.reset_parameters()
         for block in self.interaction_blocks:
-            interaction.reset_parameters()
+            block.reset_parameters()
         for layer in self.output_network:
             if isinstance(layer, nn.Linear):
                 nn.init.xavier_uniform_(layer.weight)
@@ -121,29 +126,57 @@ class SchNet(nn.Module):
            (num_examples * num_atoms, 1), as well as neighbor list
            information.
         """
+        x = self.embedding_layer(data.atom_types)
 
-        assert all(data.neighborlist["self_interaction"]) == False
+        neighbor_list = data.neighbor_list.get(self.name)
 
-        x = self.embedding_layer(data.atomic_types)
-
-        data.neighbor_list = atomic_data2neighbor_list(
-            data, self.cutoff.cutoff_upper, self.self_interaction
-        )
-
+        if not self.is_nl_compatible(neighbor_list):
+            neighbor_list = self.neighbor_list(
+                data, self.cutoff.cutoff_upper, self.max_num_neighbors
+            )[self.name]
+        edge_index = neighbor_list["index_mapping"]
         distances = compute_distances(
             data.pos,
-            data["neighbor_list"]["index_mapping"],
-            data["neighbor_list"]["cell_shifts"],
+            edge_index,
+            neighbor_list["cell_shifts"],
         )
-        rbf_expansion = self.rbf_layer(distances)
-        if self.cutoff != None:
-            rbf_expansion = rbf_expansion * self.cutoff(distances)
+
+        rbf_expansion = self.rbf_layer(distances) * self.cutoff(
+            distances
+        ).unsqueeze(-1)
 
         for block in self.interaction_blocks:
             x = x + block(x, edge_index, distances, rbf_expansion)
+
         energy = self.output_network(x)
-        data.energy = energy
+        data.out[self.name][ENERGY_KEY] = energy
+
         return data
+
+    def is_nl_compatible(self, nl):
+        is_compatible = False
+        if validate_neighborlist(nl):
+            if (
+                nl["order"] == 2
+                and nl["self_interaction"] == False
+                and nl["rcut"] == self.cutoff.cutoff_upper
+            ):
+                is_compatible = True
+        return is_compatible
+
+    @staticmethod
+    def neighbor_list(
+        data: AtomicData, rcut: float, max_num_neighbors: int = 1000
+    ) -> dict:
+        """Computes the neighborlist for :obj:`data` using a strict cutoff of :obj:`rcut`."""
+        return {
+            SchNet.name: atomic_data2neighbor_list(
+                data,
+                rcut,
+                self_interaction=False,
+                max_num_neighbors=max_num_neighbors,
+            )
+        }
 
 
 class InteractionBlock(nn.Module):
@@ -171,7 +204,7 @@ class InteractionBlock(nn.Module):
     ):
         super(InteractionBlock, self).__init__()
         self.conv = cfconv_layer
-        self.activation = activation()
+        self.activation = activation
         self.lin = nn.Linear(hidden_channels, hidden_channels)
 
         self.reset_parameters()
@@ -250,6 +283,8 @@ class CFConv(MessagePassing):
 
         self.reset_parameters()
 
+        # self.inspector = None
+
     def reset_parameters(self):
         r"""Method for resetting the weights of the linear
         layers according the the Xavier uniform strategy. Biases
@@ -318,12 +353,97 @@ class CFConv(MessagePassing):
         return x_j * W
 
 
+class StandardSchNet(SchNet):
+    """Small wrapper class for :ref:`SchNet` to simplify the definition of the
+    SchNet model through an input file.
+
+    Parameters
+    ----------
+    rbf_layer:
+        radial basis function used to project the distances :math:`r_{ij}`.
+    cutoff:
+        smooth cutoff function.
+    output_hidden_layer_widths:
+        List giving the number of hidden nodes of each hidden layer of the MLP
+        used to predict the target property from the learned representation.
+    hidden_channels:
+        dimension of the learned representation, i.e. dimension of the embeding projection, convolution layers, and interaction block.
+    embedding_size:
+        dimension of the input embeddings (should be larger than :obj:`AtomicData.atom_types.max()+1`).
+    num_filters:
+        number of nodes of the networks used to filter the projected distances
+    num_interactions:
+        number of interaction blocks
+    activation:
+        activation function
+    max_num_neighbors:
+        The maximum number of neighbors to return for each atom in :obj:`data`.
+        If the number of actual neighbors is greater than
+        :obj:`max_num_neighbors`, returned neighbors are picked randomly.
+    aggr:
+        Aggregation scheme for continuous filter output. For all options,
+        see
+         `aggr <https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class>`_
+
+    """
+
+    def __init__(
+        self,
+        rbf_layer: nn.Module,
+        cutoff: nn.Module,
+        output_hidden_layer_widths: List[int],
+        hidden_channels: int = 128,
+        embedding_size: int = 100,
+        num_filters: int = 128,
+        num_interactions: int = 3,
+        activation: nn.Module = nn.Tanh(),
+        max_num_neighbors: int = 1000,
+        aggr: str = "add",
+    ):
+
+        if num_interactions < 1:
+            raise RuntimeError(
+                "At least one interaction block must be specified"
+            )
+
+        embedding_layer = nn.Embedding(embedding_size, hidden_channels)
+
+        interaction_blocks = []
+        for _ in range(num_interactions):
+            filter_network = nn.Sequential(
+                nn.Linear(rbf_layer.num_rbf, num_filters),
+                activation,
+                nn.Linear(num_filters, num_filters),
+            )
+            cfconv = CFConv(
+                filter_network,
+                num_filters=num_filters,
+                in_channels=hidden_channels,
+                out_channels=hidden_channels,
+                aggr=aggr,
+            )
+            block = InteractionBlock(cfconv, hidden_channels, activation)
+            interaction_blocks.append(block)
+        output_layer_widths = (
+            [hidden_channels] + output_hidden_layer_widths + [1]
+        )
+        output_network = MLP(output_layer_widths, activation_func=activation)
+        super(StandardSchNet, self).__init__(
+            embedding_layer,
+            interaction_blocks,
+            rbf_layer,
+            cutoff,
+            output_network,
+            max_num_neighbors=max_num_neighbors,
+        )
+
+
 def create_schnet(
     rbf_layer: nn.Module,
     cutoff: nn.Module,
     output_network: nn.Module,
     hidden_channels: int = 128,
-    max_z: int = 100,
+    embedding_size: int = 100,
     num_filters: int = 128,
     num_interactions: int = 3,
     activation: type = nn.Tanh,
@@ -338,13 +458,13 @@ def create_schnet(
     if num_interactions < 1:
         raise RuntimeError("At least one interaction block must be specified")
 
-    embedding_layer = nn.Embedding(max_z, hidden_channels)
+    embedding_layer = nn.Embedding(embedding_size, hidden_channels)
 
     interaction_blocks = []
     for _ in range(num_interactions):
         filter_network = nn.Sequential(
-            nn.Linear(num_rbf, num_filters),
-            activation(),
+            nn.Linear(rbf_layer.num_rbf, num_filters),
+            activation,
             nn.Linear(num_filters, num_filters),
         )
         cfconv = CFConv(

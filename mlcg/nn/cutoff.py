@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import math
 
 
 class _Cutoff(nn.Module):
@@ -97,7 +98,7 @@ class CosineCutoff(_Cutoff):
 
         Parameters
         ----------
-        dist:
+        distances:
             Distances of shape (total_num_edges)
 
         Returns
