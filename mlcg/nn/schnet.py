@@ -133,8 +133,7 @@ class SchNet(nn.Module):
         if not self.is_nl_compatible(neighbor_list):
             neighbor_list = self.neighbor_list(
                 data, self.cutoff.cutoff_upper, self.max_num_neighbors
-            )
-
+            )[self.name]
         edge_index = neighbor_list["index_mapping"]
         distances = compute_distances(
             data.pos,
@@ -169,7 +168,7 @@ class SchNet(nn.Module):
     def neighbor_list(
         data: AtomicData, rcut: float, max_num_neighbors: int = 1000
     ) -> dict:
-        """Computes the neighborlist for :obj:`data` using a scrict cutoff of :obj:`rcut`."""
+        """Computes the neighborlist for :obj:`data` using a strict cutoff of :obj:`rcut`."""
         return {
             SchNet.name: atomic_data2neighbor_list(
                 data,

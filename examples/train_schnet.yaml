@@ -113,8 +113,8 @@ model:
               trainable: false
   # necessary parameters when using ReduceLROnPlateau
   monitor: validation_loss
-  interval: 'epoch'
-  frequency: 1
+  scheduler_interval: 'epoch'
+  step_frequency: 1
 optimizer:
   class_path: torch.optim.AdamW
   init_args:

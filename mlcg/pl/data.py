@@ -23,6 +23,7 @@ class DataModule(pl.LightningDataModule):
         fraction of the dataset used for testing
     splits:
         filename of a file containing the indices for training, validation, and testing. It should be compatible with `np.load` and contain the fields `'idx_train'`, `'idx_val'`, and `'idx_test'`.
+        If None then the dataset is split randomly using the `val_ratio` and `test_ratio`.
     batch_size:
         number of structure to include in each training batches.
     inference_batch_size:

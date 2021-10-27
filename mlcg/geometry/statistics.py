@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from copy import deepcopy
 import torch
 import torch.nn as nn
@@ -80,7 +80,7 @@ def _get_all_unique_keys(
 
 
 def _get_bin_centers(
-    feature: torch.tensor, nbins: int, amin: float = None, amax: float = None
+    feature: torch.tensor, nbins: int, b_min: float, b_max: float
 ) -> torch.tensor:
     """Returns bin centers for histograms.
 
@@ -90,10 +90,10 @@ def _get_bin_centers(
         1-D input values of a feature.
     nbins:
         Number of bins in the histogram
-    amin
+    b_min
         If specified, the lower bound of bin edges. If not specified, the lower bound
         defaults to the lowest value in the input feature
-    amax
+    b_max
         If specified, the upper bound of bin edges. If not specified, the upper bound
         defaults to the greatest value in the input feature
 
@@ -102,23 +102,15 @@ def _get_bin_centers(
     bin_centers:
         The locaations of the bin centers
     """
-    if amin != None and amax != None:
-        if amin >= amax:
-            raise ValueError("amin must be less than amax.")
+
+    if b_min >= b_max:
+        raise ValueError("b_min must be less than b_max.")
 
     bin_centers = torch.zeros((nbins,), dtype=torch.float64)
-    if amin != None:
-        a_min = amin
-    else:
-        a_min = a.min()
-    if a_max != None:
-        a_max = amax
-    else:
-        a_max = a.max()
 
-    delta = (a_max - a_min) / nbins
+    delta = (b_max - b_min) / nbins
     bin_centers = (
-        a_min
+        b_min
         + 0.5 * delta
         + torch.arange(0, nbins, dtype=torch.float64) * delta
     )
@@ -131,8 +123,8 @@ def compute_statistics(
     beta: float,
     TargetPrior: _Prior = Harmonic,
     nbins: int = 100,
-    amin: float = None,
-    amax: float = None,
+    bmin: Optional[float] = None,
+    bmax: Optional[float] = None,
 ) -> Dict:
     r"""Function for computing atom type-specific statistics for
     every combination of atom types present in a collated AtomicData
@@ -159,10 +151,10 @@ def compute_statistics(
     nbins:
         The number of bins over which 1-D feature histograms are constructed
         in order to estimate distributions
-    amin
+    bmin
         If specified, the lower bound of bin edges. If not specified, the lower bound
         defaults to the lowest value in the input feature
-    amax
+    bmax
         If specified, the upper bound of bin edges. If not specified, the upper bound
         defaults to the greatest value in the input feature
 
@@ -240,8 +232,7 @@ def compute_statistics(
         [data.atom_types[mapping[ii]] for ii in range(order)]
     )
 
-    interaction_types = _symmetrise_map[order](intereaction_types)
-
+    interaction_types = _symmetrise_map[order](interaction_types)
     statistics = {}
     for unique_key in unique_keys.t():
         # find which values correspond to unique_key type of interaction
@@ -258,11 +249,22 @@ def compute_statistics(
         if len(val) == 0:
             continue
 
-        bin_centers = _get_bin_centers(val, nbins, amin=amin, amax=amax)
-        hist = torch.histc(val, bins=nbins, min=amin, max=amax)
+        if bmin is None:
+            b_min = val.min()
+        else:
+            b_min = bmin
+        if bmax is None:
+            b_max = val.max()
+        else:
+            b_max = bmax
+
+        bin_centers = _get_bin_centers(val, nbins, b_min=b_min, b_max=b_max)
+
+        hist = torch.histc(val, bins=nbins, min=b_min, max=b_max)
 
         mask = hist > 0
         bin_centers_nz = bin_centers[mask]
+
         ncounts_nz = hist[mask]
         dG_nz = -torch.log(ncounts_nz) / beta
         params = TargetPrior.fit_from_potential_estimates(bin_centers_nz, dG_nz)
@@ -287,8 +289,8 @@ def fit_baseline_models(
     beta: float,
     priors_cls: List[_Prior],
     nbins: int = 100,
-    amin: float = None,
-    amax: float = None,
+    bmin: Optional[float] = None,
+    bmax: Optional[float] = None,
 ) -> Tuple[List[nn.Module], Dict]:
     """Function for parametrizing a list of priors based on type-specific interactions contained in
     a collated AtomicData structure
@@ -311,10 +313,10 @@ def fit_baseline_models(
     nbins:
         The number of bins over which 1-D feature histograms are constructed
         in order to estimate distributions
-    amin
+    bmin
         If specified, the lower bound of bin edges. If not specified, the lower bound
         defaults to the lowest value in the input feature
-    amax
+    bmax
         If specified, the upper bound of bin edges. If not specified, the upper bound
         defaults to the greatest value in the input feature
 
@@ -335,8 +337,8 @@ def fit_baseline_models(
             beta,
             TargetPrior=TargetPrior,
             nbins=nbins,
-            amin=amin,
-            amax=amax,
+            bmin=bmin,
+            bmax=bmax,
         )
         models[k] = TargetPrior(statistics[k])
     return models, statistics

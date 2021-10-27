@@ -26,11 +26,11 @@ class PLModel(pl.LightningModule):
             The learning rate scheduler to use to train the model in the form of `{"class_path":...[,"init_args":...]}`, where `"class_path"` is a class type, e.g. `"mlcg.nn.Cutoff"`, and `"init_args"` is a list of initialization arguments.
         monitor:
             Metric to to monitor for schedulers like `ReduceLROnPlateau`.
-        frequency:
+        step_frequency:
             How many epochs/steps should pass between calls to
             `scheduler.step()`. 1 corresponds to updating the learning
             rate after every epoch/step.
-        interval:
+        scheduler_interval:
             The unit of the scheduler's step size, could also be 'step'.
             'epoch' updates the scheduler on epoch end whereas 'step'
             updates it after a optimizer update.
@@ -43,8 +43,8 @@ class PLModel(pl.LightningModule):
         optimizer: dict = None,
         lr_scheduler: dict = None,
         monitor: Optional[str] = None,
-        frequency: int = 1,
-        interval: str = "epoch",
+        step_frequency: int = 1,
+        scheduler_interval: str = "epoch",
     ) -> None:
         """ """
 
@@ -56,8 +56,8 @@ class PLModel(pl.LightningModule):
         self.lr_scheduler = lr_scheduler
         self.optimizer = optimizer
         self.monitor = monitor
-        self.frequency = frequency
-        self.interval = interval
+        self.step_frequency = step_frequency
+        self.scheduler_interval = scheduler_interval
 
         self.derivative = False
         for module in self.modules():
@@ -75,8 +75,8 @@ class PLModel(pl.LightningModule):
                 "optimizer": optimizer,
                 "lr_scheduler": scheduler,
                 "monitor": self.monitor,
-                "frequency": self.frequency,
-                "interval": self.interval,
+                "frequency": self.step_frequency,
+                "interval": self.scheduler_interval,
                 "name": name,
             }
 

@@ -95,7 +95,6 @@ class ChignolinDataset(InMemoryDataset):
         return coord_fns, forces_fns
 
     def process(self):
-
         coord_dir = join(self.raw_dir, "coords_nowater")
         force_dir = join(self.raw_dir, "forces_nowater")
 
