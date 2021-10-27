@@ -12,7 +12,7 @@ class _Cutoff(nn.Module):
         self.cutoff_upper = None
 
     def check_cutoff(self):
-        if self.cutoff_upper < self.cutoff_upper:
+        if self.cutoff_upper < self.cutoff_lower:
             raise ValueError("Upper cutoff is less than lower cutoff")
 
     def forward(self):
