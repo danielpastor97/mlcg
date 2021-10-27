@@ -3,18 +3,8 @@ from setuptools import setup, find_packages
 NAME = "mlcg"
 VERSION = "0.1"
 
-install_requires = [
-    "mdtraj",
-    "jsonargparse[signatures]",
-    "tqdm",
-    "ase",
-    "e3nn",
-    "numpy",
-    "scipy",
-    "scikit-learn",
-    "pytest",
-]
-
+with open("requirements.txt") as f:
+    install_requires = f.read().splitlines()
 
 setup(
     name=NAME,
@@ -25,4 +15,5 @@ setup(
     license="MIT",
     author="Fe" + "\u0301" + "lix Musil, Nick Charron",
     install_requires=install_requires,
+    scripts=["scripts/mlcg-train.py"],
 )

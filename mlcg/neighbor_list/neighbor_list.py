@@ -1,6 +1,7 @@
-from typing import Optional
-from numpy import zeros
+from typing import Mapping, Optional
+from numpy import isin, zeros
 import torch
+from torch.distributed.rpc import is_available
 from .torch_impl import torch_neighbor_list
 
 
@@ -8,6 +9,7 @@ def atomic_data2neighbor_list(
     data,
     rcut: float,
     self_interaction: bool = False,
+    max_num_neighbors: int = 1000,
 ) -> dict:
     """Build a neighborlist from a :ref:`mlcg.data.atomic_data.AtomicData` by
     searching for neighboring atom within a maximum radius `rcut`.
@@ -20,10 +22,17 @@ def atomic_data2neighbor_list(
         cutoff radius used to compute the connectivity
     self_interaction:
         whether the mapping includes self referring mappings, e.g. mappings where `i` == `j`.
+    max_num_neighbors:
+        The maximum number of neighbors to return for each atom in :obj:`data`.
+        If the number of actual neighbors is greater than
+        :obj:`max_num_neighbors`, returned neighbors are picked randomly.
     """
     rcut = float(rcut)
     idx_i, idx_j, cell_shifts, _ = torch_neighbor_list(
-        data, rcut, self_interaction=self_interaction
+        data,
+        rcut,
+        self_interaction=self_interaction,
+        max_num_neighbors=max_num_neighbors,
     )
 
     mapping = torch.cat([idx_i.unsqueeze(0), idx_j.unsqueeze(0)], dim=0)
@@ -94,9 +103,15 @@ def validate_neighborlist(inp: dict) -> bool:
         "rcut": [float],
         "self_interaction": [bool],
     }
-    for k, ts in validator.items():
-        v = inp.get(k, _EmptyField())
-        assert all(
-            [isinstance(v, t) for t in ts]
-        ), f"entry {k} is {type(v)} but should be in {ts}"
-    return True
+    is_validated = False
+    if isinstance(inp, Mapping):
+        vals = []
+        # check that entries of validator exists and that the value had one of
+        #  the expected type
+        for k, types in validator.items():
+            v = inp.get(k, _EmptyField())
+            vals.append(any([isinstance(v, t) for t in types]))
+
+        if all(vals):
+            is_validated = True
+    return is_validated
