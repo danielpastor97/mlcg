@@ -1,20 +1,29 @@
 name: CodeCov
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request: # Run on local PRs
+    branches: [ main ]
+    types: [opened, reopened, synchronize]
+  pull_request_target: # Run on fork PRs
+    branches: [ main ]
+    types: [opened, reopened, synchronize]
+
 jobs:
   run:
     runs-on: ubuntu-latest
     env:
       OS: ubuntu-latest
-      PYTHON: '3.9'
+      PYTHON: '3.8'
     steps:
-    - uses: checkout@v2
+    - uses: actions/checkout@v2
       with:
         fetch-depth: ‘2’
 
     - name: Setup Python
       uses: actions/setup-python@master
       with:
-        python-version: 3.9
+        python-version: 3.8
     - name: Generate Report
       run: |
         pip install coverage
