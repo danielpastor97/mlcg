@@ -286,13 +286,15 @@ def add_chain_angles(topology: Topology) -> None:
     for i in range(topology.n_atoms - 2):
         topology.add_angle(i, i + 1, i + 2)
 
+
 def add_chain_dihedrals(topology: Topology) -> None:
     """Add dihedrals to the topology assuming a chain-like pattern, i.e. dihedrals are
     defined following the insertion order of the atoms in the topology.
     A four atoms chain `1-2-3-4` will find the dihedral: `1-2-3-4`.
     """
     for i in range(topology.n_atoms - 3):
-        topology.add_dihedral(i, i + 1, i + 2, i+3)       
+        topology.add_dihedral(i, i + 1, i + 2, i + 3)
+
 
 def get_n_pairs(
     connectivity_matrix: torch.Tensor, n: int = 3, unique: bool = True

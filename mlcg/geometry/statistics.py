@@ -8,15 +8,16 @@ from ..data import AtomicData
 from ..nn.prior import Dihedral, Harmonic, _Prior
 from ..utils import tensor2tuple
 
+
 def _symmetrise_dihedral_interaction(
-    unique_interaction_types : torch.tensor,
+    unique_interaction_types: torch.tensor,
 ) -> torch.tensor:
     """For dihedrals defined as::
       2---3---4
      /
     1
-    atoms [(1,2,3,4),(4,3,2,1) can be exchanged without changing the dihedral 
-    so the resulting interaction is symmetric w.r.t such transformations. 
+    atoms [(1,2,3,4),(4,3,2,1) can be exchanged without changing the dihedral
+    so the resulting interaction is symmetric w.r.t such transformations.
     Hence the need for only considering interactions (a,b,c,d) with a < d.
     """
     mask = unique_interaction_types[0] > unique_interaction_types[3]
@@ -76,7 +77,9 @@ _symmetrise_map = {
 _flip_map = {
     2: lambda tup: torch.tensor([tup[1], tup[0]], dtype=torch.long),
     3: lambda tup: torch.tensor([tup[2], tup[1], tup[0]], dtype=torch.long),
-    4: lambda tup: torch.tensor([tup[3], tup[2], tup[1], tup[0]], dtype=torch.long),
+    4: lambda tup: torch.tensor(
+        [tup[3], tup[2], tup[1], tup[0]], dtype=torch.long
+    ),
 }
 
 
@@ -248,7 +251,7 @@ def compute_statistics(
                                         beta=beta,
                                         TargetPrior=Dihedral
     )
-    
+
     ```
 
     """

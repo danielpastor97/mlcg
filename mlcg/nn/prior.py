@@ -2,8 +2,11 @@ import torch
 from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit
 
-from ..geometry.internal_coordinates import (compute_distances, compute_angles,
-                                             compute_dihedrals,)
+from ..geometry.internal_coordinates import (
+    compute_distances,
+    compute_angles,
+    compute_dihedrals,
+)
 
 
 class _Prior(object):
@@ -186,10 +189,11 @@ class Repulsion(torch.nn.Module, _Prior):
             )
         }
 
+
 class Dihedral(torch.nn.Module, _Prior):
-    '''
+    """
     TO DO: better guess for p0 under fit_from_potential_estimates
-    '''
+    """
 
     _name = "dihedral"
     _order = 4
@@ -238,9 +242,9 @@ class Dihedral(torch.nn.Module, _Prior):
         ]
         features = self.data2features(data).flatten()
         y = Dihedral.compute(
-            features, 
-            self.theta_0[interaction_types], 
-            self.k_0[interaction_types], 
+            features,
+            self.theta_0[interaction_types],
+            self.k_0[interaction_types],
             self.theta_1[interaction_types],
             self.k_1[interaction_types],
             self.theta_2[interaction_types],
@@ -256,26 +260,27 @@ class Dihedral(torch.nn.Module, _Prior):
     @staticmethod
     def compute1(theta, theta_0, k_0):
         V = 0
-        V += k_0 * (1-torch.cos(1*theta-theta_0))
+        V += k_0 * (1 - torch.cos(1 * theta - theta_0))
         return V
 
     @staticmethod
     def compute2(theta, theta_0, k_0, theta_1, k_1):
         V = 0
-        V += k_0 * (1-torch.cos(1*theta-theta_0))
-        V += k_1 * (1-torch.cos(2*theta-theta_1))
-        return V
-    @staticmethod
-    def compute3(theta, theta_0, k_0, theta_1, k_1, theta_2, k_2):
-        V = 0
-        V += k_0 * (1-torch.cos(1*theta-theta_0))
-        V += k_1 * (1-torch.cos(2*theta-theta_1))
-        V += k_2 * (1-torch.cos(3*theta-theta_2))
+        V += k_0 * (1 - torch.cos(1 * theta - theta_0))
+        V += k_1 * (1 - torch.cos(2 * theta - theta_1))
         return V
 
     @staticmethod
-    def neg_log_likelihood(y,yhat):
-        L = torch.sum(y*torch.log(y/yhat))
+    def compute3(theta, theta_0, k_0, theta_1, k_1, theta_2, k_2):
+        V = 0
+        V += k_0 * (1 - torch.cos(1 * theta - theta_0))
+        V += k_1 * (1 - torch.cos(2 * theta - theta_1))
+        V += k_2 * (1 - torch.cos(3 * theta - theta_2))
+        return V
+
+    @staticmethod
+    def neg_log_likelihood(y, yhat):
+        L = torch.sum(y * torch.log(y / yhat))
         return L
 
     @staticmethod
@@ -291,53 +296,82 @@ class Dihedral(torch.nn.Module, _Prior):
                 Dihedral.compute1,
                 bin_centers_nz[mask],
                 dG_nz[mask],
-                p0=[3.1415/2, 1,],
+                p0=[
+                    3.1415 / 2,
+                    1,
+                ],
             )
-            aic1 = -2*Dihedral.neg_log_likelihood(dG_nz[mask],Dihedral.compute1(bin_centers_nz[mask],*popt1))-2*2
+            aic1 = (
+                -2
+                * Dihedral.neg_log_likelihood(
+                    dG_nz[mask], Dihedral.compute1(bin_centers_nz[mask], *popt1)
+                )
+                - 2 * 2
+            )
             popt2, _ = curve_fit(
                 Dihedral.compute2,
                 bin_centers_nz[mask],
                 dG_nz[mask],
-                p0=[3.1415/2, 1,-3.1415/2, 1,],
+                p0=[
+                    3.1415 / 2,
+                    1,
+                    -3.1415 / 2,
+                    1,
+                ],
             )
-            aic2 = -2*Dihedral.neg_log_likelihood(dG_nz[mask],Dihedral.compute2(bin_centers_nz[mask],*popt2))-2*3
+            aic2 = (
+                -2
+                * Dihedral.neg_log_likelihood(
+                    dG_nz[mask], Dihedral.compute2(bin_centers_nz[mask], *popt2)
+                )
+                - 2 * 3
+            )
             popt3, _ = curve_fit(
                 Dihedral.compute3,
                 bin_centers_nz[mask],
                 dG_nz[mask],
-                p0=[3.1415/2, 1, 0, 1, -3.1415/2, 1],
+                p0=[3.1415 / 2, 1, 0, 1, -3.1415 / 2, 1],
             )
-            aic3 = -2*Dihedral.neg_log_likelihood(dG_nz[mask],Dihedral.compute3(bin_centers_nz[mask],*popt3))-2*4
-            min_aic = min(aic1,aic2,aic3)
+            aic3 = (
+                -2
+                * Dihedral.neg_log_likelihood(
+                    dG_nz[mask], Dihedral.compute3(bin_centers_nz[mask], *popt3)
+                )
+                - 2 * 4
+            )
+            min_aic = min(aic1, aic2, aic3)
 
             if min_aic == aic1:
                 popt = popt1
-                stat = {'theta_0':popt[0],
-                        'k_0':popt[1],
-                        'theta_1':0,
-                        'k_1':0,
-                        'theta_2':0,
-                        'k_2':0,
+                stat = {
+                    "theta_0": popt[0],
+                    "k_0": popt[1],
+                    "theta_1": 0,
+                    "k_1": 0,
+                    "theta_2": 0,
+                    "k_2": 0,
                 }
                 Dihedral.compute = Dihedral.compute1
             elif min_aic == aic2:
                 popt = popt2
-                stat = {'theta_0':popt[0],
-                        'k_0':popt[1],
-                        'theta_1':popt[2],
-                        'k_1':popt[3],
-                        'theta_2':0,
-                        'k_2':0,
+                stat = {
+                    "theta_0": popt[0],
+                    "k_0": popt[1],
+                    "theta_1": popt[2],
+                    "k_1": popt[3],
+                    "theta_2": 0,
+                    "k_2": 0,
                 }
                 Dihedral.compute = Dihedral.compute2
             elif min_aic == aic3:
                 popt = popt3
-                stat = {'theta_0':popt[0],
-                        'k_0':popt[1],
-                        'theta_1':popt[2],
-                        'k_1':popt[3],
-                        'theta_2':popt[4],
-                        'k_2':popt[5],
+                stat = {
+                    "theta_0": popt[0],
+                    "k_0": popt[1],
+                    "theta_1": popt[2],
+                    "k_1": popt[3],
+                    "theta_2": popt[4],
+                    "k_2": popt[5],
                 }
                 Dihedral.compute = Dihedral.compute3
 
@@ -354,17 +388,18 @@ class Dihedral(torch.nn.Module, _Prior):
         return stat
 
     def from_user(*args):
-        ''' Direct input of parameters from user'''
-        stat = {'theta_0':args[0],
-                'k_0':args[1],
-                'theta_1':args[2],
-                'k_1':args[3],
-                'theta_2':args[2],
-                'k_2':args[3],
+        """ Direct input of parameters from user"""
+        stat = {
+            "theta_0": args[0],
+            "k_0": args[1],
+            "theta_1": args[2],
+            "k_1": args[3],
+            "theta_2": args[2],
+            "k_2": args[3],
         }
         return stat
 
     @staticmethod
     def neighbor_list(topology) -> None:
-        nl = topology.neighbor_list('dihedrals')
+        nl = topology.neighbor_list("dihedrals")
         return {Dihedral._name: nl}

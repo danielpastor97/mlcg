@@ -187,13 +187,15 @@ class ChignolinDataset(InMemoryDataset):
         torch.save(baseline_models, self.processed_paths[3])
         torch.save((datas, slices), self.processed_paths[0])
 
+
 class ChignolinDatasetWithNewPriors(ChignolinDataset):
-    '''
-        Inherit from Chignolin Dataset and redefine priors to compute
-        Modify _prior_cls to include priors to compute
-        Must provide
-            -----
-    '''
+    """
+    Inherit from Chignolin Dataset and redefine priors to compute
+    Modify _prior_cls to include priors to compute
+    Must provide
+        -----
+    """
+
     _priors_cls = [HarmonicBonds, HarmonicAngles, Repulsion, Dihedral]
 
     def __init__(

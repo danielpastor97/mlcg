@@ -4,7 +4,12 @@ import numpy as np
 
 
 from ._mappings import CA_MAP
-from ..geometry.topology import Topology, add_chain_bonds, add_chain_angles, add_chain_dihedrals
+from ..geometry.topology import (
+    Topology,
+    add_chain_bonds,
+    add_chain_angles,
+    add_chain_dihedrals,
+)
 
 
 def build_cg_matrix(
