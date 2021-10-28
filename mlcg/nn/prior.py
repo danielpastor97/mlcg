@@ -388,7 +388,9 @@ class Dihedral(torch.nn.Module, _Prior):
         return stat
 
     def from_user(*args):
-        """ Direct input of parameters from user"""
+        """ 
+        Direct input of parameters from user
+        """
         stat = {
             "theta_0": args[0],
             "k_0": args[1],
