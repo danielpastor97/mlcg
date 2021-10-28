@@ -11,6 +11,7 @@ on:
 
 jobs:
   run:
+    runs-on: ubuntu-latest
     container: nec4/pytorch_geometric_cpu:v1.1
     env:
       OS: ubuntu-latest
