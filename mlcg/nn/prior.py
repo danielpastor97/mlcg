@@ -192,7 +192,7 @@ class Dihedral(torch.nn.Module, _Prior):
     '''
 
     _name = "dihedral"
-    _order = "4"
+    _order = 4
     _neighbor_list_name = "dihedrals"
 
     def __init__(self, statistics) -> None:
@@ -209,16 +209,23 @@ class Dihedral(torch.nn.Module, _Prior):
         k_0 = torch.zeros(sizes)
         theta_1 = torch.zeros(sizes)
         k_1 = torch.zeros(sizes)
+        theta_2 = torch.zeros(sizes)
+        k_2 = torch.zeros(sizes)
+
         for key in statistics.keys():
             theta_0[key] = statistics[key]["theta_0"]
-            k_0[key] = statistics[key]["ks"]
+            k_0[key] = statistics[key]["k_0"]
             theta_1[key] = statistics[key]["theta_1"]
             k_1[key] = statistics[key]["k_1"]
+            theta_2[key] = statistics[key]["theta_2"]
+            k_2[key] = statistics[key]["k_2"]
 
         self.register_buffer("theta_0", theta_0)
         self.register_buffer("k_0", k_0)
         self.register_buffer("theta_1", theta_1)
         self.register_buffer("k_1", k_1)
+        self.register_buffer("theta_2", theta_1)
+        self.register_buffer("k_2", k_1)
 
     def data2features(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
@@ -235,7 +242,9 @@ class Dihedral(torch.nn.Module, _Prior):
             self.theta_0[interaction_types], 
             self.k_0[interaction_types], 
             self.theta_1[interaction_types],
-            self.k_1[interaction_types]
+            self.k_1[interaction_types],
+            self.theta_2[interaction_types],
+            self.k_2[interaction_types],
         )
         data.out[self.name] = {"energy": y}
         return data
@@ -245,13 +254,29 @@ class Dihedral(torch.nn.Module, _Prior):
         return compute_dihedrals(pos, mapping)
 
     @staticmethod
-    def compute(theta, theta_0, k_0, theta_1, k_1):
+    def compute1(theta, theta_0, k_0):
         V = 0
-        # for ix in range(ns):
-        #     V += ks[ix] * ( 1-torch.cos(ns[ix]*theta-theta_0s[ix]) )
+        V += k_0 * (1-torch.cos(1*theta-theta_0))
+        return V
+
+    @staticmethod
+    def compute2(theta, theta_0, k_0, theta_1, k_1):
+        V = 0
         V += k_0 * (1-torch.cos(1*theta-theta_0))
         V += k_1 * (1-torch.cos(2*theta-theta_1))
         return V
+    @staticmethod
+    def compute3(theta, theta_0, k_0, theta_1, k_1, theta_2, k_2):
+        V = 0
+        V += k_0 * (1-torch.cos(1*theta-theta_0))
+        V += k_1 * (1-torch.cos(2*theta-theta_1))
+        V += k_2 * (1-torch.cos(3*theta-theta_2))
+        return V
+
+    @staticmethod
+    def neg_log_likelihood(y,yhat):
+        L = torch.sum(y*torch.log(y/yhat))
+        return L
 
     @staticmethod
     def fit_from_potential_estimates(bin_centers_nz, dG_nz):
@@ -261,19 +286,61 @@ class Dihedral(torch.nn.Module, _Prior):
 
         mask = torch.abs(dG_nz) > 1e-4 * torch.abs(integral)
         try:
-            popt, _ = curve_fit(
-                Dihedral.compute,
+            # Determine best fit. Either 1,2,, or 3 parameters
+            popt1, _ = curve_fit(
+                Dihedral.compute1,
                 bin_centers_nz[mask],
                 dG_nz[mask],
-                p0=[3.1415/2, 1,
-                    -3.1415/2, 1,
-                ],
+                p0=[3.1415/2, 1,],
             )
-            stat = {'theta_0':popt[0],
-                    'k_0':popt[1],
-                    'theta_1':popt[2],
-                    'k_1':popt[3],
-            }
+            aic1 = -2*Dihedral.neg_log_likelihood(dG_nz[mask],Dihedral.compute1(bin_centers_nz[mask],*popt1))-2*2
+            popt2, _ = curve_fit(
+                Dihedral.compute2,
+                bin_centers_nz[mask],
+                dG_nz[mask],
+                p0=[3.1415/2, 1,-3.1415/2, 1,],
+            )
+            aic2 = -2*Dihedral.neg_log_likelihood(dG_nz[mask],Dihedral.compute2(bin_centers_nz[mask],*popt2))-2*3
+            popt3, _ = curve_fit(
+                Dihedral.compute3,
+                bin_centers_nz[mask],
+                dG_nz[mask],
+                p0=[3.1415/2, 1, 0, 1, -3.1415/2, 1],
+            )
+            aic3 = -2*Dihedral.neg_log_likelihood(dG_nz[mask],Dihedral.compute3(bin_centers_nz[mask],*popt3))-2*4
+            min_aic = min(aic1,aic2,aic3)
+
+            if min_aic == aic1:
+                popt = popt1
+                stat = {'theta_0':popt[0],
+                        'k_0':popt[1],
+                        'theta_1':0,
+                        'k_1':0,
+                        'theta_2':0,
+                        'k_2':0,
+                }
+                Dihedral.compute = Dihedral.compute1
+            elif min_aic == aic2:
+                popt = popt2
+                stat = {'theta_0':popt[0],
+                        'k_0':popt[1],
+                        'theta_1':popt[2],
+                        'k_1':popt[3],
+                        'theta_2':0,
+                        'k_2':0,
+                }
+                Dihedral.compute = Dihedral.compute2
+            elif min_aic == aic3:
+                popt = popt3
+                stat = {'theta_0':popt[0],
+                        'k_0':popt[1],
+                        'theta_1':popt[2],
+                        'k_1':popt[3],
+                        'theta_2':popt[4],
+                        'k_2':popt[5],
+                }
+                Dihedral.compute = Dihedral.compute3
+
         except:
             print(f"failed to fit potential estimate for Dihedral")
             stat = {
@@ -281,6 +348,8 @@ class Dihedral(torch.nn.Module, _Prior):
                 "k_0": torch.tensor(float("nan")),
                 "theta_1": torch.tensor(float("nan")),
                 "k_1": torch.tensor(float("nan")),
+                "theta_2": torch.tensor(float("nan")),
+                "k_2": torch.tensor(float("nan")),
             }
         return stat
 
@@ -290,11 +359,12 @@ class Dihedral(torch.nn.Module, _Prior):
                 'k_0':args[1],
                 'theta_1':args[2],
                 'k_1':args[3],
+                'theta_2':args[2],
+                'k_2':args[3],
         }
         return stat
 
     @staticmethod
-    def neighbor_list(topology, type) -> None:
-        assert type in Dihedral._neighbor_list_name
-        nl = topology.neighbor_list(type)
-        return {type: nl}
+    def neighbor_list(topology) -> None:
+        nl = topology.neighbor_list('dihedrals')
+        return {Dihedral._name: nl}

@@ -106,7 +106,6 @@ class ChignolinDataset(InMemoryDataset):
         embeddings, cg_matrix, _ = build_cg_matrix(topology, cg_mapping=CA_MAP)
         cg_topo = build_cg_topology(topology, cg_mapping=CA_MAP)
         copy(topology_fn, self.processed_paths[1])
-
         prior_nls = {}
         for cls in self.priors_cls:
             prior_nls.update(**cls.neighbor_list(cg_topo))
@@ -204,4 +203,3 @@ class ChignolinDatasetWithNewPriors(ChignolinDataset):
         super(ChignolinDatasetWithNewPriors, self).__init__(
             root, transform, pre_transform, pre_filter
         )
-        self.process()

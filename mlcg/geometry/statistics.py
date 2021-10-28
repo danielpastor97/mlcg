@@ -5,8 +5,32 @@ import torch.nn as nn
 from scipy.integrate import trapezoid
 
 from ..data import AtomicData
-from ..nn.prior import Harmonic, _Prior
+from ..nn.prior import Dihedral, Harmonic, _Prior
 from ..utils import tensor2tuple
+
+def _symmetrise_dihedral_interaction(
+    unique_interaction_types : torch.tensor,
+) -> torch.tensor:
+    """For dihedrals defined as::
+      2---3---4
+     /
+    1
+    atoms [(1,2,3,4),(4,3,2,1) can be exchanged without changing the dihedral 
+    so the resulting interaction is symmetric w.r.t such transformations. 
+    Hence the need for only considering interactions (a,b,c,d) with a < d.
+    """
+    mask = unique_interaction_types[0] > unique_interaction_types[3]
+    ee0 = unique_interaction_types[0, mask]
+    ee1 = unique_interaction_types[1, mask]
+    ee2 = unique_interaction_types[2, mask]
+    ee3 = unique_interaction_types[3, mask]
+    unique_interaction_types[0, mask] = ee3
+    unique_interaction_types[1, mask] = ee2
+    unique_interaction_types[2, mask] = ee1
+    unique_interaction_types[3, mask] = ee0
+    # Is the following line necessary? If not these entire function call seems to be obsolete
+    # unique_interaction_types = torch.unique(unique_interaction_types, dim=1)
+    return unique_interaction_types
 
 
 def _symmetrise_angle_interaction(
@@ -46,11 +70,13 @@ def _symmetrise_distance_interaction(
 _symmetrise_map = {
     2: _symmetrise_distance_interaction,
     3: _symmetrise_angle_interaction,
+    4: _symmetrise_dihedral_interaction,
 }
 
 _flip_map = {
     2: lambda tup: torch.tensor([tup[1], tup[0]], dtype=torch.long),
     3: lambda tup: torch.tensor([tup[2], tup[1], tup[0]], dtype=torch.long),
+    4: lambda tup: torch.tensor([tup[3], tup[2], tup[1], tup[0]], dtype=torch.long),
 }
 
 
@@ -217,6 +243,12 @@ def compute_statistics(
          'bonds', beta=beta,
          TargetPrior=HarmonicBonds
     )
+    dihedral_stats = compute_statistics(my_data,
+                                        'dihedrals',
+                                        beta=beta,
+                                        TargetPrior=Dihedral
+    )
+    
     ```
 
     """

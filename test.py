@@ -31,5 +31,7 @@ if __name__ == "__main__":
 
     dataset0 = ChignolinDatasetWithNewPriors("/net/storage/clarkt/chignolin")
     dataset0.process()
+    # print(dataset0.data.baseline_forces)
 
-    print(dataset0.data.baseline_forces)
+
+
