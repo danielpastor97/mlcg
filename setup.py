@@ -1,5 +1,6 @@
 from setuptools import setup, find_packages
 import re
+
 NAME = "mlcg"
 
 # read the version number from the library
@@ -14,7 +15,9 @@ if VERSION is None:
 
 
 with open("requirements.txt") as f:
-    install_requires = list(filter(lambda x: "#" not in x, (line.strip() for line in f)))
+    install_requires = list(
+        filter(lambda x: "#" not in x, (line.strip() for line in f))
+    )
 
 setup(
     name=NAME,
