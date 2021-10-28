@@ -1,0 +1,10 @@
+coverage:
+  ignore:
+    - mlcg/**/test_*.py
+  status:
+    project:
+      default:
+        target: 65%
+    patch: off
+
+comment: off
