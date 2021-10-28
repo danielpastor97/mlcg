@@ -23,7 +23,7 @@ jobs:
     - name: Install Python dependencies
       uses: py-actions/py-dependency-install@v2
       with:
-        path: ${GITHUB_WORKSPACE}"/requirements.txt"
+        path: ${{ github.workspace }}/requirements.txt
     - name: Generate Report
       run: |
         coverage run -m pytest
