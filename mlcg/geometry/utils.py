@@ -17,7 +17,7 @@ def ase_bonds2tensor(analysis: Analysis, unique=True) -> torch.Tensor:
     Returns
     -------
     edge_tensor:
-        Tensor of edges definiing the bonds, of shape (2, n_bonds)
+        Tensor of edges defining the bonds, of shape (2, n_bonds)
     """
 
     if unique:
