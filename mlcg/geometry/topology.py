@@ -8,7 +8,7 @@ except ModuleNotFoundError:
 from ase.geometry.analysis import Analysis
 from ase.neighborlist import natural_cutoffs
 from ase import Atoms
-from ase.data import atomic_masses_iupac2016
+from .utils import ase_z2name
 from typing import NamedTuple, List, Optional, Tuple, Dict
 import torch
 import networkx as nx
@@ -269,7 +269,7 @@ class Topology(object):
         analysis = Analysis(mol)
         topo = Topology()
         types = mol.get_atomic_numbers()
-        names = [atomic_masses_iupac2016[anum] for anum in types]
+        names = [ase_z2name[anum] for anum in types]
         for name, atom_type in zip(names, types):
             topo.add_atom(atom_type, name)
 
