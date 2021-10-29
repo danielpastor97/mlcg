@@ -6,11 +6,7 @@ from ase.data import atomic_numbers
 ase_z2name = {value: key for key, value in atomic_numbers.items()}
 
 def ase_bonds2tensor(analysis: Analysis, unique=True) -> torch.Tensor:
-    r"""converts ASE single neighborlist analysis bond list to tensor
-
-    .. warning::
-        Duplicates from periodic boundary conditions are removed and
-        the minimum image principle is applied.
+    """converts ASE single neighborlist analysis bond list to tensor
 
     Parameters
     ----------
@@ -42,10 +38,6 @@ def ase_bonds2tensor(analysis: Analysis, unique=True) -> torch.Tensor:
 
 def ase_angles2tensor(analysis: Analysis, unique=True) -> torch.Tensor:
     """converts ASE single neighborlist analysis angle list to tensor
-
-    .. warning::
-        Duplicates from periodic boundary conditions are removed and
-        the minimum image principle is applied.
 
     Parameters
     ----------
