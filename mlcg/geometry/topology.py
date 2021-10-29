@@ -260,6 +260,10 @@ class Topology(object):
             resulting Topology object. If False, all redundant (backwards)
             bonds and angles will be added as well.
 
+        .. warning::
+            Duplicates from periodic boundary conditions are removed and
+            the minimum image convention is applied.
+
         Returns
         -------
         topo:

@@ -17,6 +17,10 @@ def ase_bonds2tensor(analysis: Analysis, unique=True) -> torch.Tensor:
         the resulting tensor will also contain redundant (backwards)
         bond pairs
 
+    .. warning::
+        Duplicates from periodic boundary conditions are removed and
+        the minimum image convention is applied.
+
     Returns
     -------
     edge_tensor:
@@ -47,6 +51,10 @@ def ase_angles2tensor(analysis: Analysis, unique=True) -> torch.Tensor:
         If True, onlye unqiue bonds will be considered. If False,
         the resulting tensor will also contain redundant (backwards)
         bond pairs
+
+    .. warning::
+        Duplicates from periodic boundary conditions are removed and
+        the minimum image convention is applied.
 
     Returns
     -------
