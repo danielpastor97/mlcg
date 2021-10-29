@@ -10,8 +10,9 @@ class GradientsOut(torch.nn.Module):
     Parameters
     ----------
     targets:
-        The gradient targets to produce from a model output. These correspond
-        to keys described in `mlcg.data._keys`.
+        The gradient targets to produce from a model output. These can be any 
+        of the gradient properties referenced in `mlcg.data._keys`. 
+        At the moment only forces are implemented.
 
     Example
     -------
