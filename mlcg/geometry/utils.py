@@ -5,6 +5,7 @@ from ase.data import atomic_numbers
 # dictionary of atomic numbers to element name
 ase_z2name = {value: key for key, value in atomic_numbers.items()}
 
+
 def ase_bonds2tensor(analysis: Analysis, unique=True) -> torch.Tensor:
     """converts ASE single neighborlist analysis bond list to tensor
 

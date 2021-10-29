@@ -26,9 +26,10 @@ ref_coords = np.array(mol.get_positions())
 
 mock_data_frames = []
 from numpy.random import default_rng
+
 rng = default_rng(94834)
 for i in range(1000):
-    perturbed_coords = ref_coords + 0.4*rng.standard_normal(ref_coords.shape)
+    perturbed_coords = ref_coords + 0.4 * rng.standard_normal(ref_coords.shape)
     mock_data_frames.append(torch.tensor(perturbed_coords))
 mock_data_frames = torch.stack(mock_data_frames, dim=0)
 
