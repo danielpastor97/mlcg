@@ -280,8 +280,14 @@ class Dihedral(torch.nn.Module, _Prior):
 
     @staticmethod
     def neg_log_likelihood(y, yhat):
-        L = torch.sum(y * torch.log(y / yhat))
-        return L
+        """
+        Convert dG to probability and use KL divergence to get difference between
+        predicted and actual
+        """
+        L = torch.sum(
+            torch.exp(-y) * torch.log(torch.exp(-y) / torch.exp(-yhat))
+        )
+        return -L
 
     @staticmethod
     def fit_from_potential_estimates(bin_centers_nz, dG_nz):
@@ -302,7 +308,7 @@ class Dihedral(torch.nn.Module, _Prior):
                 ],
             )
             aic1 = (
-                -2
+                2
                 * Dihedral.neg_log_likelihood(
                     dG_nz[mask], Dihedral.compute1(bin_centers_nz[mask], *popt1)
                 )
@@ -320,7 +326,7 @@ class Dihedral(torch.nn.Module, _Prior):
                 ],
             )
             aic2 = (
-                -2
+                2
                 * Dihedral.neg_log_likelihood(
                     dG_nz[mask], Dihedral.compute2(bin_centers_nz[mask], *popt2)
                 )
@@ -333,7 +339,7 @@ class Dihedral(torch.nn.Module, _Prior):
                 p0=[3.1415 / 2, 1, 0, 1, -3.1415 / 2, 1],
             )
             aic3 = (
-                -2
+                2
                 * Dihedral.neg_log_likelihood(
                     dG_nz[mask], Dihedral.compute3(bin_centers_nz[mask], *popt3)
                 )
