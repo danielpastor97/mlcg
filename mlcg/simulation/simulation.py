@@ -53,10 +53,10 @@ class Simulation(object):
         Coordinate data of dimension [n_simulations, n_atoms, n_dimensions].
         Each entry in the first dimension represents the first frame of an
         independent simulation.
-    embeddings : np.ndarray or None (default=None)
-        Embedding data of dimension [n_simulations, n_beads]. Each entry
-        in the first dimension corresponds to the embeddings for the
-        initial_coordinates data. If no embeddings, use None.
+    atom_types : np.ndarray or None (default=None)
+        Embedding data of dimension [n_simulations, n_atoms]. Each entry
+        in the first dimension corresponds to the atom_types for the
+        initial_coordinates data. If no atom_types, use None.
     dt : float (default=5e-4)
         The integration time step for Langevin dynamics. Units are determined
         by the frame striding of the original training data simulation
@@ -148,7 +148,7 @@ class Simulation(object):
         decoupled from the forces predicted by the model.
     """
 
-    def __init__(self, model, initial_coordinates, embeddings, dt=5e-4,
+    def __init__(self, model, initial_coordinates, atom_types, dt=5e-4,
                  beta=1.0, friction=None, masses=None, diffusion=1.0,
                  save_forces=False, save_potential=False, length=100,
                  save_interval=10, random_seed=None,
@@ -157,7 +157,7 @@ class Simulation(object):
                  log_type='write', filename=None, batch_size=10):
 
         self.initial_coordinates = initial_coordinates
-        self.embeddings = embeddings
+        self.atom_types = atom_types
 
         model.eval()
         self.model = model
@@ -166,7 +166,7 @@ class Simulation(object):
         self.masses = masses
 
         self.n_sims = self.initial_coordinates.shape[0]
-        self.n_beads = self.initial_coordinates.shape[1]
+        self.n_atoms = self.initial_coordinates.shape[1]
         self.n_dims = self.initial_coordinates.shape[2]
 
         self.save_forces = save_forces
@@ -207,7 +207,7 @@ class Simulation(object):
     def _input_option_checks(self):
         """Method to catch any problems before starting a simulation:
         - Make sure the save_interval evenly divides the simulation length
-        - Checks shapes of starting coordinates and embeddings
+        - Checks shapes of starting coordinates and atom_types
         - Ensures masses are provided if friction is not None
         - Warns if diffusion is specified but won't be used
         - Checks compatibility of arguments to save and log
@@ -217,18 +217,18 @@ class Simulation(object):
         This method is meant to check the acceptability/compatibility of
         options pertaining to simulation details, saving/output settings,
         and/or log settings. For checks related to model structures/architectures
-        and input compatibilities (such as using embeddings in models
+        and input compatibilities (such as using atom_types in models
         with SchnetFeatures), see the _input_model_checks() method.
         """
 
-        # if there are embeddings, make sure their shape is correct
-        if self.embeddings is not None:
-            if len(self.embeddings.shape) != 2:
-                raise ValueError('embeddings shape must be [frames, beads]')
+        # if there are atom_types, make sure their shape is correct
+        if self.atom_types is not None:
+            if len(self.atom_types.shape) != 1:
+                raise ValueError('atom_types shape must be [n_atoms]')
 
-            if self.initial_coordinates.shape[:2] != self.embeddings.shape:
-                raise ValueError('initial_coordinates and embeddings '
-                                 'must have the same first two dimensions')
+            if self.initial_coordinates.shape[1] != self.atom_types.shape[0]:
+                raise ValueError('initial_coordinates and atom_types '
+                                 'must have the same number of atoms')
 
         # make sure save interval is a factor of total length
         if self.length % self.save_interval != 0:
@@ -240,7 +240,7 @@ class Simulation(object):
         # make sure initial coordinates are in the proper format
         if len(self.initial_coordinates.shape) != 3:
             raise ValueError(
-                'initial_coordinates shape must be [frames, beads, dimensions]'
+                'initial_coordinates shape must be [n_frames, n_atoms, n_dims]'
             )
 
         # set up initial coordinates
@@ -258,7 +258,7 @@ class Simulation(object):
                 )
             if len(self.masses) != self.initial_coordinates.shape[1]:
                 raise ValueError(
-                    'mass list length must be number of CG beads'
+                    'mass list length must be number of CG atoms'
                 )
             self.masses = torch.tensor(self.masses, dtype=torch.float32
                                        ).to(self.device)
@@ -345,11 +345,11 @@ class Simulation(object):
 
         self._save_size = int(self.length/self.save_interval)
 
-        self.simulated_coords = torch.zeros((self._save_size, self.n_sims, self.n_beads,
+        self.simulated_coords = torch.zeros((self._save_size, self.n_sims, self.n_atoms,
                                              self.n_dims))
         if self.save_forces:
             self.simulated_forces = torch.zeros((self._save_size, self.n_sims,
-                                                 self.n_beads, self.n_dims))
+                                                 self.n_atoms, self.n_dims))
         else:
             self.simulated_forces = None
 
@@ -528,7 +528,7 @@ class Simulation(object):
         ----------
         data : torch.Tensor
             Tensor to perform the axis swtich upon. Size
-            [n_timesteps, n_simulations, n_beads, n_dims]
+            [n_timesteps, n_simulations, n_atoms, n_dims]
         axis1 : int (default=0)
             Zero-based index of the first axis to swap
         axis2 : int (default=1)
@@ -537,7 +537,7 @@ class Simulation(object):
         -------
         swapped_data : torch.Tensor
             Axes-swapped tensor. Size
-            [n_timesteps, n_simulations, n_beads, n_dims]
+            [n_timesteps, n_simulations, n_atoms, n_dims]
         """
         axes = list(range(len(data.size())))
         axes[axis1] = axis2
@@ -567,20 +567,20 @@ class Simulation(object):
         cgnet.network.MultiModelSimulation, where this method is overridden
         in order to average forces and potentials over more than one model.
         """
-        n_frames, n_beads, _ = x_old.shape
-        # batch = torch.zeros((n_frames*n_beads,), device=x_old.device, dtype=torch.int64)
+        n_frames, n_atoms, _ = x_old.shape
+        # batch = torch.zeros((n_frames*n_atoms,), device=x_old.device, dtype=torch.int64)
         # pos = x_old.reshape((-1, 3))
-        # z = self.embeddings.reshape((-1))
+        # z = self.atom_types.reshape((-1))
         # idx = torch.zeros((n_frames,), device=x_old.device, dtype=torch.long)
-        # n_atoms = n_beads * torch.ones((n_frames,), device=x_old.device, dtype=torch.long)
+        # n_atoms = n_atoms * torch.ones((n_frames,), device=x_old.device, dtype=torch.long)
         # ii = 0
         data_list = []
         for iframe in range(n_frames):
-            # batch[ii:ii+n_beads] = iframe
+            # batch[ii:ii+n_atoms] = iframe
             # idx[iframe] = iframe
-            # ii += n_beads
+            # ii += n_atoms
 
-            data_list.append(Data(z=self.embeddings[iframe], pos=x_old[iframe], idx=iframe, n_atoms=n_beads).to(device=x_old.device))
+            data_list.append(Data(z=self.atom_types[iframe], pos=x_old[iframe], idx=iframe, n_atoms=n_atoms).to(device=x_old.device))
 
         potential = torch.zeros(n_frames, device=x_old.device, dtype=x_old.dtype)
         forces = torch.zeros_like(x_old)
@@ -591,9 +591,9 @@ class Simulation(object):
             # data.to(device=x_old.device)
             pp, ff = self.model(data)
             potential[ii:ii+batch_size] = pp.flatten()
-            forces[ii:ii+batch_size] = ff.view((batch_size, n_beads, 3))
+            forces[ii:ii+batch_size] = ff.view((batch_size, n_atoms, 3))
             ii += batch_size
-        return potential, forces.reshape((-1, n_beads, 3))
+        return potential, forces.reshape((-1, n_atoms, 3))
 
 
     def simulate(self, overwrite=False):
@@ -728,10 +728,10 @@ class MultiModelSimulation(Simulation):
         Coordinate data of dimension [n_simulations, n_atoms, n_dimensions].
         Each entry in the first dimension represents the first frame of an
         independent simulation.
-    embeddings : np.ndarray or None (default=None)
-        Embedding data of dimension [n_simulations, n_beads]. Each entry
-        in the first dimension corresponds to the embeddings for the
-        initial_coordinates data. If no embeddings, use None.
+    atom_types : np.ndarray or None (default=None)
+        Embedding data of dimension [n_simulations, n_atoms]. Each entry
+        in the first dimension corresponds to the atom_types for the
+        initial_coordinates data. If no atom_types, use None.
     dt : float (default=5e-4)
         The integration time step for Langevin dynamics. Units are determined
         by the frame striding of the original training data simulation
@@ -832,7 +832,7 @@ class MultiModelSimulation(Simulation):
         potential_list = []
         forces_list = []
         for model in self.models:
-            potential, forces = model(x_old, self.embeddings)
+            potential, forces = model(x_old, self.atom_types)
             potential_list.append(potential)
             forces_list.append(forces)
         mean_potential =  sum(potential_list) / len(potential_list)
