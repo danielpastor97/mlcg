@@ -11,6 +11,9 @@ Untitled.ipynb
 # C extensions
 *.so
 
+# VIM swapfiles
+*.swp
+
 # Distribution / packaging
 .Python
 build/
