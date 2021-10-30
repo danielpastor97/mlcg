@@ -76,35 +76,20 @@ energy_model.name = "Prior Model"
 full_model = GradientsOut(energy_model, targets=FORCE_KEY)
 
 # 5 replicas starting from the same structure
-initial_data_list = []
-for _ in range(5):
-    neighbor_lists = {}
-    for (tag, order, edge_list) in zip(nls_tags, nls_orders, nls_edges):
-        neighbor_lists[tag] = {
-            "tag": tag,
-            "order": order,
-            "index_mapping": edge_list,
-            "cell_shifts": None,
-            "rcut": None,
-            "self_interaction": False,
-        }
-        data_point = AtomicData(
-            pos=torch.tensor(initial_coords),
-            atom_types=torch.tensor(test_topo.types),
-            masses=torch.tensor(mol.get_masses()),
-            cell=None,
-            neighbor_list=neighbor_lists,
-        )
-        initial_data_list.append(data_point)
+initial_coords = torch.stack(
+    [torch.tensor(mol.get_positions()) for _ in range(5)]
+)
+atom_types = torch.tensor(mol.get_atomic_numbers())
 
 
 @pytest.mark.parametrize(
-    "full_model, initial_data_list, sim_kwargs",
-    [(full_model, initial_data_list, {})],
+    "full_model, initial_coords, atom_types, sim_kwargs",
+    [(full_model, initial_coords, atom_types, {})],
 )
-def test_simulation_run(full_model, initial_data_list, sim_kwargs):
+def test_simulation_run(full_model, initial_coords, atom_types, sim_kwargs):
     """Test to make sure the simulation runs"""
-    simulation = Simulation(full_model, initial_data_list, **sim_kwargs)
+    simulation = Simulation(
+        full_model, initial_coords, atom_types, **sim_kwargs
+    )
     simulation.simulate()
     pass
-

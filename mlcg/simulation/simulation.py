@@ -13,6 +13,9 @@ import warnings
 
 from tqdm import tqdm
 
+from ..data.atomic_data import AtomicData
+from ..data._keys import *
+
 
 class Simulation(object):
     """Simulate an artificial trajectory from a CGnet.
@@ -133,14 +136,14 @@ class Simulation(object):
     (_input_option_checks()) that deals with checking options pertaining to the
     simulation, such as logging or saving/exporting options. This is done for the
     following reasons:
-		1) If cgnet.network.Simluation is subclassed for multiple or specific
+                1) If cgnet.network.Simluation is subclassed for multiple or specific
         model types, the _input_model_checks() method can be overridden without
         repeating a lot of code. As an example, see
         cgnet.network.MultiModelSimulation, which uses all of the same
         simulation options as cgnet.network.Simulation, but overides
         _input_model_checks() in order to perform the same model checks as
         cgnet.network.Simulation but for more than one input model.
-		2) If cgnet.network.Simulation is subclassed for different simulation
+                2) If cgnet.network.Simulation is subclassed for different simulation
         schemes with possibly different/additional simulation
         parameters/options, the _input_option_checks() method can be overriden
         without repeating code related to model checks. For example, one might
@@ -148,13 +151,28 @@ class Simulation(object):
         decoupled from the forces predicted by the model.
     """
 
-    def __init__(self, model, initial_coordinates, atom_types, dt=5e-4,
-                 beta=1.0, friction=None, masses=None, diffusion=1.0,
-                 save_forces=False, save_potential=False, length=100,
-                 save_interval=10, random_seed=None,
-                 device=torch.device('cpu'),
-                 export_interval=None, log_interval=None,
-                 log_type='write', filename=None, batch_size=10):
+    def __init__(
+        self,
+        model,
+        initial_coordinates,
+        atom_types,
+        dt=5e-4,
+        beta=1.0,
+        friction=None,
+        masses=None,
+        diffusion=1.0,
+        save_forces=False,
+        save_potential=False,
+        length=100,
+        save_interval=10,
+        random_seed=None,
+        device=torch.device("cpu"),
+        export_interval=None,
+        log_interval=None,
+        log_type="write",
+        filename=None,
+        batch_size=10,
+    ):
 
         self.initial_coordinates = initial_coordinates
         self.atom_types = atom_types
@@ -182,10 +200,8 @@ class Simulation(object):
         self.export_interval = export_interval
         self.log_interval = log_interval
         self.batch_size = batch_size
-        if log_type not in ['print', 'write']:
-            raise ValueError(
-                "log_type can be either 'print' or 'write'"
-            )
+        if log_type not in ["print", "write"]:
+            raise ValueError("log_type can be either 'print' or 'write'")
         self.log_type = log_type
         self.filename = filename
 
@@ -202,7 +218,6 @@ class Simulation(object):
         self.random_seed = random_seed
 
         self._simulated = False
-
 
     def _input_option_checks(self):
         """Method to catch any problems before starting a simulation:
@@ -224,44 +239,47 @@ class Simulation(object):
         # if there are atom_types, make sure their shape is correct
         if self.atom_types is not None:
             if len(self.atom_types.shape) != 1:
-                raise ValueError('atom_types shape must be [n_atoms]')
+                raise ValueError("atom_types shape must be [n_atoms]")
 
             if self.initial_coordinates.shape[1] != self.atom_types.shape[0]:
-                raise ValueError('initial_coordinates and atom_types '
-                                 'must have the same number of atoms')
+                raise ValueError(
+                    "initial_coordinates and atom_types "
+                    "must have the same number of atoms"
+                )
 
         # make sure save interval is a factor of total length
         if self.length % self.save_interval != 0:
             raise ValueError(
-                'The save_interval must be a factor of the simulation length'
+                "The save_interval must be a factor of the simulation length"
             )
-
 
         # make sure initial coordinates are in the proper format
         if len(self.initial_coordinates.shape) != 3:
             raise ValueError(
-                'initial_coordinates shape must be [n_frames, n_atoms, n_dims]'
+                "initial_coordinates shape must be [n_frames, n_atoms, n_dims]"
             )
 
         # set up initial coordinates
         if type(self.initial_coordinates) is not torch.Tensor:
             initial_coordinates = torch.tensor(self.initial_coordinates)
 
-        self._initial_x = self.initial_coordinates.detach().requires_grad_(
-            True).to(self.device)
+        self._initial_x = (
+            self.initial_coordinates.detach()
+            .requires_grad_(True)
+            .to(self.device)
+        )
 
         # set up simulation parameters
         if self.friction is not None:  # langevin
             if self.masses is None:
                 raise RuntimeError(
-                    'if friction is not None, masses must be given'
+                    "if friction is not None, masses must be given"
                 )
             if len(self.masses) != self.initial_coordinates.shape[1]:
-                raise ValueError(
-                    'mass list length must be number of CG atoms'
-                )
-            self.masses = torch.tensor(self.masses, dtype=torch.float32
-                                       ).to(self.device)
+                raise ValueError("mass list length must be number of CG atoms")
+            self.masses = torch.tensor(self.masses, dtype=torch.float32).to(
+                self.device
+            )
 
             self.vscale = np.exp(-self.dt * self.friction)
             self.noisescale = np.sqrt(1 - self.vscale * self.vscale)
@@ -294,7 +312,7 @@ class Simulation(object):
                 "Must specify filename if export_interval isn't None"
             )
         if self.log_interval is not None:
-            if self.log_type == 'write' and self.filename is None:
+            if self.log_type == "write" and self.filename is None:
                 raise RuntimeError(
                     "Must specify filename if log_interval isn't None and log_type=='write'"
                 )
@@ -309,7 +327,8 @@ class Simulation(object):
             if os.path.isfile("{}_coords_000.npy".format(self.filename)):
                 raise ValueError(
                     "{} already exists; choose a different filename.".format(
-                        "{}_coords_000.npy".format(self.filename))
+                        "{}_coords_000.npy".format(self.filename)
+                    )
                 )
 
             if self.export_interval is not None:
@@ -327,29 +346,33 @@ class Simulation(object):
                     "Logging must occur at a multiple of save_interval"
                 )
 
-            if self.log_type == 'write':
-                self._log_file = self.filename + '_log.txt'
+            if self.log_type == "write":
+                self._log_file = self.filename + "_log.txt"
 
                 if os.path.isfile(self._log_file):
                     raise ValueError(
                         "{} already exists; choose a different filename.".format(
-                            self._log_file)
+                            self._log_file
+                        )
                     )
 
     def _set_up_simulation(self, overwrite):
-        """Method to initialize helpful objects for simulation later
-        """
+        """Method to initialize helpful objects for simulation later"""
         if self._simulated and not overwrite:
-            raise RuntimeError('Simulation results are already populated. '
-                               'To rerun, set overwrite=True.')
+            raise RuntimeError(
+                "Simulation results are already populated. "
+                "To rerun, set overwrite=True."
+            )
 
-        self._save_size = int(self.length/self.save_interval)
+        self._save_size = int(self.length / self.save_interval)
 
-        self.simulated_coords = torch.zeros((self._save_size, self.n_sims, self.n_atoms,
-                                             self.n_dims))
+        self.simulated_coords = torch.zeros(
+            (self._save_size, self.n_sims, self.n_atoms, self.n_dims)
+        )
         if self.save_forces:
-            self.simulated_forces = torch.zeros((self._save_size, self.n_sims,
-                                                 self.n_atoms, self.n_dims))
+            self.simulated_forces = torch.zeros(
+                (self._save_size, self.n_sims, self.n_atoms, self.n_dims)
+            )
         else:
             self.simulated_forces = None
 
@@ -395,17 +418,18 @@ class Simulation(object):
         v_new = v_old + self.dt * forces / self.masses[:, None]
 
         # A (position update)
-        x_new = x_old + v_new * self.dt / 2.
+        x_new = x_old + v_new * self.dt / 2.0
 
         # O (noise)
-        noise = torch.sqrt(1. / self.beta / self.masses[:, None])
-        noise = noise * torch.randn(size=x_new.size(),
-                                    generator=self.rng).to(self.device)
+        noise = torch.sqrt(1.0 / self.beta / self.masses[:, None])
+        noise = noise * torch.randn(size=x_new.size(), generator=self.rng).to(
+            self.device
+        )
         v_new = v_new * self.vscale
         v_new = v_new + self.noisescale * noise
 
         # A
-        x_new = x_new + v_new * self.dt / 2.
+        x_new = x_new + v_new * self.dt / 2.0
 
         return x_new, v_new
 
@@ -420,10 +444,14 @@ class Simulation(object):
         forces: torch.Tensor
             forces at x_old
         """
-        noise = torch.randn(size=x_old.size(),
-                            generator=self.rng).to(self.device)
-        x_new = (x_old.detach() + forces*self._dtau +
-                 np.sqrt(2*self._dtau/self.beta)*noise)
+        noise = torch.randn(size=x_old.size(), generator=self.rng).to(
+            self.device
+        )
+        x_new = (
+            x_old.detach()
+            + forces * self._dtau
+            + np.sqrt(2 * self._dtau / self.beta) * noise
+        )
         return x_new, None
 
     def _save_timepoint(self, x_new, v_new, forces, potential, t):
@@ -454,69 +482,83 @@ class Simulation(object):
             # timepoint (as opposed to in self._set_up_simulation)
             if self.simulated_potential is None:
                 assert potential.shape[0] == self.n_sims
-                potential_dims = ([self._save_size, self.n_sims] +
-                                  [potential.shape[j]
-                                   for j in range(1,
-                                                  len(potential.shape))])
+                potential_dims = [self._save_size, self.n_sims] + [
+                    potential.shape[j] for j in range(1, len(potential.shape))
+                ]
                 self.simulated_potential = torch.zeros((potential_dims))
 
-            self.simulated_potential[t//self.save_interval] = potential
+            self.simulated_potential[t // self.save_interval] = potential
 
         if v_new is not None:
-            kes = 0.5 * torch.sum(torch.sum(self.masses[:, None]*v_new**2,
-                                            dim=2), dim=1)
+            kes = 0.5 * torch.sum(
+                torch.sum(self.masses[:, None] * v_new ** 2, dim=2), dim=1
+            )
             self.kinetic_energies[save_ind, :] = kes
 
     def _log_progress(self, iter_):
         """Utility to print log statement or write it to an text file"""
-        printstring = '{}/{} time points saved ({})'.format(
-            iter_, self.length // self.save_interval, time.asctime())
+        printstring = "{}/{} time points saved ({})".format(
+            iter_, self.length // self.save_interval, time.asctime()
+        )
 
-        if self.log_type == 'print':
+        if self.log_type == "print":
             print(printstring)
 
-        elif self.log_type == 'write':
-            printstring += '\n'
-            file = open(self._log_file, 'a')
+        elif self.log_type == "write":
+            printstring += "\n"
+            file = open(self._log_file, "a")
             file.write(printstring)
             file.close()
 
     def _get_numpy_count(self):
         """Returns a string 000-999 for appending to numpy file outputs"""
         if self._npy_file_index < 10:
-            return '00{}'.format(self._npy_file_index)
+            return "00{}".format(self._npy_file_index)
         elif self._npy_file_index < 100:
-            return '0{}'.format(self._npy_file_index)
+            return "0{}".format(self._npy_file_index)
         else:
-            return '{}'.format(self._npy_file_index)
+            return "{}".format(self._npy_file_index)
 
     def _save_numpy(self, iter_):
         """Utility to save numpy arrays"""
         key = self._get_numpy_count()
 
-        coords_to_export = self.simulated_coords[self._npy_starting_index:iter_]
+        coords_to_export = self.simulated_coords[
+            self._npy_starting_index : iter_
+        ]
         coords_to_export = self._swap_and_export(coords_to_export)
-        np.save("{}_coords_{}.npy".format(
-            self.filename, key), coords_to_export)
+        np.save("{}_coords_{}.npy".format(self.filename, key), coords_to_export)
 
         if self.save_forces:
-            forces_to_export = self.simulated_forces[self._npy_starting_index:iter_]
+            forces_to_export = self.simulated_forces[
+                self._npy_starting_index : iter_
+            ]
             forces_to_export = self._swap_and_export(forces_to_export)
-            np.save("{}_forces_{}.npy".format(
-                self.filename, key), forces_to_export)
+            np.save(
+                "{}_forces_{}.npy".format(self.filename, key), forces_to_export
+            )
 
         if self.save_potential:
-            potentials_to_export = self.simulated_potential[self._npy_starting_index:iter_]
+            potentials_to_export = self.simulated_potential[
+                self._npy_starting_index : iter_
+            ]
             potentials_to_export = self._swap_and_export(potentials_to_export)
-            np.save("{}_potential_{}.npy".format(
-                self.filename, key), potentials_to_export)
+            np.save(
+                "{}_potential_{}.npy".format(self.filename, key),
+                potentials_to_export,
+            )
 
         if self.friction is not None:
-            kinetic_energies_to_export = self.kinetic_energies[self._npy_starting_index:iter_]
+            kinetic_energies_to_export = self.kinetic_energies[
+                self._npy_starting_index : iter_
+            ]
             kinetic_energies_to_export = self._swap_and_export(
-                kinetic_energies_to_export)
-            np.save("{}_kineticenergy_{}.npy".format(self.filename, key),
-                    kinetic_energies_to_export)
+                kinetic_energies_to_export
+            )
+            np.save(
+                "{}_kineticenergy_{}.npy".format(self.filename, key),
+                kinetic_energies_to_export,
+            )
 
         self._npy_starting_index = iter_
         self._npy_file_index += 1
@@ -544,7 +586,6 @@ class Simulation(object):
         axes[axis2] = axis1
         swapped_data = data.permute(*axes)
         return swapped_data.cpu().detach().numpy()
-
 
     def calculate_potential_and_forces(self, x_old):
         """Method to calculated predicted forces by forwarding the current
@@ -580,21 +621,31 @@ class Simulation(object):
             # idx[iframe] = iframe
             # ii += n_atoms
 
-            data_list.append(Data(z=self.atom_types[iframe], pos=x_old[iframe], idx=iframe, n_atoms=n_atoms).to(device=x_old.device))
+            data_list.append(
+                AtomicData(
+                    z=self.atom_types[iframe],
+                    pos=x_old[iframe],
+                    idx=iframe,
+                    n_atoms=n_atoms,
+                ).to(device=x_old.device)
+            )
 
-        potential = torch.zeros(n_frames, device=x_old.device, dtype=x_old.dtype)
+        potential = torch.zeros(
+            n_frames, device=x_old.device, dtype=x_old.dtype
+        )
         forces = torch.zeros_like(x_old)
         ii = 0
-        dataloader = DataLoader(data_list, batch_size=self.batch_size, shuffle=False)
-        for data in tqdm(dataloader, desc='Batch', leave=False):
+        dataloader = DataLoader(
+            data_list, batch_size=self.batch_size, shuffle=False
+        )
+        for data in tqdm(dataloader, desc="Batch", leave=False):
             batch_size = data.n_atoms.shape[0]
             # data.to(device=x_old.device)
             pp, ff = self.model(data)
-            potential[ii:ii+batch_size] = pp.flatten()
-            forces[ii:ii+batch_size] = ff.view((batch_size, n_atoms, 3))
+            potential[ii : ii + batch_size] = pp.flatten()
+            forces[ii : ii + batch_size] = ff.view((batch_size, n_atoms, 3))
             ii += batch_size
         return potential, forces.reshape((-1, n_atoms, 3))
-
 
     def simulate(self, overwrite=False):
         """Generates independent simulations.
@@ -627,13 +678,14 @@ class Simulation(object):
 
         if self.log_interval is not None:
             printstring = "Generating {} simulations of length {} saved at {}-step intervals ({})".format(
-                self.n_sims, self.length, self.save_interval, time.asctime())
-            if self.log_type == 'print':
+                self.n_sims, self.length, self.save_interval, time.asctime()
+            )
+            if self.log_type == "print":
                 print(printstring)
 
-            elif self.log_type == 'write':
-                printstring += '\n'
-                file = open(self._log_file, 'a')
+            elif self.log_type == "write":
+                printstring += "\n"
+                file = open(self._log_file, "a")
                 file.write(printstring)
                 file.close()
 
@@ -644,12 +696,13 @@ class Simulation(object):
             v_old = None
         else:
             # initialize velocities at zero
-            v_old = torch.tensor(np.zeros(x_old.shape),
-                                 dtype=torch.float32).to(self.device)
+            v_old = torch.tensor(np.zeros(x_old.shape), dtype=torch.float32).to(
+                self.device
+            )
             # v_old = v_old + torch.randn(size=v_old.size(),
             #                             generator=self.rng).to(self.device)
 
-        for t in tqdm(range(self.length), desc='Simulation timestep'):
+        for t in tqdm(range(self.length), desc="Simulation timestep"):
             # produce potential and forces from model
             potential, forces = self.calculate_potential_and_forces(x_old)
             potential = potential.detach()
@@ -659,20 +712,20 @@ class Simulation(object):
             x_new, v_new = self._timestep(x_old, v_old, forces)
 
             # save to arrays if relevant
-            if (t+1) % self.save_interval == 0:
+            if (t + 1) % self.save_interval == 0:
                 self._save_timepoint(x_new, v_new, forces, potential, t)
 
                 # save numpys if relevant; this can be indented here because
                 # it only happens when time when time points are also recorded
                 if self.export_interval is not None:
                     if (t + 1) % self.export_interval == 0:
-                        self._save_numpy((t+1) // self.save_interval)
+                        self._save_numpy((t + 1) // self.save_interval)
 
                 # log if relevant; this can be indented here because
                 # it only happens when time when time points are also recorded
                 if self.log_interval is not None:
                     if int((t + 1) % self.log_interval) == 0:
-                        self._log_progress((t+1) // self.save_interval)
+                        self._log_progress((t + 1) // self.save_interval)
 
             # prepare for next timestep
             x_old = x_new.detach().requires_grad_(True).to(self.device)
@@ -680,35 +733,33 @@ class Simulation(object):
 
         # if relevant, save the remainder of the simulation
         if self.export_interval is not None:
-            if int(t+1) % self.export_interval > 0:
-                self._save_numpy(t+1)
+            if int(t + 1) % self.export_interval > 0:
+                self._save_numpy(t + 1)
 
         # if relevant, log that simulation has been completed
         if self.log_interval is not None:
-            printstring = 'Done simulating ({})'.format(time.asctime())
-            if self.log_type == 'print':
+            printstring = "Done simulating ({})".format(time.asctime())
+            if self.log_type == "print":
                 print(printstring)
-            elif self.log_type == 'write':
-                printstring += '\n'
-                file = open(self._log_file, 'a')
+            elif self.log_type == "write":
+                printstring += "\n"
+                file = open(self._log_file, "a")
                 file.write(printstring)
                 file.close()
 
         # reshape output attributes
-        self.simulated_coords = self._swap_and_export(
-            self.simulated_coords)
+        self.simulated_coords = self._swap_and_export(self.simulated_coords)
 
         if self.save_forces:
-            self.simulated_forces = self._swap_and_export(
-                self.simulated_forces)
+            self.simulated_forces = self._swap_and_export(self.simulated_forces)
 
         if self.save_potential:
             self.simulated_potential = self._swap_and_export(
-                self.simulated_potential)
+                self.simulated_potential
+            )
 
         if self.friction is not None:
-            self.kinetic_energies = self._swap_and_export(
-                self.kinetic_energies)
+            self.kinetic_energies = self._swap_and_export(self.kinetic_energies)
 
         self._simulated = True
 
@@ -805,8 +856,9 @@ class MultiModelSimulation(Simulation):
 
     def __init__(self, models, initial_coordinates, **kwargs):
 
-        super(MultiModelSimulation, self).__init__(models, initial_coordinates,
-                                                   **kwargs)
+        super(MultiModelSimulation, self).__init__(
+            models, initial_coordinates, **kwargs
+        )
 
         self._input_model_list_check(models)
         self.models = models
@@ -835,8 +887,8 @@ class MultiModelSimulation(Simulation):
             potential, forces = model(x_old, self.atom_types)
             potential_list.append(potential)
             forces_list.append(forces)
-        mean_potential =  sum(potential_list) / len(potential_list)
-        mean_forces =  sum(forces_list) / len(forces_list)
+        mean_potential = sum(potential_list) / len(potential_list)
+        mean_forces = sum(forces_list) / len(forces_list)
 
         # make sure the mean did not alter the shapes of potential/forces
         # using the last potential/force
