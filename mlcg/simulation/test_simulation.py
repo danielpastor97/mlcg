@@ -2,6 +2,7 @@ import networkx as nx
 import torch
 import pytest
 import numpy as np
+from numpy.random import default_rng
 from torch_geometric.data.collate import collate
 
 from ase.build import molecule
@@ -10,6 +11,9 @@ from mlcg.geometry.statistics import *
 from mlcg.simulation import *
 from mlcg.nn import *
 from mlcg.data._keys import FORCE_KEY
+
+# Seeding
+rng = default_rng(94834)
 
 # Physical units
 temperature = 350  # K
@@ -25,7 +29,9 @@ initial_coords = np.array(mol.get_positions())
 
 prior_data_frames = []
 for i in range(1000):
-    perturbed_coords = initial_coords + np.random.rand(*initial_coords.shape)
+    perturbed_coords = initial_coords + 0.4 * rng.standard_normal(
+        *initial_coords.shape
+    )
     prior_data_frames.append(torch.tensor(perturbed_coords))
 prior_data_frames = torch.stack(prior_data_frames, dim=0)
 
