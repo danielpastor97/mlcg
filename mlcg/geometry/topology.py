@@ -261,8 +261,7 @@ class Topology(object):
             bonds and angles will be added as well.
 
         .. warning::
-            Duplicates from periodic boundary conditions are removed and
-            the minimum image convention is applied.
+            The minimum image convention is applied to build the topology.
 
         Returns
         -------
