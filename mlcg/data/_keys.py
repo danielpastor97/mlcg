@@ -49,6 +49,8 @@ ALLOWED_KEYS: List[str] = [
     if k.endswith("_KEY")
 ]
 
+SCALAR_KEYS = [ENERGY_KEY]
+
 
 def validate_keys(keys, graph_required=True):
     pass
