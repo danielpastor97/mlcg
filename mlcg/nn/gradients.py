@@ -1,7 +1,82 @@
 import torch
 from typing import Sequence
 from ..data.atomic_data import AtomicData
-from ..data._keys import FORCE_KEY, ENERGY_KEY
+from ..data._keys import *
+
+
+class SumOut(torch.nn.Module):
+    """Property pooling wrapper for models
+
+    Parameters
+    ----------
+    models:
+        Dictionary of predictors models keyed by their name attribute
+    targets:
+        List of prediction targets that will be pooled
+    """
+
+    def __ini__(
+        self,
+        models: Dict[str, torch.nn.Module],
+        targets: List[str] = [ENERGY_KEY, FORCE_KEY],
+    ):
+        self.targets = targets
+        self.models = models
+
+    def forward(self, data: AtomicData) -> AtomicData:
+        """Sums output properties from individual models into global
+        property predictions
+
+        Parameters
+        ----------
+        data:
+            AtomicData instance whose 'out' field has been populated
+            for each predictor in the model. For example:
+
+                AtomicData(
+                    out: {
+                        SchNet: {
+                            ENERGY_KEY: ...,
+                            FORCE_KEY: ...,
+                        },
+                        bonds: {
+                            ENERGY_KEY: ...,
+                            FORCE_KEY: ...,
+                        },
+
+                ...
+                )
+
+        Returns
+        -------
+        data:
+            AtomicData instance with updated 'out' field that now contains
+            prediction target keys that map to tensors that have summed
+            up the respective contributions from each predictor in the model.
+            For example:
+
+                AtomicData(
+                    out: {
+                        SchNet: {
+                            ENERGY_KEY: ...,
+                            FORCE_KEY: ...,
+                        },
+                        bonds: {
+                            ENERGY_KEY: ...,
+                            FORCE_KEY: ...,
+                        },
+                        ENERGY_KEY: ...,
+                        FORCE_KEY: ...,
+                ...
+                )
+
+        """
+        for target in self.targets:
+            data.out[target] = 0.00
+        for model in self.models:
+            for target in self.targets:
+                data.out[target] += out.out[model.name][target].detach()
+        return data
 
 
 class GradientsOut(torch.nn.Module):
