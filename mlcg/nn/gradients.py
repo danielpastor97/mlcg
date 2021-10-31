@@ -1,5 +1,5 @@
 import torch
-from typing import Sequence
+from typing import Sequence, Dict, List
 from ..data.atomic_data import AtomicData
 from ..data._keys import *
 
@@ -15,11 +15,12 @@ class SumOut(torch.nn.Module):
         List of prediction targets that will be pooled
     """
 
-    def __ini__(
+    def __init__(
         self,
         models: Dict[str, torch.nn.Module],
         targets: List[str] = [ENERGY_KEY, FORCE_KEY],
     ):
+        super(SumOut, self).__init__()
         self.targets = targets
         self.models = models
 
@@ -73,9 +74,10 @@ class SumOut(torch.nn.Module):
         """
         for target in self.targets:
             data.out[target] = 0.00
-        for model in self.models:
+        for name in self.models.keys():
+            data = self.models[name](data)
             for target in self.targets:
-                data.out[target] += out.out[model.name][target].detach()
+                data.out[target] += data.out[name][target].detach()
         return data
 
 

@@ -53,6 +53,7 @@ class Harmonic(torch.nn.Module, _Prior):
         y = Harmonic.compute(
             features, self.x_0[interaction_types], self.k[interaction_types], 0
         )
+        y = torch.sum(y, dim=0)
         data.out[self.name] = {"energy": y}
         return data
 
@@ -158,6 +159,7 @@ class Repulsion(torch.nn.Module, _Prior):
         ]
         features = self.data2features(data)
         y = Repulsion.compute(features, self.sigma[interaction_types])
+        y = torch.sum(y, dim=0)
         data.out[self.name] = {"energy": y}
         return data
 

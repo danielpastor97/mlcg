@@ -10,7 +10,7 @@ from mlcg.geometry import Topology
 from mlcg.geometry.statistics import *
 from mlcg.simulation import *
 from mlcg.nn import *
-from mlcg.data._keys import FORCE_KEY
+from mlcg.data._keys import *
 
 # Seeding
 rng = default_rng(94834)
@@ -57,12 +57,12 @@ for frame in range(prior_data_frames.shape[0]):
             "self_interaction": False,
         }
     data_point = AtomicData(
-            pos=prior_data_frames[frame],
-            atom_types=torch.tensor(test_topo.types),
-            masses=torch.tensor(mol.get_masses()),
-            cell=None,
-            neighbor_list=neighbor_lists,
-        )
+        pos=prior_data_frames[frame],
+        atom_types=torch.tensor(test_topo.types),
+        masses=torch.tensor(mol.get_masses()),
+        cell=None,
+        neighbor_list=neighbor_lists,
+    )
     prior_data_list.append(data_point)
 
 collated_prior_data, _, _ = collate(
@@ -87,16 +87,33 @@ initial_coords = torch.stack(
     [torch.tensor(mol.get_positions()) for _ in range(5)]
 )
 atom_types = torch.tensor(mol.get_atomic_numbers())
+force_shape = collated_prior_data.pos.shape
+energy_shape = torch.Size([])
 
 
 @pytest.mark.parametrize(
-    "full_model, initial_coords, atom_types, sim_kwargs",
-    [(full_model, initial_coords, atom_types, {})],
+    "model, collated_data, out_targets, expected_shapes",
+    [
+        (
+            full_model,
+            collated_prior_data,
+            [ENERGY_KEY, FORCE_KEY],
+            [energy_shape, force_shape],
+        )
+    ],
 )
-def test_simulation_run(full_model, initial_coords, atom_types, sim_kwargs):
-    """Test to make sure the simulation runs"""
-    simulation = Simulation(
-        full_model, initial_coords, atom_types, **sim_kwargs
-    )
-    simulation.simulate()
-    pass
+def test_outs(model, collated_data, out_targets, expected_shapes):
+    """Test to make sure that the output dictionary is properly populated
+    and that the correspdonding shapes of the outputs are correct given the
+    requested gradient targets.
+    """
+    collated_data = model(collated_data)
+    print(collated_data)
+    assert len(collated_data.out) != 0
+    names = model.models.keys()
+    for name in names:
+        assert name in collated_data.out.keys()
+
+    for target, shape in zip(model.targets, expected_shapes):
+        assert target in collated_data.out.keys()
+        assert shape == collated_data.out[target].shape

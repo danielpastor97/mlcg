@@ -1,4 +1,4 @@
-from .gradients import GradientsOut
+from .gradients import GradientsOut, SumOut
 from .schnet import SchNet, StandardSchNet
 from .radial_basis import GaussianBasis, ExpNormalBasis
 from .cutoff import CosineCutoff, IdentityCutoff
