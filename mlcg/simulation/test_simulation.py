@@ -30,7 +30,7 @@ initial_coords = np.array(mol.get_positions())
 prior_data_frames = []
 for i in range(1000):
     perturbed_coords = initial_coords + 0.4 * rng.standard_normal(
-        *initial_coords.shape
+        initial_coords.shape
     )
     prior_data_frames.append(torch.tensor(perturbed_coords))
 prior_data_frames = torch.stack(prior_data_frames, dim=0)
@@ -77,10 +77,11 @@ prior_cls = [HarmonicBonds, HarmonicAngles]
 priors, stats = fit_baseline_models(collated_prior_data, beta, prior_cls)
 
 # Construct the model
-energy_model = nn.Sequential(*[priors[key] for key in priors.keys()])
-energy_model.name = "Prior Model"
-full_model = GradientsOut(energy_model, targets=FORCE_KEY)
-
+priors = {
+    name: GradientsOut(priors[name], targets=[FORCE_KEY])
+    for name in priors.keys()
+}
+full_model = SumOut(priors)
 # 5 replicas starting from the same structure
 initial_coords = torch.stack(
     [torch.tensor(mol.get_positions()) for _ in range(5)]
