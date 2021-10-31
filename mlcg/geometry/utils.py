@@ -19,8 +19,7 @@ def ase_bonds2tensor(analysis: Analysis, unique=True) -> torch.Tensor:
         bond pairs
 
     .. warning::
-        Duplicates from periodic boundary conditions are removed and
-        the minimum image convention is applied.
+        The minimum image convention is applied in `Analysis`.
 
     Returns
     -------
