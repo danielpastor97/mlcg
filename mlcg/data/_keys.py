@@ -11,6 +11,8 @@ import sys
 #: The positions of the atoms in the system
 POSITIONS_KEY: Final[str] = "pos"
 N_ATOMS_KEY: Final[str] = "n_atoms"
+#: The masses of the atoms in the system
+MASS_KEY: Final[str] = "masses"
 #: conectivity information
 NEIGHBOR_LIST_KEY: Final[str] = "neighbor_list"
 #: metadata about the structures
@@ -37,6 +39,7 @@ ATOM_TYPE_KEY: Final[str] = "atom_types"
 
 ENERGY_KEY: Final[str] = "energy"
 FORCE_KEY: Final[str] = "forces"
+VELOCITY_KEY: Final[str] = "velocities"
 
 PROPERTY_KEYS: Final[List[str]] = (ENERGY_KEY, FORCE_KEY)
 

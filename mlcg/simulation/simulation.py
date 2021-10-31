@@ -6,7 +6,7 @@ import numpy as np
 
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
-
+from torch_geometric.data.collate import collate
 import os
 import time
 import warnings
@@ -52,7 +52,7 @@ class Simulation(object):
     ----------
     model : cgnet.network.CGNet() instance
         Trained model used to generate simulation data
-    initial_coordinates : np.ndarray or torch.Tensor
+    initial_data : np.ndarray or torch.Tensor
         Coordinate data of dimension [n_simulations, n_atoms, n_dimensions].
         Each entry in the first dimension represents the first frame of an
         independent simulation.
@@ -154,8 +154,7 @@ class Simulation(object):
     def __init__(
         self,
         model,
-        initial_coordinates,
-        atom_types,
+        initial_data_list,
         dt=5e-4,
         beta=1.0,
         friction=None,
@@ -174,8 +173,7 @@ class Simulation(object):
         batch_size=10,
     ):
 
-        self.initial_coordinates = initial_coordinates
-        self.atom_types = atom_types
+        self.initial_data = self._check_and_collate_data(initial_data_list)
 
         model.eval()
         self.model = model
@@ -183,9 +181,9 @@ class Simulation(object):
         self.friction = friction
         self.masses = masses
 
-        self.n_sims = self.initial_coordinates.shape[0]
-        self.n_atoms = self.initial_coordinates.shape[1]
-        self.n_dims = self.initial_coordinates.shape[2]
+        self.n_sims = len(initial_data_list)
+        self.n_atoms = len(initial_data_list[0].atom_types)
+        self.n_dims = initial_data_list[0].pos.shape[1]
 
         self.save_forces = save_forces
         self.save_potential = save_potential
@@ -219,6 +217,18 @@ class Simulation(object):
 
         self._simulated = False
 
+    def _check_and_collate_data(
+        self, data_list: List[AtomicData]
+    ) -> AtomicData:
+        """Helper method to check and collate the initial data list"""
+        collated_data, _, _ = collate(
+            data_list[0].__class__,
+            data_list=data_list,
+            increment=True,
+            add_batch=True,
+        )
+        return collated_data
+
     def _input_option_checks(self):
         """Method to catch any problems before starting a simulation:
         - Make sure the save_interval evenly divides the simulation length
@@ -236,38 +246,11 @@ class Simulation(object):
         with SchnetFeatures), see the _input_model_checks() method.
         """
 
-        # if there are atom_types, make sure their shape is correct
-        if self.atom_types is not None:
-            if len(self.atom_types.shape) != 1:
-                raise ValueError("atom_types shape must be [n_atoms]")
-
-            if self.initial_coordinates.shape[1] != self.atom_types.shape[0]:
-                raise ValueError(
-                    "initial_coordinates and atom_types "
-                    "must have the same number of atoms"
-                )
-
         # make sure save interval is a factor of total length
         if self.length % self.save_interval != 0:
             raise ValueError(
                 "The save_interval must be a factor of the simulation length"
             )
-
-        # make sure initial coordinates are in the proper format
-        if len(self.initial_coordinates.shape) != 3:
-            raise ValueError(
-                "initial_coordinates shape must be [n_frames, n_atoms, n_dims]"
-            )
-
-        # set up initial coordinates
-        if type(self.initial_coordinates) is not torch.Tensor:
-            initial_coordinates = torch.tensor(self.initial_coordinates)
-
-        self._initial_x = (
-            self.initial_coordinates.detach()
-            .requires_grad_(True)
-            .to(self.device)
-        )
 
         # set up simulation parameters
         if self.friction is not None:  # langevin
@@ -275,8 +258,6 @@ class Simulation(object):
                 raise RuntimeError(
                     "if friction is not None, masses must be given"
                 )
-            if len(self.masses) != self.initial_coordinates.shape[1]:
-                raise ValueError("mass list length must be number of CG atoms")
             self.masses = torch.tensor(self.masses, dtype=torch.float32).to(
                 self.device
             )
@@ -587,7 +568,7 @@ class Simulation(object):
         swapped_data = data.permute(*axes)
         return swapped_data.cpu().detach().numpy()
 
-    def calculate_potential_and_forces(self, x_old):
+    def calculate_potential_and_forces(self, data_old):
         """Method to calculated predicted forces by forwarding the current
         coordinates through self.model.
         Parameters
@@ -608,44 +589,16 @@ class Simulation(object):
         cgnet.network.MultiModelSimulation, where this method is overridden
         in order to average forces and potentials over more than one model.
         """
-        n_frames, n_atoms, _ = x_old.shape
-        # batch = torch.zeros((n_frames*n_atoms,), device=x_old.device, dtype=torch.int64)
-        # pos = x_old.reshape((-1, 3))
-        # z = self.atom_types.reshape((-1))
-        # idx = torch.zeros((n_frames,), device=x_old.device, dtype=torch.long)
-        # n_atoms = n_atoms * torch.ones((n_frames,), device=x_old.device, dtype=torch.long)
-        # ii = 0
-        data_list = []
-        for iframe in range(n_frames):
-            # batch[ii:ii+n_atoms] = iframe
-            # idx[iframe] = iframe
-            # ii += n_atoms
-
-            data_list.append(
-                AtomicData(
-                    z=self.atom_types[iframe],
-                    pos=x_old[iframe],
-                    idx=iframe,
-                    n_atoms=n_atoms,
-                ).to(device=x_old.device)
-            )
-
         potential = torch.zeros(
-            n_frames, device=x_old.device, dtype=x_old.dtype
+            self.n_sims, device=data_old.pos.device, dtype=data_old.pos.dtype
         )
-        forces = torch.zeros_like(x_old)
-        ii = 0
-        dataloader = DataLoader(
-            data_list, batch_size=self.batch_size, shuffle=False
+        forces = torch.zeros(
+            self.n_sims, self.n_atoms, self.n_dims, device=data_old.pos.device
         )
-        for data in tqdm(dataloader, desc="Batch", leave=False):
-            batch_size = data.n_atoms.shape[0]
-            # data.to(device=x_old.device)
-            pp, ff = self.model(data)
-            potential[ii : ii + batch_size] = pp.flatten()
-            forces[ii : ii + batch_size] = ff.view((batch_size, n_atoms, 3))
-            ii += batch_size
-        return potential, forces.reshape((-1, n_atoms, 3))
+        data_old = self.model(data_old)
+        potential = data_old.out[ENERGY_KEY]
+        forces = data_old.out[FORCE_KEY]
+        return potential, forces.reshape((-1, self.n_atoms, self.n_dims))
 
     def simulate(self, overwrite=False):
         """Generates independent simulations.
@@ -689,24 +642,32 @@ class Simulation(object):
                 file.write(printstring)
                 file.close()
 
-        x_old = self._initial_x
+        data_old = self.initial_data
 
         # for each simulation step
         if self.friction is None:
             v_old = None
         else:
             # initialize velocities at zero
-            v_old = torch.tensor(np.zeros(x_old.shape), dtype=torch.float32).to(
-                self.device
+            v_old = torch.tensor(
+                np.zeros(self.initial_data.pos.shape), dtype=torch.float32
             )
+            data_old.velocities = v_old
             # v_old = v_old + torch.randn(size=v_old.size(),
             #                             generator=self.rng).to(self.device)
 
         for t in tqdm(range(self.length), desc="Simulation timestep"):
             # produce potential and forces from model
-            potential, forces = self.calculate_potential_and_forces(x_old)
+            potential, forces = self.calculate_potential_and_forces(data_old)
             potential = potential.detach()
             forces = forces.detach()
+            x_old = data_old.pos.reshape(-1, self.n_atoms, self.n_dims).detach()
+            if self.friction is None:
+                v_old = None
+            else:
+                v_old = data_old.velocities.reshape(
+                    -1, self.n_atoms, self.n_dims
+                ).detach()
 
             # step forward in time
             x_new, v_new = self._timestep(x_old, v_old, forces)
@@ -728,8 +689,18 @@ class Simulation(object):
                         self._log_progress((t + 1) // self.save_interval)
 
             # prepare for next timestep
-            x_old = x_new.detach().requires_grad_(True).to(self.device)
-            v_old = v_new
+            # x_old = x_new.detach().requires_grad_(True).to(self.device)
+            # v_old = v_new
+            data_old.pos = x_new.reshape(
+                self.n_atoms * self.n_sims, self.n_dims
+            )
+            if self.friction == None:
+                pass
+            else:
+                data_old.velocities = v_new.reshape(
+                    self.n_atoms * self.n_sims, self.n_dims
+                )
+            data_old.out = {}
 
         # if relevant, save the remainder of the simulation
         if self.export_interval is not None:

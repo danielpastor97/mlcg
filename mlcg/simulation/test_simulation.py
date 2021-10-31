@@ -10,7 +10,7 @@ from mlcg.geometry import Topology
 from mlcg.geometry.statistics import *
 from mlcg.simulation import *
 from mlcg.nn import *
-from mlcg.data._keys import FORCE_KEY
+from mlcg.data._keys import *
 
 # Seeding
 rng = default_rng(94834)
@@ -57,12 +57,12 @@ for frame in range(prior_data_frames.shape[0]):
             "self_interaction": False,
         }
     data_point = AtomicData(
-            pos=prior_data_frames[frame],
-            atom_types=torch.tensor(test_topo.types),
-            masses=torch.tensor(mol.get_masses()),
-            cell=None,
-            neighbor_list=neighbor_lists,
-        )
+        pos=prior_data_frames[frame],
+        atom_types=torch.tensor(test_topo.types),
+        masses=torch.tensor(mol.get_masses()),
+        cell=None,
+        neighbor_list=neighbor_lists,
+    )
     prior_data_list.append(data_point)
 
 collated_prior_data, _, _ = collate(
@@ -82,21 +82,37 @@ priors = {
     for name in priors.keys()
 }
 full_model = SumOut(priors)
+
 # 5 replicas starting from the same structure
-initial_coords = torch.stack(
-    [torch.tensor(mol.get_positions()) for _ in range(5)]
-)
-atom_types = torch.tensor(mol.get_atomic_numbers())
+initial_data_list = []
+for frame in range(5):
+    neighbor_lists = {}
+    for (tag, order, edge_list) in zip(nls_tags, nls_orders, nls_edges):
+        neighbor_lists[tag] = {
+            "tag": tag,
+            "order": order,
+            "index_mapping": edge_list,
+            "cell_shifts": None,
+            "rcut": None,
+            "self_interaction": False,
+        }
+    data_point = AtomicData(
+        pos=torch.tensor(mol.get_positions()),
+        atom_types=torch.tensor(test_topo.types),
+        masses=torch.tensor(mol.get_masses()),
+        cell=None,
+        velocities=None,
+        neighbor_list=neighbor_lists,
+    )
+    initial_data_list.append(data_point)
 
 
 @pytest.mark.parametrize(
-    "full_model, initial_coords, atom_types, sim_kwargs",
-    [(full_model, initial_coords, atom_types, {})],
+    "full_model, initial_data_list, sim_kwargs",
+    [(full_model, initial_data_list, {})],
 )
-def test_simulation_run(full_model, initial_coords, atom_types, sim_kwargs):
+def test_simulation_run(full_model, initial_data_list, sim_kwargs):
     """Test to make sure the simulation runs"""
-    simulation = Simulation(
-        full_model, initial_coords, atom_types, **sim_kwargs
-    )
+    simulation = Simulation(full_model, initial_data_list, **sim_kwargs)
     simulation.simulate()
     pass

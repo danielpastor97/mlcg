@@ -13,6 +13,7 @@ from ._keys import (
     TAG_KEY,
     ENERGY_KEY,
     FORCE_KEY,
+    VELOCITY_KEY,
 )
 
 
@@ -27,6 +28,8 @@ class AtomicData(Data):
         set of atomic positions in each structures
     atom_types: [n_atoms]
         if atoms then it's the atomic number, if it's a CG bead then it's a number defined by the CG mapping
+    masses: [n_atoms]
+        Masses of each atom
     pbc: [n_structures, 3] (Optional)
         periodic boundary conditions
     cell: [n_structures, 3, 3] (Optional)
@@ -37,6 +40,8 @@ class AtomicData(Data):
         reference energy associated with each structures
     forces: [n_atoms, 3] (Optional)
         reference forces associated with each structures
+    velocities: [n_atoms, 3] (optional)
+        velocities associated with each structure
     neighborlist: Dict[str, Dict[str, Any]] (Optional)
         contains information about the connectivity formatted according to
         :ref:`mlcg.neighbor_list.neighbor_list.make_neighbor_list`.
@@ -67,6 +72,7 @@ class AtomicData(Data):
             ), f"number of atoms {torch.sum(self.n_atoms)} and number of positions {self.pos.shape[0]}"
 
             assert self.pos.shape[1] == 3
+            assert len(self.masses) == self.pos.shape[0]
 
         if CELL_KEY in self and self.cell is not None:
             assert self.cell.dim() == 3
@@ -75,6 +81,9 @@ class AtomicData(Data):
         if FORCE_KEY in self and self[FORCE_KEY] is not None:
             assert self[FORCE_KEY].shape == self[POSITIONS_KEY].shape
             assert self[FORCE_KEY].dtype == self[POSITIONS_KEY].dtype
+        if VELOCITY_KEY in self and self[VELOCITY_KEY] is not None:
+            assert self[VELOCITY_KEY].shape == self[POSITIONS_KEY].shape
+            assert self[VELOCITY_KEY].dtype == self[POSITIONS_KEY].dtype
         if ENERGY_KEY in self and self[ENERGY_KEY] is not None:
             assert self[ENERGY_KEY].shape == self[N_ATOMS_KEY].shape
             assert self[ENERGY_KEY].dtype == self[POSITIONS_KEY].dtype
@@ -94,6 +103,7 @@ class AtomicData(Data):
         """TODO add doc"""
         z = torch.from_numpy(frame.get_atomic_numbers())
         pos = torch.from_numpy(frame.get_positions())
+        masses = torch.from_numpy(frame.get_masses())
         pbc = torch.from_numpy(frame.get_pbc())
         cell = torch.tensor(frame.get_cell().tolist(), dtype=torch.float64)
 
@@ -105,6 +115,7 @@ class AtomicData(Data):
         return AtomicData.from_points(
             pos=pos,
             atom_types=z,
+            masses=masses,
             pbc=pbc,
             cell=cell,
             tag=tag,
@@ -116,11 +127,13 @@ class AtomicData(Data):
     def from_points(
         pos: torch.Tensor,
         atom_types: torch.Tensor,
+        masses: torch.Tensor,
         pbc: Optional[torch.Tensor] = None,
         cell: Optional[torch.Tensor] = None,
         tag: Optional[str] = None,
         energy: Optional[torch.Tensor] = None,
         forces: Optional[torch.Tensor] = None,
+        velocities: Optional[torch.Tensor] = None,
         neighborlist: Optional[Dict[str, Dict[str, Any]]] = None,
         **kwargs,
     ):
@@ -128,6 +141,7 @@ class AtomicData(Data):
         data = {}
         data.update(**kwargs)
         data[ATOM_TYPE_KEY] = torch.as_tensor(atom_types)
+        data[MASS_KEY] = torch.as_tensor(masses)
         data[POSITIONS_KEY] = torch.as_tensor(pos)
         data[N_ATOMS_KEY] = torch.tensor(
             [data[ATOM_TYPE_KEY].shape[0]], dtype=torch.long
@@ -140,6 +154,11 @@ class AtomicData(Data):
             data[FORCE_KEY] = torch.as_tensor(
                 forces, dtype=data[POSITIONS_KEY].dtype
             )
+        if velocities is not None:
+            data[VELOCITY_KEY] = torch.as_tensor(
+                velocities, dtype=data[POSITIONS_KEY].dtype
+            )
+
         data[TAG_KEY] = tag
         if neighborlist is None:
             data[NEIGHBOR_LIST_KEY] = {}
