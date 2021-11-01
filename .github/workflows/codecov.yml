@@ -2,9 +2,6 @@ name: CodeCov
 on:
   push:
     branches: [ main ]
-  pull_request: # Run on local PRs
-    branches: [ main ]
-    types: [opened, reopened, synchronize]
   pull_request_target: # Run on fork PRs
     branches: [ main ]
     types: [opened, reopened, synchronize]
