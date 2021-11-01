@@ -69,6 +69,7 @@ collated_data, _, _ = collate(
 )
 
 force_shape = collated_data.pos.shape
+energy_shape = torch.Size([len(test_molecules), 1])
 
 
 @pytest.mark.parametrize(
@@ -91,24 +92,19 @@ def test_minimum_interaction_block():
 
 
 @pytest.mark.parametrize(
-    "collated_data, grad_targets, expected_shapes",
-    [(collated_data, FORCE_KEY, [force_shape])],
+    "collated_data, out_keys, expected_shapes",
+    [(collated_data, [ENERGY_KEY, FORCE_KEY], [energy_shape, force_shape])],
 )
-def test_prediction(collated_data, grad_targets, expected_shapes):
+def test_prediction(collated_data, out_keys, expected_shapes):
     """Test to make sure that the output dictionary is properly populated
     and that the correspdonding shapes of the outputs are correct given the
     requested gradient targets.
     """
     test_schnet = StandardSchNet(standard_basis, standard_cutoff, [128, 128])
-    model = GradientsOut(test_schnet, targets=grad_targets).double()
+    model = GradientsOut(test_schnet, targets=FORCE_KEY).double()
     collated_data = model(collated_data)
     assert len(collated_data.out) != 0
     assert "SchNet" in collated_data.out.keys()
-    # assert scalar energy
-    assert ENERGY_KEY in collated_data.out["SchNet"].keys()
-    assert collated_data.out["SchNet"][ENERGY_KEY].shape == torch.Size(
-        (collated_data.pos.shape[0], 1)
-    )
-    for target, shape in zip(model.targets, expected_shapes):
-        assert target in collated_data.out["SchNet"].keys()
-        assert collated_data.out["SchNet"][target].shape == shape
+    for key, shape in zip(out_keys, expected_shapes):
+        assert key in collated_data.out["SchNet"].keys()
+        assert collated_data.out["SchNet"][key].shape == shape
