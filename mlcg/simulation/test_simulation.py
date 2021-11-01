@@ -8,6 +8,7 @@ from torch_geometric.data.collate import collate
 from ase.build import molecule
 from mlcg.geometry import Topology
 from mlcg.geometry.statistics import *
+from mlcg.neighbor_list.neighbor_list import make_neighbor_list
 from mlcg.simulation import *
 from mlcg.nn import *
 from mlcg.data._keys import *
@@ -88,14 +89,7 @@ initial_data_list = []
 for frame in range(5):
     neighbor_lists = {}
     for (tag, order, edge_list) in zip(nls_tags, nls_orders, nls_edges):
-        neighbor_lists[tag] = {
-            "tag": tag,
-            "order": order,
-            "index_mapping": edge_list,
-            "cell_shifts": None,
-            "rcut": None,
-            "self_interaction": False,
-        }
+        neighbor_lists[tag] = make_neighbor_list(tag, order, edge_list)
     data_point = AtomicData(
         pos=torch.tensor(mol.get_positions()),
         atom_types=torch.tensor(test_topo.types),

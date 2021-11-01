@@ -8,7 +8,7 @@ from torch_geometric.data.collate import collate
 from ase.build import molecule
 from mlcg.geometry import Topology
 from mlcg.geometry.statistics import *
-from mlcg.simulation import *
+from mlcg.neighbor_list.neighbor_list import make_neighbor_list
 from mlcg.nn import *
 from mlcg.data._keys import *
 
@@ -48,14 +48,7 @@ prior_data_list = []
 for frame in range(prior_data_frames.shape[0]):
     neighbor_lists = {}
     for (tag, order, edge_list) in zip(nls_tags, nls_orders, nls_edges):
-        neighbor_lists[tag] = {
-            "tag": tag,
-            "order": order,
-            "index_mapping": edge_list,
-            "cell_shifts": None,
-            "rcut": None,
-            "self_interaction": False,
-        }
+        neighbor_lists[tag] = make_neighbor_list(tag, order, edge_list)
     data_point = AtomicData(
         pos=prior_data_frames[frame],
         atom_types=torch.tensor(test_topo.types),
@@ -65,13 +58,14 @@ for frame in range(prior_data_frames.shape[0]):
     )
     prior_data_list.append(data_point)
 
+print(prior_data_list[0])
 collated_prior_data, _, _ = collate(
     prior_data_list[0].__class__,
     data_list=prior_data_list,
     increment=True,
     add_batch=True,
 )
-
+print(collated_prior_data)
 # Fit the priors
 prior_cls = [HarmonicBonds, HarmonicAngles]
 priors, stats = fit_baseline_models(collated_prior_data, beta, prior_cls)
@@ -89,6 +83,7 @@ initial_coords = torch.stack(
 atom_types = torch.tensor(mol.get_atomic_numbers())
 force_shape = collated_prior_data.pos.shape
 energy_shape = torch.Size([])
+print(collated_prior_data)
 
 
 @pytest.mark.parametrize(
