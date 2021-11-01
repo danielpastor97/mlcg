@@ -37,6 +37,14 @@ class _RadialBasis(nn.Module):
         self.cutoff_lower = None
         self.cutoff_upper = None
 
+    def check_cutoff(self):
+        if self.cutoff_upper < self.cutoff_lower:
+            raise ValueError(
+                "Upper cutoff {} is less than lower cutoff {}".format(
+                    self.cutoff_upper, self.cutoff_lower
+                )
+            )
+
     def forward(self):
         raise NotImplementedError
 
@@ -77,6 +85,9 @@ class GaussianBasis(_RadialBasis):
         super(GaussianBasis, self).__init__()
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
+
+        self.check_cutoff()
+
         self.num_rbf = num_rbf
         self.trainable = trainable
 
@@ -175,6 +186,9 @@ class ExpNormalBasis(_RadialBasis):
         super(ExpNormalBasis, self).__init__()
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
+
+        self.check_cutoff()
+
         self.num_rbf = num_rbf
         self.trainable = trainable
 

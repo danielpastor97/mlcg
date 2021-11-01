@@ -233,6 +233,7 @@ def compute_statistics(
     )
 
     interaction_types = _symmetrise_map[order](interaction_types)
+
     statistics = {}
     for unique_key in unique_keys.t():
         # find which values correspond to unique_key type of interaction
@@ -292,7 +293,7 @@ def fit_baseline_models(
     bmin: Optional[float] = None,
     bmax: Optional[float] = None,
 ) -> Tuple[List[nn.Module], Dict]:
-    """Function for parametrizing a list of priors based on type-specific interactions contained in
+    r"""Function for parametrizing a list of priors based on type-specific interactions contained in
     a collated AtomicData structure
 
     Parameters
