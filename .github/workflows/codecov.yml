@@ -30,5 +30,5 @@ jobs:
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@v2
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+        token: 3617f1ba-708f-48e4-90fa-182d8300ec46
         fail_ci_if_error: false
