@@ -1,3 +1,4 @@
+import warnings
 import networkx as nx
 import torch
 import pytest
@@ -85,6 +86,7 @@ priors = {
 full_model = SumOut(priors)
 
 # 5 replicas starting from the same structure
+massless_initial_data_list = []
 initial_data_list = []
 for frame in range(5):
     neighbor_lists = {}
@@ -98,15 +100,66 @@ for frame in range(5):
         velocities=None,
         neighbor_list=neighbor_lists,
     )
+    massless_data_point = AtomicData(
+        pos=torch.tensor(mol.get_positions()),
+        atom_types=torch.tensor(test_topo.types),
+        cell=None,
+        velocities=None,
+        neighbor_list=neighbor_lists,
+    )
+
     initial_data_list.append(data_point)
+    massless_initial_data_list.append(massless_data_point)
+
+
+@pytest.mark.parametrize(
+    "full_model, initial_data_list, sim_kwargs, expected_raise",
+    [
+        (full_model, initial_data_list, {"friction": None}, UserWarning),
+        (
+            full_model,
+            massless_initial_data_list,
+            {"friction": 1.0},
+            RuntimeError,
+        ),
+        (
+            full_model,
+            massless_initial_data_list,
+            {"log_type": "stone tablet"},
+            ValueError,
+        ),
+        (
+            full_model,
+            initial_data_list,
+            {"diffusion": 1.0, "friction": 1.0},
+            UserWarning,
+        ),
+        (
+            full_model,
+            initial_data_list,
+            {"length": 13, "save_interval": 11},
+            ValueError,
+        ),
+    ],
+)
+def test_sim_raises(full_model, initial_data_list, sim_kwargs, expected_raise):
+    """Test to make sure certain warnings/errors are raised"""
+    if isinstance(expected_raise, Exception):
+        with pytest.raises(expected_raise):
+            sim = Simulation(full_model, initial_data_list, **sim_kwargs)
+    if isinstance(expected_raise, UserWarning):
+        with pytest.warns(expected_raise):
+            sim = Simulation(full_model, initial_data_list, **sim_kwargs)
 
 
 @pytest.mark.parametrize(
     "full_model, initial_data_list, sim_kwargs",
-    [(full_model, initial_data_list, {})],
+    [
+        (full_model, massless_initial_data_list, {}),
+        (full_model, initial_data_list, {"friction": 1.0}),
+    ],
 )
 def test_simulation_run(full_model, initial_data_list, sim_kwargs):
     """Test to make sure the simulation runs"""
     simulation = Simulation(full_model, initial_data_list, **sim_kwargs)
     simulation.simulate()
-    pass

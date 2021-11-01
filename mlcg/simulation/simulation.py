@@ -1,6 +1,7 @@
 # Authors: Brooke Husic, Nick Charron, Jiang Wang
 # Contributors: Dominik Lemm, Andreas Kraemer
 
+from typing import List
 import torch
 import numpy as np
 
@@ -50,56 +51,48 @@ class Simulation(object):
     modeled indirectly using a stochastic term.
     Parameters
     ----------
-    model : cgnet.network.CGNet() instance
+    model :
         Trained model used to generate simulation data
-    initial_data : np.ndarray or torch.Tensor
+    initial_data :
         Coordinate data of dimension [n_simulations, n_atoms, n_dimensions].
         Each entry in the first dimension represents the first frame of an
         independent simulation.
-    atom_types : np.ndarray or None (default=None)
-        Embedding data of dimension [n_simulations, n_atoms]. Each entry
-        in the first dimension corresponds to the atom_types for the
-        initial_coordinates data. If no atom_types, use None.
-    dt : float (default=5e-4)
+    dt :
         The integration time step for Langevin dynamics. Units are determined
         by the frame striding of the original training data simulation
-    beta : float (default=1.0)
+    beta :
         The thermodynamic inverse temperature, 1/(k_B T), for Boltzman constant
         k_B and temperature T. The units of k_B and T are fixed from the units
         of training forces and settings of the training simulation data
         respectively
-    friction : float (default=None)
+    friction :
         If None, overdamped Langevin dynamics are used (this is equivalent to
         "infinite" friction). If a float is given, Langevin dynamics are
         utilized with this (finite) friction value (sometimes referred to as
         gamma)
-    masses : list of floats (default=None)
-        Only relevant if friction is not None and (therefore) Langevin dynamics
-        are used. In that case, masses must be a list of floats where the float
-        at mass index i corresponds to the ith CG bead.
-    diffusion : float (default=1.0)
+    diffusion :
         The constant diffusion parameter D for overdamped Langevin dynamics
         *only*. By default, the diffusion is set to unity and is absorbed into
         the dt argument. However, users may specify separate diffusion and dt
         parameters in the case that they have some estimate of the CG
         diffusion
-    save_forces : bool (defalt=False)
+    save_forces :
         Whether to save forces at the same saved interval as the simulation
         coordinates
-    save_potential : bool (default=False)
+    save_potential :
         Whether to save potential at the same saved interval as the simulation
         coordinates
-    length : int (default=100)
+    length :
         The length of the simulation in simulation timesteps
-    save_interval : int (default=10)
+    save_interval :
         The interval at which simulation timesteps should be saved. Must be
         a factor of the simulation length
-    random_seed : int or None (default=None)
+    random_seed :
         Seed for random number generator; if seeded, results always will be
         identical for the same random seed
-    device : torch.device (default=torch.device('cpu'))
+    device :
         Device upon which simulation compuation will be carried out
-    export_interval : int (default=None)
+    export_interval :
         If not None, .npy files will be saved. If an int is given, then
         the int specifies at what intervals numpy files will be saved per
         observable. This number must be an integer multiple of save_interval.
@@ -108,15 +101,15 @@ class Simulation(object):
         arguments, respectively. If friction is not None, kinetic energies
         will also be saved. This method is only implemented for a maximum of
         1000 files per observable due to file naming conventions.
-    log_interval : int (default=None)
+    log_interval :
         If not None, a log will be generated indicating simulation start and
         end times as well as completion updates at regular intervals. If an
         int is given, then the int specifies how many log statements will be
         output. This number must be a multiple of save_interval.
-    log_type : 'print' or 'write' (default='write')
+    log_type :
         Only relevant if log_interval is not None. If 'print', a log statement
         will be printed. If 'write', the log will be written to a .txt file.
-    filename : string (default=None)
+    filename :
         Specifies the location to which numpys and/or log files are saved.
         Must be provided if export_interval is not None and/or if log_interval
         is not None and log_type is 'write'. This provides the base file name;
@@ -153,37 +146,37 @@ class Simulation(object):
 
     def __init__(
         self,
-        model,
-        initial_data_list,
-        dt=5e-4,
-        beta=1.0,
-        friction=None,
-        masses=None,
-        diffusion=1.0,
-        save_forces=False,
-        save_potential=False,
-        length=100,
-        save_interval=10,
-        random_seed=None,
-        device=torch.device("cpu"),
-        export_interval=None,
-        log_interval=None,
-        log_type="write",
-        filename=None,
-        batch_size=10,
+        model: torch.nn.Module,
+        initial_data_list: List[AtomicData],
+        dt: float = 5e-4,
+        beta: float = 1.0,
+        friction: float = None,
+        diffusion: float = 1.0,
+        save_forces: bool = False,
+        save_potential: bool = False,
+        length: int = 100,
+        save_interval: int = 10,
+        random_seed: int = None,
+        device: torch.device = torch.device("cpu"),
+        export_interval: int = None,
+        log_interval: int = None,
+        log_type: str = "write",
+        filename: str = None,
     ):
 
         self.initial_data = self._check_and_collate_data(initial_data_list)
-
         model.eval()
         self.model = model
 
         self.friction = friction
-        self.masses = masses
 
         self.n_sims = len(initial_data_list)
         self.n_atoms = len(initial_data_list[0].atom_types)
         self.n_dims = initial_data_list[0].pos.shape[1]
+        if MASS_KEY in self.initial_data:
+            self.masses = initial_data_list[0].masses
+        else:
+            self.masses = None
 
         self.save_forces = save_forces
         self.save_potential = save_potential
@@ -197,7 +190,6 @@ class Simulation(object):
         self.device = device
         self.export_interval = export_interval
         self.log_interval = log_interval
-        self.batch_size = batch_size
         if log_type not in ["print", "write"]:
             raise ValueError("log_type can be either 'print' or 'write'")
         self.log_type = log_type
@@ -258,9 +250,6 @@ class Simulation(object):
                 raise RuntimeError(
                     "if friction is not None, masses must be given"
                 )
-            self.masses = torch.tensor(self.masses, dtype=torch.float32).to(
-                self.device
-            )
 
             self.vscale = np.exp(-self.dt * self.friction)
             self.noisescale = np.sqrt(1 - self.vscale * self.vscale)
@@ -677,7 +666,7 @@ class Simulation(object):
                 self._save_timepoint(x_new, v_new, forces, potential, t)
 
                 # save numpys if relevant; this can be indented here because
-                # it only happens when time when time points are also recorded
+                # it only happens when time points are also recorded
                 if self.export_interval is not None:
                     if (t + 1) % self.export_interval == 0:
                         self._save_numpy((t + 1) // self.save_interval)
