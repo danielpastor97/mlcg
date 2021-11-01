@@ -2,9 +2,6 @@ name: CodeCov
 on:
   push:
     branches: [ main ]
-  pull_request: # Run on local PRs
-    branches: [ main ]
-    types: [opened, reopened, synchronize]
   pull_request_target: # Run on fork PRs
     branches: [ main ]
     types: [opened, reopened, synchronize]
@@ -30,5 +27,5 @@ jobs:
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@v2
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+        token: 3617f1ba-708f-48e4-90fa-182d8300ec46
         fail_ci_if_error: false
