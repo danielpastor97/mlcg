@@ -1,8 +1,8 @@
 name: Build the latest Documentation
-on: [push]
-  # push:
-  #   branches:
-  #     - main
+on: # [push]
+  push:
+    branches:
+      - main
 jobs:
   build-and-push-doc:
     runs-on: ubuntu-latest
