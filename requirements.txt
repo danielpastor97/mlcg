@@ -11,5 +11,5 @@ e3nn
 ipython
 # developer tools
 pytest
-coverage
+coverage[toml]
 black

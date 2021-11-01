@@ -1,6 +1,9 @@
 mlcg-tools
 ==========
 
+.. image:: https://codecov.io/gh/ClementiGroup/mlcg-tools/branch/main/graph/badge.svg?token=TXZNC7X73E
+:target: https://codecov.io/gh/ClementiGroup/mlcg-tools
+
 .. start-intro
 
 This repository collects a set of tools to apply machine learning techniques to coarse grain atomic systems.
@@ -65,3 +68,13 @@ documentation is synchronised with the main version of the repository.
     git push
 
 .. end-doc
+
+Test Coverage
+-------------
+
+The test coverage of this library is monitored with `coverage` for each pull requests using `github` actions.
+To produce a report locally run:
+
+.. code:: bash
+    coverage run -m pytest
+    coverage report

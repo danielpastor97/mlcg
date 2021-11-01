@@ -18,3 +18,20 @@ addopts = "-ra -q"
 testpaths = [
     "mlcg",
 ]
+filterwarnings = [
+    "ignore::DeprecationWarning:networkx.*"
+]
+
+[tool.coverage.run]
+branch = true
+source = ["mlcg/"]
+omit = ["**/test_*.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "if self.debug:" ,
+    "pragma: no cover" ,
+    "raise NotImplementedError" ,
+    "@(abc\\.)?abstractmethod" ,
+]
+ignore_errors = true
