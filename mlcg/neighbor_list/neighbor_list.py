@@ -86,6 +86,7 @@ def make_neighbor_list(
         cell_shifts=cell_shifts,
         rcut=rcut,
         self_interaction=self_interaction,
+        mapping_batch=torch.zeros((index_mapping.shape[1]), dtype=torch.long)
     )
 
 

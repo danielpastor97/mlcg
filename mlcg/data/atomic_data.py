@@ -94,6 +94,14 @@ class AtomicData(Data):
             ), f"shape {self.pbc.shape[1:]}"
             assert self.pbc.dtype == torch.bool
 
+    def __inc__(self, key: str, value: Any, *args, **kwargs) -> Any:
+        if 'index' in key or 'face' in key:
+            return self.num_nodes
+        elif 'mapping_batch' == key:
+            return 1
+        else:
+            return 0
+
     @staticmethod
     def from_ase(
         frame,
