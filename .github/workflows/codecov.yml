@@ -2,9 +2,6 @@ name: CodeCov
 on:
   push:
     branches: [ main ]
-  pull_request: # Run on local PRs
-    branches: [ main ]
-    types: [opened, reopened, synchronize]
   pull_request_target: # Run on fork PRs
     branches: [ main ]
     types: [opened, reopened, synchronize]
@@ -27,8 +24,10 @@ jobs:
     - name: Generate Report
       run: |
         coverage run -m pytest
+        coverage xml
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@v2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false
+        files: ./coverage.xml
