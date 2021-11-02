@@ -173,10 +173,6 @@ class Simulation(object):
         self.n_sims = len(initial_data_list)
         self.n_atoms = len(initial_data_list[0].atom_types)
         self.n_dims = initial_data_list[0].pos.shape[1]
-        if MASS_KEY in self.initial_data:
-            self.masses = initial_data_list[0].masses
-        else:
-            self.masses = None
 
         self.save_forces = save_forces
         self.save_potential = save_potential
@@ -213,12 +209,82 @@ class Simulation(object):
         self, data_list: List[AtomicData]
     ) -> AtomicData:
         """Helper method to check and collate the initial data list"""
+
+        pos_shape = data_list[0].pos.shape
+        atom_types = data_list[0].atom_types
+        nls = data_list[0].neighbor_list
+        if MASS_KEY not in data_list[0]:
+            initial_masses = False
+        else:
+            initial_masses = True
+
+        # check to make sure every structure has the same number of atoms
+        # and the proper neighbor_list structure
+        for frame, data in enumerate(data_list):
+            current_nls = data.neighbor_list
+            if data.pos.shape != pos_shape:
+                raise ValueError(
+                    "Postions shape {} at frame {} differes from shape {} in previous frames.".format(
+                        data.pos.shape, frame, pos_shape
+                    )
+                )
+            if (
+                np.testing.assert_array_equal(
+                    data.atom_types.numpy(), atom_types.numpy()
+                )
+                == False
+            ):
+                raise ValueError(
+                    "Atom types {} at frame {} are not equal to atom types in previous frames.".format(
+                        data.atom_types, frame
+                    )
+                )
+            if set(current_nls.keys()) != set(nls.keys()):
+                raise ValueError(
+                    "Neighbor list keyset {} at frame {} does not match keysets of previous frames.".format(
+                        set(data.neighbor_list.keys()), frame
+                    )
+                )
+            for key in current_nls.keys():
+                mapping = current_nls[key]["index_mapping"]
+                if (
+                    np.testing.assert_array_equal(
+                        mapping.numpy(), nls[key]["index_mapping"]
+                    )
+                    == False
+                ):
+                    raise ValueError(
+                        "Index mapping {} for key {} at frame {} does not match those of previous frames.".format(
+                            mapping, key, frame
+                        )
+                    )
+            if MASS_KEY in data and initial_masses == False:
+                raise ValueError(
+                    "Masses {} supplied for frame {}, but previous frames have no masses.".format(
+                        data.masses, frame
+                    )
+                )
+            if initial_masses == None and MASS_KEY not in data:
+                raise ValueError(
+                    "Masses are none for frame {}, but previous frames have masses {}.".format(
+                        frame, masses
+                    )
+                )
+            if MASS_KEY in data:
+                if data.masses.shape != atom_types.shape:
+                    raise ValueError(
+                        "Number of masses {} at frame {} do not match number of atoms in previous frames.".format(
+                            data.masses.shape[0], atom_types.shape[0]
+                        )
+                    )
+
         collated_data, _, _ = collate(
             data_list[0].__class__,
             data_list=data_list,
             increment=True,
             add_batch=True,
         )
+        print("collated", collated_data)
         return collated_data
 
     def _input_option_checks(self):
@@ -237,7 +303,6 @@ class Simulation(object):
         and input compatibilities (such as using atom_types in models
         with SchnetFeatures), see the _input_model_checks() method.
         """
-
         # make sure save interval is a factor of total length
         if self.length % self.save_interval != 0:
             raise ValueError(
@@ -246,7 +311,7 @@ class Simulation(object):
 
         # set up simulation parameters
         if self.friction is not None:  # langevin
-            if self.masses is None:
+            if MASS_KEY not in self.initial_data:
                 raise RuntimeError(
                     "if friction is not None, masses must be given"
                 )
@@ -268,7 +333,7 @@ class Simulation(object):
 
             self.kinetic_energies = None
 
-            if self.masses is not None:
+            if MASS_KEY in self.initial_data:
                 warnings.warn(
                     "Masses were provided, but will not be used since "
                     "friction is None (i.e., infinte)."
@@ -353,7 +418,7 @@ class Simulation(object):
         if self.friction is not None:
             self.kinetic_energies = torch.zeros((self._save_size, self.n_sims))
 
-    def _timestep(self, x_old, v_old, forces):
+    def _timestep(self, x_old, v_old, forces, masses):
         """Shell method for routing to either Langevin or overdamped Langevin
         dynamics
         Parameters
@@ -370,28 +435,27 @@ class Simulation(object):
             assert v_old is None
             return self._overdamped_timestep(x_old, v_old, forces)
         else:
-            return self._langevin_timestep(x_old, v_old, forces)
+            return self._langevin_timestep(x_old, v_old, forces, masses)
 
-    def _langevin_timestep(self, x_old, v_old, forces):
+    def _langevin_timestep(self, x_old, v_old, forces, masses):
         """Heavy lifter for Langevin dynamics
         Parameters
         ----------
-        x_old : torch.Tensor
+        x_old : tor
             coordinates before propagataion
         v_old : torch.Tensor
             velocities before propagation
         forces: torch.Tensor
             forces at x_old
         """
-
-        # BB (velocity update); uses whole timestep
-        v_new = v_old + self.dt * forces / self.masses[:, None]
+        # BB (velocity update); uses whole timestxep
+        v_new = v_old + self.dt * forces / masses[:, None]
 
         # A (position update)
         x_new = x_old + v_new * self.dt / 2.0
 
         # O (noise)
-        noise = torch.sqrt(1.0 / self.beta / self.masses[:, None])
+        noise = torch.sqrt(1.0 / self.beta / masses[:, None])
         noise = noise * torch.randn(size=x_new.size(), generator=self.rng).to(
             self.device
         )
@@ -424,7 +488,7 @@ class Simulation(object):
         )
         return x_new, None
 
-    def _save_timepoint(self, x_new, v_new, forces, potential, t):
+    def _save_timepoint(self, x_new, v_new, forces, potential, t, masses):
         """Utilities to store saved values of coordinates and, if relevant,
         also forces, potential, and/or kinetic energy
         Parameters
@@ -460,8 +524,9 @@ class Simulation(object):
             self.simulated_potential[t // self.save_interval] = potential
 
         if v_new is not None:
+            masses = masses.view(self.n_sims, self.n_atoms)
             kes = 0.5 * torch.sum(
-                torch.sum(self.masses[:, None] * v_new ** 2, dim=2), dim=1
+                torch.sum(masses[:, :, None] * v_new ** 2, dim=2), dim=1
             )
             self.kinetic_energies[save_ind, :] = kes
 
@@ -579,15 +644,18 @@ class Simulation(object):
         in order to average forces and potentials over more than one model.
         """
         potential = torch.zeros(
-            self.n_sims, device=data_old.pos.device, dtype=data_old.pos.dtype
+            self.n_sims * self.n_atoms,
+            1,
+            device=data_old.pos.device,
+            dtype=data_old.pos.dtype,
         )
         forces = torch.zeros(
-            self.n_sims, self.n_atoms, self.n_dims, device=data_old.pos.device
+            self.n_sims * self.n_atoms, self.n_dims, device=data_old.pos.device
         )
         data_old = self.model(data_old)
-        potential = data_old.out[ENERGY_KEY]
+        potential = data_old.out[ENERGY_KEY].detach()
         forces = data_old.out[FORCE_KEY]
-        return potential, forces.reshape((-1, self.n_atoms, self.n_dims))
+        return potential, forces
 
     def simulate(self, overwrite=False):
         """Generates independent simulations.
@@ -648,22 +716,41 @@ class Simulation(object):
         for t in tqdm(range(self.length), desc="Simulation timestep"):
             # produce potential and forces from model
             potential, forces = self.calculate_potential_and_forces(data_old)
-            potential = potential.detach()
-            forces = forces.detach()
-            x_old = data_old.pos.reshape(-1, self.n_atoms, self.n_dims).detach()
+            x_old = data_old.pos
+
             if self.friction is None:
                 v_old = None
             else:
-                v_old = data_old.velocities.reshape(
-                    -1, self.n_atoms, self.n_dims
-                ).detach()
+                v_old = data_old.velocities
 
             # step forward in time
-            x_new, v_new = self._timestep(x_old, v_old, forces)
+            if MASS_KEY in self.initial_data:
+                x_new, v_new = self._timestep(
+                    x_old, v_old, forces, data_old.masses
+                )
+            else:
+                x_new, v_new = self._timestep(x_old, v_old, forces, None)
 
             # save to arrays if relevant
             if (t + 1) % self.save_interval == 0:
-                self._save_timepoint(x_new, v_new, forces, potential, t)
+                x_new = x_new.view(-1, self.n_atoms, self.n_dims)
+                if v_new != None:
+                    v_new = v_new.view(-1, self.n_atoms, self.n_dims)
+                forces = forces.view(-1, self.n_atoms, self.n_dims)
+
+                if MASS_KEY in self.initial_data:
+                    self._save_timepoint(
+                        x_new,
+                        v_new,
+                        forces,
+                        potential,
+                        t,
+                        self.initial_data[MASS_KEY],
+                    )
+                else:
+                    self._save_timepoint(
+                        x_new, v_new, forces, potential, t, None
+                    )
 
                 # save numpys if relevant; this can be indented here because
                 # it only happens when time points are also recorded
@@ -676,19 +763,18 @@ class Simulation(object):
                 if self.log_interval is not None:
                     if int((t + 1) % self.log_interval) == 0:
                         self._log_progress((t + 1) // self.save_interval)
+                x_new = x_new.view(self.n_sims * self.n_atoms, self.n_dims)
+                if MASS_KEY in self.initial_data:
+                    v_new = v_new.view(self.n_sims * self.n_atoms, self.n_dims)
 
             # prepare for next timestep
-            # x_old = x_new.detach().requires_grad_(True).to(self.device)
-            # v_old = v_new
-            data_old.pos = x_new.reshape(
-                self.n_atoms * self.n_sims, self.n_dims
-            )
+            data_old.pos = x_new
             if self.friction == None:
                 pass
             else:
-                data_old.velocities = v_new.reshape(
-                    self.n_atoms * self.n_sims, self.n_dims
-                )
+                data_old.velocities = v_new
+
+            # reset data outputs to collect the new forces/energies
             data_old.out = {}
 
         # if relevant, save the remainder of the simulation

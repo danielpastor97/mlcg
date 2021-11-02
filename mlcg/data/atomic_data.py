@@ -135,7 +135,7 @@ class AtomicData(Data):
     def from_points(
         pos: torch.Tensor,
         atom_types: torch.Tensor,
-        masses: torch.Tensor,
+        masses: Optional[torch.Tensor] = None,
         pbc: Optional[torch.Tensor] = None,
         cell: Optional[torch.Tensor] = None,
         tag: Optional[str] = None,
@@ -149,11 +149,13 @@ class AtomicData(Data):
         data = {}
         data.update(**kwargs)
         data[ATOM_TYPE_KEY] = torch.as_tensor(atom_types)
-        data[MASS_KEY] = torch.as_tensor(masses)
         data[POSITIONS_KEY] = torch.as_tensor(pos)
         data[N_ATOMS_KEY] = torch.tensor(
             [data[ATOM_TYPE_KEY].shape[0]], dtype=torch.long
         )
+
+        if masses is not None:
+            data[MASS_KEY] = torch.as_tensor(masses)
         if energy is not None:
             data[ENERGY_KEY] = torch.as_tensor(
                 energy, dtype=data[POSITIONS_KEY].dtype
