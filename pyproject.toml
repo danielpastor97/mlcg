@@ -25,7 +25,10 @@ filterwarnings = [
 [tool.coverage.run]
 branch = true
 source = ["mlcg/"]
-omit = ["**/test_*.py"]
+omit = [
+    "**/test_*.py",
+    "**/__init__.py",
+]
 
 [tool.coverage.report]
 exclude_lines = [
