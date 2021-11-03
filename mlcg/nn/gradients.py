@@ -34,19 +34,21 @@ class SumOut(torch.nn.Module):
             AtomicData instance whose 'out' field has been populated
             for each predictor in the model. For example:
 
-                AtomicData(
-                    out: {
-                        SchNet: {
-                            ENERGY_KEY: ...,
-                            FORCE_KEY: ...,
-                        },
-                        bonds: {
-                            ENERGY_KEY: ...,
-                            FORCE_KEY: ...,
-                        },
+        .. code-block::python
 
-                ...
-                )
+            AtomicData(
+                out: {
+                    SchNet: {
+                        ENERGY_KEY: ...,
+                        FORCE_KEY: ...,
+                    },
+                    bonds: {
+                        ENERGY_KEY: ...,
+                        FORCE_KEY: ...,
+                    },
+
+            ...
+            )
 
         Returns
         -------
@@ -56,20 +58,22 @@ class SumOut(torch.nn.Module):
             up the respective contributions from each predictor in the model.
             For example:
 
-                AtomicData(
-                    out: {
-                        SchNet: {
-                            ENERGY_KEY: ...,
-                            FORCE_KEY: ...,
-                        },
-                        bonds: {
-                            ENERGY_KEY: ...,
-                            FORCE_KEY: ...,
-                        },
+        .. code-block::python
+
+            AtomicData(
+                out: {
+                    SchNet: {
                         ENERGY_KEY: ...,
                         FORCE_KEY: ...,
-                ...
-                )
+                    },
+                    bonds: {
+                        ENERGY_KEY: ...,
+                        FORCE_KEY: ...,
+                    },
+                    ENERGY_KEY: ...,
+                    FORCE_KEY: ...,
+            ...
+            )
 
         """
         for target in self.targets:
