@@ -1,5 +1,6 @@
 from typing import List, Callable
 import warnings
+import tempfile
 import torch
 import pytest
 import numpy as np
@@ -245,3 +246,38 @@ def test_simulation_run(
         full_model, initial_data_list, *sim_args, **sim_kwargs
     )
     simulation.simulate()
+
+
+@pytest.mark.parametrize(
+    "full_model, initial_data_list, sim_class, sim_args, sim_kwargs",
+    [
+        (
+            full_model,
+            massless_initial_data_list,
+            OverdampedSimulation,
+            [],
+            {},
+        ),
+        (
+            full_model,
+            initial_data_list,
+            LangevinSimulation,
+            [],
+            {"friction": 1.0},
+        ),
+    ],
+)
+def test_overwrite_protection(
+    full_model, initial_data_list, sim_class, sim_args, sim_kwargs
+):
+    """Test to make sure that overwrite protection works"""
+    with tempfile.TemporaryDirectory() as tmp:
+        filename = tmp + "/my_sim_coords_000.npy"
+        open(filename, "w").close()
+        sim_kwargs["filename"] = filename
+        simulation = sim_class(
+            full_model, initial_data_list, *sim_args, **sim_kwargs
+        )
+        simulation.simulate()
+        with pytest.raises(RuntimeError):
+            simulation.simulate()
