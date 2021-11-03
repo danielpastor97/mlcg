@@ -81,12 +81,7 @@ class SumOut(torch.nn.Module):
         for name in self.models.keys():
             data = self.models[name](data)
             for target in self.targets:
-                if target in SCALAR_KEYS:
-                    data.out[target] += torch.sum(
-                        data.out[name][target], dim=0
-                    ).detach()
-                else:
-                    data.out[target] += data.out[name][target].detach()
+                data.out[target] += data.out[name][target]
         return data
 
 

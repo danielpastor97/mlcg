@@ -76,13 +76,10 @@ priors = {
     for name in priors.keys()
 }
 full_model = SumOut(priors)
-# 5 replicas starting from the same structure
-initial_coords = torch.stack(
-    [torch.tensor(mol.get_positions()) for _ in range(5)]
-)
+
 atom_types = torch.tensor(mol.get_atomic_numbers())
 force_shape = collated_prior_data.pos.shape
-energy_shape = torch.Size([])
+energy_shape = torch.Size([len(prior_data_list)])
 print(collated_prior_data)
 
 
