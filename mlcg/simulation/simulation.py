@@ -39,8 +39,8 @@ class _Simulation(object):
         log_type: str = "write",
         filename: str = None,
     ):
-
-        self.initial_data = self.check_and_collate_data(initial_data_list)
+        self.validate_data_list(initial_data_list)
+        self.initial_data = self.collate(initial_data_list)
         model.eval()
         self.model = model
         self.n_sims = len(initial_data_list)
@@ -70,7 +70,7 @@ class _Simulation(object):
         self.random_seed = random_seed
         self._simulated = False
 
-    def check_and_collate_data(self, data_list: List[AtomicData]) -> AtomicData:
+    def validate_data_list(self, data_list: List[AtomicData]):
         """Helper method to check and collate the initial data list"""
 
         pos_shape = data_list[0].pos.shape
@@ -87,7 +87,8 @@ class _Simulation(object):
             current_nls = data.neighbor_list
             if data.pos.shape != pos_shape:
                 raise ValueError(
-                    "Postions shape {} at frame {} differes from shape {} in previous frames.".format(
+                    "Postions shape {} at frame {} differes from shape {} "
+                    "in previous frames.".format(
                         data.pos.shape, frame, pos_shape
                     )
                 )
@@ -98,13 +99,13 @@ class _Simulation(object):
                 == False
             ):
                 raise ValueError(
-                    "Atom types {} at frame {} are not equal to atom types in previous frames.".format(
-                        data.atom_types, frame
-                    )
+                    "Atom types {} at frame {} are not equal to atom types in "
+                    "previous frames.".format(data.atom_types, frame)
                 )
             if set(current_nls.keys()) != set(nls.keys()):
                 raise ValueError(
-                    "Neighbor list keyset {} at frame {} does not match keysets of previous frames.".format(
+                    "Neighbor list keyset {} at frame {} does not match keysets "
+                    "of previous frames.".format(
                         set(data.neighbor_list.keys()), frame
                     )
                 )
@@ -117,29 +118,33 @@ class _Simulation(object):
                     == False
                 ):
                     raise ValueError(
-                        "Index mapping {} for key {} at frame {} does not match those of previous frames.".format(
-                            mapping, key, frame
-                        )
+                        "Index mapping {} for key {} at frame {} does not match "
+                        "those of previous frames.".format(mapping, key, frame)
                     )
             if MASS_KEY in data and initial_masses == False:
                 raise ValueError(
-                    "Masses {} supplied for frame {}, but previous frames have no masses.".format(
-                        data.masses, frame
-                    )
+                    "Masses {} supplied for frame {}, but previous frames "
+                    "have no masses.".format(data.masses, frame)
                 )
             if initial_masses == None and MASS_KEY not in data:
                 raise ValueError(
-                    "Masses are none for frame {}, but previous frames have masses {}.".format(
-                        frame, masses
-                    )
+                    "Masses are none for frame {}, but previous frames "
+                    "have masses {}.".format(frame, masses)
                 )
             if MASS_KEY in data:
                 if data.masses.shape != atom_types.shape:
                     raise ValueError(
-                        "Number of masses {} at frame {} do not match number of atoms in previous frames.".format(
+                        "Number of masses {} at frame {} do not match number of atoms "
+                        "in previous frames.".format(
                             data.masses.shape[0], atom_types.shape[0]
                         )
                     )
+
+    @staticmethod
+    def collate(data_list: List[AtomicData]) -> AtomicData:
+        """Method for collating a list of individual AtomicData instances into a
+        single AtomicData instance, with proper incrementing of AtomicData properties.
+        """
 
         collated_data, _, _ = collate(
             data_list[0].__class__,
