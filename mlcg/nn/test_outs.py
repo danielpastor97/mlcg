@@ -98,8 +98,7 @@ def test_outs(model, collated_data, out_targets, expected_shapes):
     """
     collated_data = model(collated_data)
     assert len(collated_data.out) != 0
-    names = model.models.keys()
-    for name in names:
+    for name in model.models.keys():
         assert name in collated_data.out.keys()
 
     for target, shape in zip(model.targets, expected_shapes):
