@@ -252,14 +252,31 @@ class _Simulation(object):
         """Returns a string 000-999 for appending to numpy file outputs"""
         return f"{self._npy_file_index:03d}"
 
-    def _swap_and_export(self, data, axis1=0, axis2=1):
+    def _swap_and_export(
+        self, input_tensor: torch.Tensor, axis1: int = 0, axis2: int = 1
+    ) -> np.ndarray:
         """Helper method to exchange the zeroth and first axes of tensors that
         will be output or exported as numpy arrays
+
+        Parameters
+        ----------
+        input_tensor:
+            Tensor of shape (n_save_steps, n_sims, n_atoms, n_dims)
+        axis1:
+            The axis that will be occupied by data from axis2 after the swap
+        axis2:
+            The axis that will be occupied by data from axis1 after the swap
+
+        Returns
+        -------
+        swapped_data:
+            Numpy array of the input data with swapped axes
         """
-        axes = list(range(len(data.size())))
+
+        axes = list(range(len(input_tensor.size())))
         axes[axis1] = axis2
         axes[axis2] = axis1
-        swapped_data = data.permute(*axes)
+        swapped_data = input_tensor.permute(*axes)
         return swapped_data.cpu().detach().numpy()
 
 
@@ -503,6 +520,7 @@ class LangevinSimulation(_Simulation):
         coords_to_export = self.simulated_coords[
             self._npy_starting_index : iter_
         ]
+
         coords_to_export = self._swap_and_export(coords_to_export)
         np.save("{}_coords_{}.npy".format(self.filename, key), coords_to_export)
 
@@ -1029,7 +1047,7 @@ class OverdampedSimulation(_Simulation):
                 # it only happens when time points are also recorded
                 if self.export_interval is not None:
                     if (t + 1) % self.export_interval == 0:
-                        self._save_numpy((t + 1) // self.save_interval)
+                        self.write((t + 1) // self.save_interval)
 
                 # log if relevant; this can be indented here because
                 # it only happens when time when time points are also recorded

@@ -277,5 +277,6 @@ def test_overwrite_protection(
             full_model, initial_data_list, *sim_args, **sim_kwargs
         )
         simulation.simulate()
+
         with pytest.raises(RuntimeError):
             simulation.simulate()
