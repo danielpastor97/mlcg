@@ -168,7 +168,7 @@ wrong_mass_fn = (
 )
 
 # Gives a structure with the wrong shape on the third frame
-wrong_struct_fn = (
+wrong_pos_fn = (
     lambda x: torch.randn(7, 3) if x == 2 else torch.tensor(mol.get_positions())
 )
 # Gives the wrong atomic types on the second frame
