@@ -1,3 +1,4 @@
+# This code is adapted from https://github.com/coarse-graining/cgnet
 # Authors: Brooke Husic, Nick Charron, Jiang Wang
 # Contributors: Dominik Lemm, Andreas Kraemer
 
