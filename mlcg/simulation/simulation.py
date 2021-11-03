@@ -15,7 +15,7 @@ import warnings
 from tqdm import tqdm
 
 from ..data.atomic_data import AtomicData
-from ..data._keys import *
+from ..data._keys import ENERGY_KEY, FORCE_KEY, MASS_KEY, VELOCITY_KEY
 
 
 class _Simulation(object):

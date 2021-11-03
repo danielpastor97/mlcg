@@ -1,22 +1,23 @@
-import networkx as nx
-from mlcg.geometry.topology import *
-from mlcg.geometry.statistics import *
+import torch
+import pytest
+import numpy as np
+
+from mlcg.geometry.topology import Topology
+from mlcg.geometry.statistics import compute_statistics, fit_baseline_models
 from mlcg.geometry.statistics import _symmetrise_map
-from mlcg.nn.prior import *
-from mlcg.data import *
+from mlcg.nn.prior import HarmonicBonds, HarmonicAngles, Repulsion
+from mlcg.data.atomic_data import AtomicData
 from mlcg.geometry.utils import ase_bonds2tensor, ase_angles2tensor
+from mlcg.neighbor_list.neighbor_list import make_neighbor_list
 
 from torch_geometric.data.collate import collate
 from ase.build import molecule
 from ase.geometry.analysis import Analysis
 from ase.neighborlist import natural_cutoffs
-import torch
-import pytest
-import numpy as np
 
 # Physical units
 temperature = 350  # K
-#:Boltzmann constan in kcal/mol/K
+#:Boltzmann constant in kcal/mol/K
 kB = 0.0019872041
 beta = 1 / (temperature * kB)
 
@@ -61,14 +62,7 @@ data_list = []
 for frame in range(mock_data_frames.shape[0]):
     neighbor_lists = {}
     for (tag, order, edge_list) in zip(nls_tags, nls_orders, nls_edges):
-        neighbor_lists[tag] = {
-            "tag": tag,
-            "order": order,
-            "index_mapping": edge_list,
-            "cell_shifts": None,
-            "rcut": None,
-            "self_interaction": False,
-        }
+        neighbor_lists[tag] = make_neighbor_list(tag, order, edge_list)
         data_point = AtomicData(
             pos=mock_data_frames[frame],
             atom_types=torch.tensor(test_topo.types),

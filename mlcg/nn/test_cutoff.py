@@ -1,9 +1,8 @@
-import networkx as nx
 import torch
 import pytest
 import numpy as np
 
-from mlcg.nn.cutoff import *
+from mlcg.nn.cutoff import IdentityCutoff, CosineCutoff
 
 data = torch.randn(100, 3)
 linear_data = torch.linspace(0, 10, 100)

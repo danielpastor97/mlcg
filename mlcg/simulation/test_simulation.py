@@ -4,19 +4,24 @@ import tempfile
 import torch
 import pytest
 import numpy as np
-from numpy.random import default_rng
 from torch_geometric.data.collate import collate
 
 from ase.build import molecule
 from mlcg.geometry import Topology
-from mlcg.geometry.statistics import *
+from mlcg.geometry.statistics import fit_baseline_models
 from mlcg.neighbor_list.neighbor_list import make_neighbor_list
-from mlcg.simulation import *
-from mlcg.nn import *
-from mlcg.data._keys import *
+from mlcg.simulation.simulation import (
+    _Simulation,
+    LangevinSimulation,
+    OverdampedSimulation,
+)
+from mlcg.nn.prior import HarmonicBonds, HarmonicAngles
+from mlcg.nn.gradients import SumOut, GradientsOut
+from mlcg.data.atomic_data import AtomicData
+from mlcg.data._keys import FORCE_KEY, MASS_KEY, POSITIONS_KEY, ATOM_TYPE_KEY
 
 # Seeding
-rng = default_rng(94834)
+rng = np.random.default_rng(94834)
 
 # Physical units
 temperature = 350  # K
@@ -51,14 +56,7 @@ prior_data_list = []
 for frame in range(prior_data_frames.shape[0]):
     neighbor_lists = {}
     for (tag, order, edge_list) in zip(nls_tags, nls_orders, nls_edges):
-        neighbor_lists[tag] = {
-            "tag": tag,
-            "order": order,
-            "index_mapping": edge_list,
-            "cell_shifts": None,
-            "rcut": None,
-            "self_interaction": False,
-        }
+        neighbor_lists[tag] = make_neighbor_list(tag, order, edge_list)
     data_point = AtomicData(
         pos=prior_data_frames[frame],
         atom_types=torch.tensor(test_topo.types),

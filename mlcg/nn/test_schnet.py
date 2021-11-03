@@ -1,10 +1,12 @@
-import networkx as nx
 import torch
 from torch_geometric.data.collate import collate
 import pytest
 import numpy as np
 
-from mlcg.nn import *
+from mlcg.nn.schnet import StandardSchNet
+from mlcg.nn.radial_basis import GaussianBasis
+from mlcg.nn.gradients import GradientsOut
+from mlcg.nn.cutoff import IdentityCutoff, CosineCutoff
 from mlcg.geometry import Topology
 from mlcg.data.atomic_data import AtomicData
 from mlcg.data._keys import ENERGY_KEY, FORCE_KEY

@@ -155,5 +155,5 @@ class GradientsOut(torch.nn.Module):
 
             data.out[self.name][FORCE_KEY] = -dy_dr
             assert not torch.any(torch.isnan(dy_dr)), f"nan in {self.name}"
-        data.pos.requires_grad_(False)
+        data.pos = data.pos.detach()
         return data

@@ -1,8 +1,13 @@
-import networkx as nx
-from mlcg.geometry.topology import *
 import torch
 import pytest
 import numpy as np
+
+from mlcg.geometry.topology import (
+    Topology,
+    get_connectivity_matrix,
+    get_n_paths,
+    get_n_pairs,
+)
 
 # make a simple molecule defined by the following bonded
 # topology, with dummy atom types and names.
