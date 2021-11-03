@@ -1,6 +1,5 @@
+from typing import List, Callable
 import warnings
-import tempfile
-import networkx as nx
 import torch
 import pytest
 import numpy as np
@@ -118,8 +117,28 @@ for frame in range(5):
 ### ================================================== ###
 
 
-def generate_broken_data_list(key, corruptor):
-    """Helper function to generate broken data lists"""
+def generate_broken_data_list(
+    key: str, corruptor: Callable
+) -> List[AtomicData]:
+    """Helper function to generate broken data lists
+
+    Parameters
+    ----------
+    key:
+        key of the data list that should be corrupted
+    corruptor:
+        Anonynous (lambda) function that takes the current
+        frame of the data list and conditionally returns
+        different values
+
+    Returns
+    -------
+    broken_data_list:
+        List of AtomicData instances that has been corrupted
+        at the frame and with the damage specified by the
+        the corruptor
+    """
+
     broken_data_list = []
     for frame in range(5):
         neighbor_lists = {}
@@ -140,7 +159,7 @@ def generate_broken_data_list(key, corruptor):
     return broken_data_list
 
 
-### corruptors - lambdas that introduce a problem ###
+### corruptors - lambdas that introduce a problem in the data list ###
 
 # Puts the wrong mass on the fourth frame
 wrong_mass_fn = (
@@ -170,36 +189,6 @@ wrong_atom_data_list = generate_broken_data_list(ATOM_TYPE_KEY, wrong_atom_fn)
 @pytest.mark.parametrize(
     "full_model, initial_data_list, sim_kwargs, expected_raise",
     [
-        # Should generate warning: masses with no friction defaults to overdamped
-        (full_model, initial_data_list, {"friction": None}, UserWarning),
-        (
-            # Should raise error: no masses but specified friction
-            full_model,
-            massless_initial_data_list,
-            {"friction": 1.0},
-            RuntimeError,
-        ),
-        (
-            # Should raise error: unknown log type
-            full_model,
-            massless_initial_data_list,
-            {"log_type": "slam poetry"},
-            ValueError,
-        ),
-        (
-            # Should generate warning: diffusion and friction specified
-            full_model,
-            initial_data_list,
-            {"diffusion": 1.0, "friction": 1.0},
-            UserWarning,
-        ),
-        (
-            # Should raise error: indivisible save interval
-            full_model,
-            initial_data_list,
-            {"length": 13, "save_interval": 11},
-            ValueError,
-        ),
         (
             # Should raise error: one frame has different masses
             full_model,
@@ -223,24 +212,36 @@ wrong_atom_data_list = generate_broken_data_list(ATOM_TYPE_KEY, wrong_atom_fn)
         ),
     ],
 )
-def test_sim_raises(full_model, initial_data_list, sim_kwargs, expected_raise):
-    """Test to make sure certain warnings/errors are raised"""
+def test_data_list__raises(
+    full_model, initial_data_list, sim_kwargs, expected_raise
+):
+    """Test to make sure certain warnings/errors are raised regarding the data list"""
     if isinstance(expected_raise, Exception):
         with pytest.raises(expected_raise):
-            sim = Simulation(full_model, initial_data_list, **sim_kwargs)
+            sim = _Simulation(full_model, initial_data_list, **sim_kwargs)
     if isinstance(expected_raise, UserWarning):
         with pytest.warns(expected_raise):
-            sim = Simulation(full_model, initial_data_list, **sim_kwargs)
+            sim = _Simulation(full_model, initial_data_list, **sim_kwargs)
 
 
 @pytest.mark.parametrize(
-    "full_model, initial_data_list, sim_kwargs",
+    "full_model, initial_data_list, sim_class, sim_args, sim_kwargs",
     [
-        (full_model, massless_initial_data_list, {}),
-        (full_model, initial_data_list, {"friction": 1.0}),
+        (full_model, massless_initial_data_list, OverdampedSimulation, [], {}),
+        (
+            full_model,
+            initial_data_list,
+            LangevinSimulation,
+            [],
+            {"friction": 1.0},
+        ),
     ],
 )
-def test_simulation_run(full_model, initial_data_list, sim_kwargs):
+def test_simulation_run(
+    full_model, initial_data_list, sim_class, sim_args, sim_kwargs
+):
     """Test to make sure the simulation runs"""
-    simulation = Simulation(full_model, initial_data_list, **sim_kwargs)
+    simulation = sim_class(
+        full_model, initial_data_list, *sim_args, **sim_kwargs
+    )
     simulation.simulate()
