@@ -179,10 +179,10 @@ wrong_atom_type_fn = (
 )
 
 wrong_mass_data_list = generate_broken_data_list(MASS_KEY, wrong_mass_fn)
-wrong_struct_data_list = generate_broken_data_list(
-    POSITIONS_KEY, wrong_struct_fn
+wrong_struct_data_list = generate_broken_data_list(POSITIONS_KEY, wrong_pos_fn)
+wrong_atom_data_list = generate_broken_data_list(
+    ATOM_TYPE_KEY, wrong_atom_type_fn
 )
-wrong_atom_data_list = generate_broken_data_list(ATOM_TYPE_KEY, wrong_atom_fn)
 
 
 @pytest.mark.parametrize(
