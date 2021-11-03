@@ -70,7 +70,38 @@ class _Simulation(object):
         self.random_seed = random_seed
         self._simulated = False
 
-    def validate_data_list(self, data_list: List[AtomicData]):
+    def log(self, iter_: int):
+        """Utility to print log statement or write it to an text file"""
+        printstring = "{}/{} time points saved ({})".format(
+            iter_, self.length // self.save_interval, time.asctime()
+        )
+
+        if self.log_type == "print":
+            print(printstring)
+
+        elif self.log_type == "write":
+            printstring += "\n"
+            file = open(self._log_file, "a")
+            file.write(printstring)
+            file.close()
+
+    def save(self):
+        raise NotImplementedError
+
+    def write(self):
+        raise NotImplementedError
+
+    def calculate_potential_and_forces(self):
+        raise NotImplementedError
+
+    def simulate(self):
+        raise NotImplementedError
+
+    def timestep(self):
+        raise NotImplementedError
+
+    @staticmethod
+    def validate_data_list(data_list: List[AtomicData]):
         """Helper method to check and collate the initial data list"""
 
         pos_shape = data_list[0].pos.shape
@@ -217,21 +248,6 @@ class _Simulation(object):
                         )
                     )
 
-    def log(self, iter_: int):
-        """Utility to print log statement or write it to an text file"""
-        printstring = "{}/{} time points saved ({})".format(
-            iter_, self.length // self.save_interval, time.asctime()
-        )
-
-        if self.log_type == "print":
-            print(printstring)
-
-        elif self.log_type == "write":
-            printstring += "\n"
-            file = open(self._log_file, "a")
-            file.write(printstring)
-            file.close()
-
     def _get_numpy_count(self):
         """Returns a string 000-999 for appending to numpy file outputs"""
         if self._npy_file_index < 10:
@@ -250,21 +266,6 @@ class _Simulation(object):
         axes[axis2] = axis1
         swapped_data = data.permute(*axes)
         return swapped_data.cpu().detach().numpy()
-
-    def save(self):
-        raise NotImplementedError
-
-    def write(self):
-        raise NotImplementedError
-
-    def calculate_potential_and_forces(self):
-        raise NotImplementedError
-
-    def simulate(self):
-        raise NotImplementedError
-
-    def timestep(self):
-        raise NotImplementedError
 
 
 class LangevinSimulation(_Simulation):
