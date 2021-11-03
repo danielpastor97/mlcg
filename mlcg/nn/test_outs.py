@@ -58,14 +58,12 @@ for frame in range(prior_data_frames.shape[0]):
     )
     prior_data_list.append(data_point)
 
-print(prior_data_list[0])
 collated_prior_data, _, _ = collate(
     prior_data_list[0].__class__,
     data_list=prior_data_list,
     increment=True,
     add_batch=True,
 )
-print(collated_prior_data)
 # Fit the priors
 prior_cls = [HarmonicBonds, HarmonicAngles]
 priors, stats = fit_baseline_models(collated_prior_data, beta, prior_cls)
@@ -80,7 +78,6 @@ full_model = SumOut(priors)
 atom_types = torch.tensor(mol.get_atomic_numbers())
 force_shape = collated_prior_data.pos.shape
 energy_shape = torch.Size([len(prior_data_list)])
-print(collated_prior_data)
 
 
 @pytest.mark.parametrize(
@@ -100,7 +97,6 @@ def test_outs(model, collated_data, out_targets, expected_shapes):
     requested gradient targets.
     """
     collated_data = model(collated_data)
-    print(collated_data)
     assert len(collated_data.out) != 0
     names = model.models.keys()
     for name in names:
