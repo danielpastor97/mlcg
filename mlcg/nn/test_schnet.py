@@ -108,5 +108,5 @@ def test_prediction(collated_data, out_keys, expected_shapes):
     assert len(collated_data.out) != 0
     assert "SchNet" in collated_data.out.keys()
     for key, shape in zip(out_keys, expected_shapes):
-        assert key in collated_data.out["SchNet"].keys()
-        assert collated_data.out["SchNet"][key].shape == shape
+        assert key in collated_data.out[model.name].keys()
+        assert collated_data.out[model.name][key].shape == shape
