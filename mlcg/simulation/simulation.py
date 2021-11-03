@@ -250,12 +250,7 @@ class _Simulation(object):
 
     def _get_numpy_count(self):
         """Returns a string 000-999 for appending to numpy file outputs"""
-        if self._npy_file_index < 10:
-            return "00{}".format(self._npy_file_index)
-        elif self._npy_file_index < 100:
-            return "0{}".format(self._npy_file_index)
-        else:
-            return "{}".format(self._npy_file_index)
+        return f"{self._npy_file_index:03d}"
 
     def _swap_and_export(self, data, axis1=0, axis2=1):
         """Helper method to exchange the zeroth and first axes of tensors that
@@ -269,15 +264,18 @@ class _Simulation(object):
 
 
 class LangevinSimulation(_Simulation):
-    """Langevin simulatin class for trainen models.
+    r"""Langevin simulatin class for trained models.
 
     The following BAOA(F)B integration scheme is used, where:
-    ```
+
+    .. code-block::python
+
         B = deterministic velocity update
         A = deterministic position update
         O = stochastic velocity update
         F = force calculation (i.e., from the cgnet)
-    ```
+
+
     We have chosen the following implementation so as to only calculate
     forces once per timestep:
 
@@ -396,7 +394,6 @@ class LangevinSimulation(_Simulation):
             filename=filename,
         )
 
-        assert friction is not None
         assert friction > 0
         self.friction = friction
 
@@ -711,7 +708,7 @@ class LangevinSimulation(_Simulation):
 
 
 class OverdampedSimulation(_Simulation):
-    """Overdamped Langevin simulation class for trained models.
+    r"""Overdamped Langevin simulation class for trained models.
 
     The following Brownian motion scheme is used:
 
