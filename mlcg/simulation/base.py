@@ -22,8 +22,6 @@ class _Simulation(object):
 
     def __init__(
         self,
-        model: torch.nn.Module,
-        initial_data_list: List[AtomicData],
         dt: float = 5e-4,
         beta: float = 1.0,
         save_forces: bool = False,
@@ -37,13 +35,8 @@ class _Simulation(object):
         log_type: str = "write",
         filename: str = None,
     ):
-        self.validate_data_list(initial_data_list)
-        self.initial_data = self.collate(initial_data_list)
-        model.eval()
-        self.model = model
-        self.n_sims = len(initial_data_list)
-        self.n_atoms = len(initial_data_list[0].atom_types)
-        self.n_dims = initial_data_list[0].pos.shape[1]
+        self.model = None
+        self.initial_data = None
         self.save_forces = save_forces
         self.save_energies = save_energies
         self.length = length
@@ -67,6 +60,33 @@ class _Simulation(object):
             self.rng = torch.Generator().manual_seed(random_seed)
         self.random_seed = random_seed
         self._simulated = False
+
+    def attach_model(self, model: torch.nn.Module):
+        """setup the model to use in the simulation
+
+        Parameters
+        ----------
+        model : torch.nn.Module
+            Trained model used to generate simulation data
+        """
+        model.eval()
+        self.model = model
+
+    def attach_configurations(self, configurations: List[AtomicData]):
+        """Setup the starting atomic configurations.
+
+        Parameters
+        ----------
+        configurations : List[AtomicData]
+            List of AtomicData instances representing initial structures for
+        parallel simulations.
+        """
+        self.validate_data_list(configurations)
+        self.initial_data = self.collate(configurations)
+        self.n_sims = len(configurations)
+        self.n_atoms = len(configurations[0].atom_types)
+        self.n_dims = configurations[0].pos.shape[1]
+
 
     def log(self, iter_: int):
         """Utility to print log statement or write it to an text file"""
@@ -329,7 +349,7 @@ class _Simulation(object):
 
     def save(
         self,
-        data: torch.Tensor,
+        data: AtomicData,
         forces: torch.Tensor,
         potential: torch.tensor,
         t: int,
@@ -465,6 +485,8 @@ class _Simulation(object):
                 file = open(self._log_file, "a")
                 file.write(printstring)
                 file.close()
+
+        self.reshape_output()
 
         self._simulated = True
 

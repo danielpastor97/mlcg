@@ -50,11 +50,6 @@ class LangevinSimulation(_Simulation):
 
     Parameters
     ----------
-    model :
-        Trained model used to generate simulation data
-    initial_data :
-        List of AtomicData instances representing initial structures for
-        parallel simulations.
     dt :
         The integration time step for Langevin dynamics.
     beta :
@@ -105,8 +100,6 @@ class LangevinSimulation(_Simulation):
 
     def __init__(
         self,
-        model: torch.nn.Module,
-        initial_data_list: List[AtomicData],
         friction: float,
         dt: float = 5e-4,
         beta: float = 1.0,
@@ -123,8 +116,6 @@ class LangevinSimulation(_Simulation):
     ):
 
         super(LangevinSimulation, self).__init__(
-            model,
-            initial_data_list,
             dt=dt,
             beta=beta,
             save_forces=save_forces,
@@ -145,13 +136,6 @@ class LangevinSimulation(_Simulation):
         self.vscale = np.exp(-self.dt * self.friction)
         self.noisescale = np.sqrt(1 - self.vscale * self.vscale)
 
-        if VELOCITY_KEY not in self.initial_data:
-            # initialize velocities at zero
-            self.initial_data.velocities = torch.zeros_like(
-                self.initial_data.pos
-            )
-
-        assert self.initial_data.velocities.shape == self.initial_data.pos.shape
 
     def timestep(
         self,
@@ -198,6 +182,25 @@ class LangevinSimulation(_Simulation):
         data.pos = x_new
         data.velocities = v_new
         return data
+
+    def attach_configurations(self, configurations: List[AtomicData]):
+        """Setup the starting atomic configurations.
+
+        Parameters
+        ----------
+        configurations : List[AtomicData]
+            List of AtomicData instances representing initial structures for
+        parallel simulations.
+        """
+        super().attach_configurations(configurations)
+
+        if VELOCITY_KEY not in self.initial_data:
+            # initialize velocities at zero
+            self.initial_data.velocities = torch.zeros_like(
+                self.initial_data.pos
+            )
+
+        assert self.initial_data.velocities.shape == self.initial_data.pos.shape
 
     def _set_up_simulation(self, overwrite: bool = False):
         """Method to setup up saving and logging options"""
@@ -287,11 +290,6 @@ class OverdampedSimulation(_Simulation):
 
     Parameters
     ----------
-    model :
-        Trained model used to generate simulation data
-    initial_data_list :
-        List of AtomicData instances representing initial structures for
-        parallel simulations.
     dt :
         The integration time step for overdamped Langevin dynamics.
     beta :
@@ -345,8 +343,6 @@ class OverdampedSimulation(_Simulation):
 
     def __init__(
         self,
-        model: torch.nn.Module,
-        initial_data_list: List[AtomicData],
         diffusion: float = 1.0,
         dt: float = 5e-4,
         beta: float = 1.0,
@@ -363,8 +359,6 @@ class OverdampedSimulation(_Simulation):
     ):
 
         super(OverdampedSimulation, self).__init__(
-            model,
-            initial_data_list,
             dt=dt,
             beta=beta,
             save_forces=save_forces,
@@ -384,6 +378,17 @@ class OverdampedSimulation(_Simulation):
         self.diffusion = diffusion
         self._dtau = self.diffusion * self.dt
 
+
+    def attach_configurations(self, configurations: List[AtomicData]):
+        """Setup the starting atomic configurations.
+
+        Parameters
+        ----------
+        configurations : List[AtomicData]
+            List of AtomicData instances representing initial structures for
+        parallel simulations.
+        """
+        super().attach_configurations(configurations)
         if MASS_KEY in self.initial_data:
             warnings.warn(
                 "Masses were provided, but will not be used since "
