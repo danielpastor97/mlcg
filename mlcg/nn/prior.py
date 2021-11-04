@@ -152,7 +152,6 @@ class Repulsion(torch.nn.Module, _Prior):
 
     def data2features(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
-        mapping_batch = data.neighbor_list[self.name]["mapping_batch"]
         return Repulsion.compute_features(data.pos, mapping)
 
     def forward(self, data):

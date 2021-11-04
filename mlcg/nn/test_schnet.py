@@ -1,10 +1,12 @@
-import networkx as nx
 import torch
 from torch_geometric.data.collate import collate
 import pytest
 import numpy as np
 
-from mlcg.nn import *
+from mlcg.nn.schnet import StandardSchNet
+from mlcg.nn.radial_basis import GaussianBasis
+from mlcg.nn.gradients import GradientsOut
+from mlcg.nn.cutoff import IdentityCutoff, CosineCutoff
 from mlcg.geometry import Topology
 from mlcg.data.atomic_data import AtomicData
 from mlcg.data._keys import ENERGY_KEY, FORCE_KEY
@@ -106,5 +108,5 @@ def test_prediction(collated_data, out_keys, expected_shapes):
     assert len(collated_data.out) != 0
     assert "SchNet" in collated_data.out.keys()
     for key, shape in zip(out_keys, expected_shapes):
-        assert key in collated_data.out["SchNet"].keys()
-        assert collated_data.out["SchNet"][key].shape == shape
+        assert key in collated_data.out[model.name].keys()
+        assert collated_data.out[model.name][key].shape == shape

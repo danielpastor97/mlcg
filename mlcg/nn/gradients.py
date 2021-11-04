@@ -17,7 +17,7 @@ class SumOut(torch.nn.Module):
 
     def __init__(
         self,
-        models: Dict[str, torch.nn.Module],
+        models: torch.nn.ModuleDict,
         targets: List[str] = [ENERGY_KEY, FORCE_KEY],
     ):
         super(SumOut, self).__init__()
@@ -34,19 +34,21 @@ class SumOut(torch.nn.Module):
             AtomicData instance whose 'out' field has been populated
             for each predictor in the model. For example:
 
-                AtomicData(
-                    out: {
-                        SchNet: {
-                            ENERGY_KEY: ...,
-                            FORCE_KEY: ...,
-                        },
-                        bonds: {
-                            ENERGY_KEY: ...,
-                            FORCE_KEY: ...,
-                        },
+        .. code-block::python
 
-                ...
-                )
+            AtomicData(
+                out: {
+                    SchNet: {
+                        ENERGY_KEY: ...,
+                        FORCE_KEY: ...,
+                    },
+                    bonds: {
+                        ENERGY_KEY: ...,
+                        FORCE_KEY: ...,
+                    },
+
+            ...
+            )
 
         Returns
         -------
@@ -56,20 +58,22 @@ class SumOut(torch.nn.Module):
             up the respective contributions from each predictor in the model.
             For example:
 
-                AtomicData(
-                    out: {
-                        SchNet: {
-                            ENERGY_KEY: ...,
-                            FORCE_KEY: ...,
-                        },
-                        bonds: {
-                            ENERGY_KEY: ...,
-                            FORCE_KEY: ...,
-                        },
+        .. code-block::python
+
+            AtomicData(
+                out: {
+                    SchNet: {
                         ENERGY_KEY: ...,
                         FORCE_KEY: ...,
-                ...
-                )
+                    },
+                    bonds: {
+                        ENERGY_KEY: ...,
+                        FORCE_KEY: ...,
+                    },
+                    ENERGY_KEY: ...,
+                    FORCE_KEY: ...,
+            ...
+            )
 
         """
         for target in self.targets:
@@ -77,12 +81,7 @@ class SumOut(torch.nn.Module):
         for name in self.models.keys():
             data = self.models[name](data)
             for target in self.targets:
-                if target in SCALAR_KEYS:
-                    data.out[target] += torch.sum(
-                        data.out[name][target], dim=0
-                    ).detach()
-                else:
-                    data.out[target] += data.out[name][target].detach()
+                data.out[target] += data.out[name][target]
         return data
 
 
@@ -156,5 +155,5 @@ class GradientsOut(torch.nn.Module):
 
             data.out[self.name][FORCE_KEY] = -dy_dr
             assert not torch.any(torch.isnan(dy_dr)), f"nan in {self.name}"
-        data.pos.requires_grad_(False)
+        data.pos = data.pos.detach()
         return data
