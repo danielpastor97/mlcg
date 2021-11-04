@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 import torch
 import numpy as np
 import warnings
@@ -11,33 +11,32 @@ from .base import _Simulation
 class LangevinSimulation(_Simulation):
     r"""Langevin simulatin class for trained models.
 
-    The following (F)BBAOA integration scheme is used, where:
+    The following `BAOAB integration scheme <https://doi.org/10.1007/978-3-319-16375-8>`_ is used, where:
 
     .. code-block::python
 
         B = deterministic velocity update
         A = deterministic position update
         O = stochastic velocity update
-        F = force calculation (i.e., from the cgnet)
+        F = force calculation
 
 
-    We have chosen the following implementation so as to only calculate
+    We have implemented the following update so as to only calculate
     forces once per timestep:
 
     .. math::
+        [B] V_{t+1/2} = V_t + \frac{dt}{2m} * F(X_t) \\
+        [A] X_{t+1/2} = X_t + V_{t+1/2} * \frac{dt}{2} \\
+        [O] \tilde{V}_{t+1/2} = V_{t+1/2} * \text{vscale} + dW_t * \text{noisescale} \\
+        [A] X_{t+1} = X_{t+1/2} + \tilde{V}_{t+1/2} * \frac{dt}{2} \\
+        [B] V_{t+1} = \tilde{V}_{t+1/2} + \frac{dt}{2m} * F(X_{t+1})
 
-        F = - \nabla ( U(X_t) ) \\
-        [BB] V_(t+1) = V_t + dt * \frac{F}{m} \\
-        [A] X_(t+\frac{1}{2}) = X_t + V * \frac{dt}{2} \\
-        [O] V_(t+1) = V_(t+1) * \text{vscale} + dW_t * \text{noisescale}
-        [A] X_(t+1) = X_(t+\frac{1}{2}) + V * \frac{dt}{2}
-
-    Where:
+    Where, :math:`dW_t` is a noise drawn from :math:`\mathcal{N}(0,1)`, and:
 
     .. math::
-
-        \text{vscale} = exp(-\text{friction} * dt)
-        \text{noisecale} = \sqrt(1 - \text{vscale}^2)
+        F = - \nabla ( U(X_t) ) \\
+        \text{vscale} = \exp{-\text{friction} * dt} \\
+        \text{noisecale} = \sqrt{1 - \text{vscale}^2}
 
     A diffusion constant :math:`D` can be back-calculated using
     the Einstein relation:
@@ -46,7 +45,7 @@ class LangevinSimulation(_Simulation):
 
         D = 1 / (\beta * \text{friction})
 
-    Initial velocities are set to zero with Gaussian noise.
+    Initial velocities are set to zero if not provided.
 
     Parameters
     ----------
@@ -136,52 +135,55 @@ class LangevinSimulation(_Simulation):
         self.vscale = np.exp(-self.dt * self.friction)
         self.noisescale = np.sqrt(1 - self.vscale * self.vscale)
 
-
     def timestep(
-        self,
-        data: AtomicData,
-        forces: torch.Tensor,
-    ) -> AtomicData:
+        self, data: AtomicData, forces: torch.Tensor
+    ) -> Tuple[AtomicData, torch.Tensor, torch.Tensor]:
         """Timestep method for Langevin dynamics
         Parameters
         ----------
-        x_old :
-            coordinates before propagataion
-        v_old :
-            velocities before propagation
+        data:
+            atomic structure at t
         forces:
-            forces at x_old, before propagation
-
+            forces evaluated at t
         Returns
         -------
-        x_new :
-            coordinates after propagation
-        v_new :
-            velocites after propagation
+        data:
+            atomic structure at t+1
+        forces:
+            forces evaluated at t+1
+        potential:
+            potential evaluated at t+1
         """
         v_old = data.velocities
         masses = data.masses
         x_old = data.pos
-        # BB (velocity update); uses whole timestxep
-        v_new = v_old + self.dt * forces / masses[:, None]
+
+        # B
+        v_new = v_old + 0.5 * self.dt * forces / masses[:, None]
 
         # A (position update)
-        x_new = x_old + v_new * self.dt / 2.0
+        x_new = x_old + v_new * self.dt * 0.5
 
         # O (noise)
         noise = torch.sqrt(1.0 / self.beta / masses[:, None])
-        noise = noise * torch.randn(size=x_new.size(), generator=self.rng).to(
-            self.device
+        noise = noise * torch.randn(
+            size=x_new.size(),
+            dtype=x_new.dtype,
+            generator=self.rng,
+            device=self.device,
         )
-        v_new = v_new * self.vscale
-        v_new = v_new + self.noisescale * noise
+        v_new = v_new * self.vscale + self.noisescale * noise
 
         # A
-        x_new = x_new + v_new * self.dt / 2.0
+        x_new = x_new + v_new * self.dt * 0.5
 
         data.pos = x_new
+        potential, forces = self.calculate_potential_and_forces(data)
+        # B
+        v_new = v_new + 0.5 * self.dt * forces / masses[:, None]
         data.velocities = v_new
-        return data
+
+        return data, potential, forces
 
     def attach_configurations(self, configurations: List[AtomicData]):
         """Setup the starting atomic configurations.
@@ -378,7 +380,6 @@ class OverdampedSimulation(_Simulation):
         self.diffusion = diffusion
         self._dtau = self.diffusion * self.dt
 
-
     def attach_configurations(self, configurations: List[AtomicData]):
         """Setup the starting atomic configurations.
 
@@ -395,19 +396,24 @@ class OverdampedSimulation(_Simulation):
                 "an overdamped Langevin scheme is being used for integration."
             )
 
-    def timestep(self, data: AtomicData, forces: torch.Tensor) -> AtomicData:
-        """Timestep method for Langevin dynamics
+    def timestep(
+        self, data: AtomicData, forces: torch.Tensor
+    ) -> Tuple[AtomicData, torch.Tensor, torch.Tensor]:
+        """Timestep method for overdamped Langevin dynamics
         Parameters
         ----------
-        x_old :
-            coordinates before propagataion
+        data:
+            atomic structure at t
         forces:
-            forces at x_old, before propagation
-
+            forces evaluated at t
         Returns
         -------
-        x_new :
-            coordinates after propagation
+        data:
+            atomic structure at t+1
+        forces:
+            forces evaluated at t+1
+        potential:
+            potential evaluated at t+1
         """
         x_old = data.pos
         noise = torch.randn(size=x_old.size(), generator=self.rng).to(
@@ -419,4 +425,5 @@ class OverdampedSimulation(_Simulation):
             + np.sqrt(2 * self._dtau / self.beta) * noise
         )
         data.pos = x_new
-        return data
+        potential, forces = self.calculate_potential_and_forces(data)
+        return data, potential, forces

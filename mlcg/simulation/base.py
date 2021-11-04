@@ -87,6 +87,75 @@ class _Simulation(object):
         self.n_atoms = len(configurations[0].atom_types)
         self.n_dims = configurations[0].pos.shape[1]
 
+    def simulate(self, overwrite: bool = False) -> np.ndarray:
+        """Generates independent simulations.
+
+        Parameters
+        ----------
+        overwrite :
+            Set to True if you wish to overwrite any saved simulation data
+
+        Returns
+        -------
+        simulated_coords :
+            Shape [n_simulations, n_frames, n_atoms, n_dimensions]
+            Also an attribute; stores the simulation coordinates at the
+            save_interval
+        """
+        self._set_up_simulation(overwrite)
+        data = deepcopy(self.initial_data)
+        _, forces = self.calculate_potential_and_forces(data)
+        for t in tqdm(range(self.length), desc="Simulation timestep"):
+            # step forward in time
+            data, potential, forces = self.timestep(data, forces)
+
+            # save to arrays if relevant
+            if (t + 1) % self.save_interval == 0:
+
+                # save arrays
+                self.save(
+                    data=data,
+                    forces=forces,
+                    potential=potential,
+                    t=t,
+                )
+
+                # write numpys to file if relevant; this can be indented here because
+                # it only happens when time points are also recorded
+                if self.export_interval is not None:
+                    if (t + 1) % self.export_interval == 0:
+                        self.write((t + 1) // self.save_interval)
+
+                # log if relevant; this can be indented here because
+                # it only happens when time when time points are also recorded
+                if self.log_interval is not None:
+                    if int((t + 1) % self.log_interval) == 0:
+                        self.log((t + 1) // self.save_interval)
+
+            # reset data outputs to collect the new forces/energies
+            data.out = {}
+
+        # if relevant, save the remainder of the simulation
+        if self.export_interval is not None:
+            if int(t + 1) % self.export_interval > 0:
+                self.write(t + 1)
+
+        # if relevant, log that simulation has been completed
+        if self.log_interval is not None:
+            printstring = "Done simulating ({})".format(time.asctime())
+            if self.log_type == "print":
+                print(printstring)
+            elif self.log_type == "write":
+                printstring += "\n"
+                file = open(self._log_file, "a")
+                file.write(printstring)
+                file.close()
+
+        self.reshape_output()
+
+        self._simulated = True
+
+        return self.simulated_coords
 
     def log(self, iter_: int):
         """Utility to print log statement or write it to an text file"""
@@ -418,79 +487,6 @@ class _Simulation(object):
 
         self._npy_starting_index = iter_
         self._npy_file_index += 1
-
-    def simulate(self, overwrite: bool = False) -> np.ndarray:
-        """Generates independent simulations.
-
-        Parameters
-        ----------
-        overwrite :
-            Set to True if you wish to overwrite any saved simulation data
-
-        Returns
-        -------
-        simulated_coords :
-            Shape [n_simulations, n_frames, n_atoms, n_dimensions]
-            Also an attribute; stores the simulation coordinates at the
-            save_interval
-        """
-        self._set_up_simulation(overwrite)
-        data = deepcopy(self.initial_data)
-
-        for t in tqdm(range(self.length), desc="Simulation timestep"):
-            # produce potential and forces from model
-            potential, forces = self.calculate_potential_and_forces(data)
-
-            # step forward in time
-            data = self.timestep(data=data, forces=forces)
-
-            # save to arrays if relevant
-            if (t + 1) % self.save_interval == 0:
-
-                # save arrays
-                self.save(
-                    data=data,
-                    forces=forces,
-                    potential=potential,
-                    t=t,
-                )
-
-                # write numpys to file if relevant; this can be indented here because
-                # it only happens when time points are also recorded
-                if self.export_interval is not None:
-                    if (t + 1) % self.export_interval == 0:
-                        self.write((t + 1) // self.save_interval)
-
-                # log if relevant; this can be indented here because
-                # it only happens when time when time points are also recorded
-                if self.log_interval is not None:
-                    if int((t + 1) % self.log_interval) == 0:
-                        self.log((t + 1) // self.save_interval)
-
-            # reset data outputs to collect the new forces/energies
-            data.out = {}
-
-        # if relevant, save the remainder of the simulation
-        if self.export_interval is not None:
-            if int(t + 1) % self.export_interval > 0:
-                self.write(t + 1)
-
-        # if relevant, log that simulation has been completed
-        if self.log_interval is not None:
-            printstring = "Done simulating ({})".format(time.asctime())
-            if self.log_type == "print":
-                print(printstring)
-            elif self.log_type == "write":
-                printstring += "\n"
-                file = open(self._log_file, "a")
-                file.write(printstring)
-                file.close()
-
-        self.reshape_output()
-
-        self._simulated = True
-
-        return self.simulated_coords
 
     def reshape_output(self):
         # reshape output attributes
