@@ -1,26 +1,17 @@
 from typing import List, Callable, Dict
-import warnings
 import tempfile
 import torch
 import pytest
-import numpy as np
-from torch_geometric.data.collate import collate
-
-from ase.build import molecule
 from ase.atoms import Atoms
-from mlcg.geometry import Topology
-from mlcg.geometry.statistics import fit_baseline_models
-from mlcg.neighbor_list.neighbor_list import make_neighbor_list
-from mlcg.simulation.simulation import (
+
+from mlcg.simulation import (
     _Simulation,
     LangevinSimulation,
     OverdampedSimulation,
 )
-from mlcg.nn.prior import HarmonicBonds, HarmonicAngles
-from mlcg.nn.gradients import SumOut, GradientsOut
 from mlcg.nn.test_outs import ASE_prior_model
 from mlcg.data.atomic_data import AtomicData
-from mlcg.data._keys import FORCE_KEY, MASS_KEY, POSITIONS_KEY, ATOM_TYPE_KEY
+from mlcg.data._keys import MASS_KEY, POSITIONS_KEY, ATOM_TYPE_KEY
 
 
 @pytest.fixture
