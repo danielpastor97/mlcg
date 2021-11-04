@@ -50,10 +50,11 @@ def get_initial_data():
 
         Returns
         -------
-        broken_data_list:
+        initial_data_list:
             List of AtomicData instances that has been corrupted
             at the frame and with the damage specified by the
-            the corruptor
+            the corruptor. If there is no corruptor, then the data
+            list will be properly constructed.
         """
 
         input_masses = lambda x: torch.tensor(mol.get_masses()) if x else None
