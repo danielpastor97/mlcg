@@ -118,7 +118,7 @@ def ASE_prior_model():
 
 
 @pytest.mark.parametrize(
-    "ASE_prior_model, molecule, out_targets",
+    "ASE_prior_model, out_targets",
     [
         (
             ASE_prior_model,
