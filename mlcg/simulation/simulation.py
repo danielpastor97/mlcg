@@ -2,7 +2,7 @@
 # Authors: Brooke Husic, Nick Charron, Jiang Wang
 # Contributors: Dominik Lemm, Andreas Kraemer
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import torch
 import numpy as np
 
@@ -12,6 +12,7 @@ from torch_geometric.data.collate import collate
 import os
 import time
 import warnings
+from copy import deepcopy
 
 from ..utils import tqdm
 
@@ -85,16 +86,7 @@ class _Simulation(object):
             file.write(printstring)
             file.close()
 
-    def save(self):
-        raise NotImplementedError
-
-    def write(self):
-        raise NotImplementedError
-
     def calculate_potential_and_forces(self):
-        raise NotImplementedError
-
-    def simulate(self):
         raise NotImplementedError
 
     def timestep(self):
@@ -279,6 +271,202 @@ class _Simulation(object):
         swapped_data = input_tensor.permute(*axes)
         return swapped_data.cpu().detach().numpy()
 
+    def _set_up_simulation(self, overwrite: bool = False):
+        """Method to setup up saving and logging options"""
+        if self._simulated and not overwrite:
+            raise RuntimeError(
+                "Simulation results are already populated. "
+                "To rerun, set overwrite=True."
+            )
+
+        self._save_size = int(self.length / self.save_interval)
+
+        self.simulated_coords = torch.zeros(
+            (self._save_size, self.n_sims, self.n_atoms, self.n_dims)
+        )
+        if self.save_forces:
+            self.simulated_forces = torch.zeros(
+                (self._save_size, self.n_sims, self.n_atoms, self.n_dims)
+            )
+        else:
+            self.simulated_forces = None
+
+        if self.save_energies:
+            self.simulated_potential = torch.zeros(self._save_size, self.n_sims)
+        else:
+            self.simulated_potential = None
+
+        if self.log_interval is not None:
+            printstring = "Generating {} simulations of length {} saved at {}-step intervals ({})".format(
+                self.n_sims, self.length, self.save_interval, time.asctime()
+            )
+            if self.log_type == "print":
+                print(printstring)
+
+            elif self.log_type == "write":
+                printstring += "\n"
+                file = open(self._log_file, "a")
+                file.write(printstring)
+                file.close()
+
+    def save(
+        self,
+        data: torch.Tensor,
+        forces: torch.Tensor,
+        potential: torch.tensor,
+        t: int
+    ):
+        """Utility to store saved values of coordinates and, if relevant,
+        also forces, potential, and/or kinetic energy
+        Parameters
+        ----------
+        x_new :
+            current coordinates
+        forces:
+            current forces
+        potential :
+            current potential
+        t :
+            current timestep
+        """
+        x_new = data.pos.view(-1, self.n_atoms, self.n_dims)
+        forces = forces.view(-1, self.n_atoms, self.n_dims)
+
+        save_ind = t // self.save_interval
+
+        self.simulated_coords[save_ind, :, :] = x_new
+
+        if self.save_forces:
+            self.simulated_forces[save_ind, :, :] = forces
+
+        if self.save_energies:
+            if self.simulated_potential is None:
+                assert potential.shape[0] == self.n_sims
+                potential_dims = [self._save_size, self.n_sims] + [
+                    potential.shape[j] for j in range(1, len(potential.shape))
+                ]
+                self.simulated_potential = torch.zeros((potential_dims))
+
+            self.simulated_potential[t // self.save_interval] = potential
+
+    def write(self, iter_: int):
+        """Utility to write numpy arrays to disk"""
+        key = self._get_numpy_count()
+
+        coords_to_export = self.simulated_coords[
+            self._npy_starting_index : iter_
+        ]
+        coords_to_export = self._swap_and_export(coords_to_export)
+        np.save("{}_coords_{}.npy".format(self.filename, key), coords_to_export)
+
+        if self.save_forces:
+            forces_to_export = self.simulated_forces[
+                self._npy_starting_index : iter_
+            ]
+            forces_to_export = self._swap_and_export(forces_to_export)
+            np.save(
+                "{}_forces_{}.npy".format(self.filename, key), forces_to_export
+            )
+
+        if self.save_energies:
+            potentials_to_export = self.simulated_potential[
+                self._npy_starting_index : iter_
+            ]
+            potentials_to_export = self._swap_and_export(potentials_to_export)
+            np.save(
+                "{}_potential_{}.npy".format(self.filename, key),
+                potentials_to_export,
+            )
+
+        self._npy_starting_index = iter_
+        self._npy_file_index += 1
+
+    def simulate(self, overwrite: bool = False) -> np.ndarray:
+        """Generates independent simulations.
+
+        Parameters
+        ----------
+        overwrite :
+            Set to True if you wish to overwrite any saved simulation data
+
+        Returns
+        -------
+        simulated_coords :
+            Shape [n_simulations, n_frames, n_atoms, n_dimensions]
+            Also an attribute; stores the simulation coordinates at the
+            save_interval
+        """
+        self._set_up_simulation(overwrite)
+        data = deepcopy(self.initial_data)
+
+        for t in tqdm(range(self.length), desc="Simulation timestep"):
+            # produce potential and forces from model
+            potential, forces = self.calculate_potential_and_forces(data)
+
+            # step forward in time
+            x_new, v_new = self.timestep(data=data, forces=forces)
+
+            # prepare for next timestep
+            data.pos = x_new
+            data.velocities = v_new
+
+            # save to arrays if relevant
+            if (t + 1) % self.save_interval == 0:
+
+                # save arrays
+                self.save(
+                    data=data,
+                    forces=forces,
+                    potential=potential,
+                    t=t,
+                )
+
+                # write numpys to file if relevant; this can be indented here because
+                # it only happens when time points are also recorded
+                if self.export_interval is not None:
+                    if (t + 1) % self.export_interval == 0:
+                        self.write((t + 1) // self.save_interval)
+
+                # log if relevant; this can be indented here because
+                # it only happens when time when time points are also recorded
+                if self.log_interval is not None:
+                    if int((t + 1) % self.log_interval) == 0:
+                        self.log((t + 1) // self.save_interval)
+
+            # reset data outputs to collect the new forces/energies
+            data.out = {}
+
+        # if relevant, save the remainder of the simulation
+        if self.export_interval is not None:
+            if int(t + 1) % self.export_interval > 0:
+                self.write(t + 1)
+
+        # if relevant, log that simulation has been completed
+        if self.log_interval is not None:
+            printstring = "Done simulating ({})".format(time.asctime())
+            if self.log_type == "print":
+                print(printstring)
+            elif self.log_type == "write":
+                printstring += "\n"
+                file = open(self._log_file, "a")
+                file.write(printstring)
+                file.close()
+
+        self._simulated = True
+
+        return self.simulated_coords
+
+    def reshape_output(self):
+        # reshape output attributes
+        self.simulated_coords = self._swap_and_export(self.simulated_coords)
+
+        if self.save_forces:
+            self.simulated_forces = self._swap_and_export(self.simulated_forces)
+
+        if self.save_energies:
+            self.simulated_potential = self._swap_and_export(
+                self.simulated_potential
+            )
 
 class LangevinSimulation(_Simulation):
     r"""Langevin simulatin class for trained models.
@@ -419,53 +607,20 @@ class LangevinSimulation(_Simulation):
 
     def _set_up_simulation(self, overwrite: bool = False):
         """Method to setup up saving and logging options"""
-        if self._simulated and not overwrite:
-            raise RuntimeError(
-                "Simulation results are already populated. "
-                "To rerun, set overwrite=True."
-            )
-
-        self._save_size = int(self.length / self.save_interval)
-
-        self.simulated_coords = torch.zeros(
-            (self._save_size, self.n_sims, self.n_atoms, self.n_dims)
-        )
-        if self.save_forces:
-            self.simulated_forces = torch.zeros(
-                (self._save_size, self.n_sims, self.n_atoms, self.n_dims)
-            )
-        else:
-            self.simulated_forces = None
+        super()._set_up_simulation(overwrite)
 
         if self.save_energies:
-            self.simulated_potential = torch.zeros(self._save_size, self.n_sims)
             self.simulated_kinetic_energies = torch.zeros(
                 self._save_size, self.n_sims
             )
         else:
-            self.simulated_potential = None
             self.simulated_kinetic_energies = None
-
-        if self.log_interval is not None:
-            printstring = "Generating {} simulations of length {} saved at {}-step intervals ({})".format(
-                self.n_sims, self.length, self.save_interval, time.asctime()
-            )
-            if self.log_type == "print":
-                print(printstring)
-
-            elif self.log_type == "write":
-                printstring += "\n"
-                file = open(self._log_file, "a")
-                file.write(printstring)
-                file.close()
 
     def save(
         self,
-        x_new: torch.Tensor,
-        v_new: torch.Tensor,
+        data: AtomicData,
         forces: torch.Tensor,
         potential: torch.tensor,
-        masses: torch.Tensor,
         t: int,
     ):
         """Utilities to store saved values of coordinates and, if relevant,
@@ -485,29 +640,14 @@ class LangevinSimulation(_Simulation):
         t :
             current timestep
         """
+        super().save(data, forces, potential, t)
 
-        x_new = x_new.view(-1, self.n_atoms, self.n_dims)
-        v_new = v_new.view(-1, self.n_atoms, self.n_dims)
-        forces = forces.view(-1, self.n_atoms, self.n_dims)
-        masses = masses.view(self.n_sims, self.n_atoms)
+        v_new = data.velocities.view(-1, self.n_atoms, self.n_dims)
+        masses = data.masses.view(self.n_sims, self.n_atoms)
 
         save_ind = t // self.save_interval
 
-        self.simulated_coords[save_ind, :, :] = x_new
-
-        if self.save_forces:
-            self.simulated_forces[save_ind, :, :] = forces
-
         if self.save_energies:
-            if self.simulated_potential is None:
-                assert potential.shape[0] == self.n_sims
-                potential_dims = [self._save_size, self.n_sims] + [
-                    potential.shape[j] for j in range(1, len(potential.shape))
-                ]
-                self.simulated_potential = torch.zeros((potential_dims))
-
-            self.simulated_potential[t // self.save_interval] = potential
-
             kes = 0.5 * torch.sum(
                 torch.sum(masses[:, :, None] * v_new ** 2, dim=2), dim=1
             )
@@ -516,33 +656,7 @@ class LangevinSimulation(_Simulation):
     def write(self, iter_: int):
         """Utility to save numpy arrays"""
         key = self._get_numpy_count()
-
-        coords_to_export = self.simulated_coords[
-            self._npy_starting_index : iter_
-        ]
-
-        coords_to_export = self._swap_and_export(coords_to_export)
-        np.save("{}_coords_{}.npy".format(self.filename, key), coords_to_export)
-
-        if self.save_forces:
-            forces_to_export = self.simulated_forces[
-                self._npy_starting_index : iter_
-            ]
-            forces_to_export = self._swap_and_export(forces_to_export)
-            np.save(
-                "{}_forces_{}.npy".format(self.filename, key), forces_to_export
-            )
-
         if self.save_energies:
-            potentials_to_export = self.simulated_potential[
-                self._npy_starting_index : iter_
-            ]
-            potentials_to_export = self._swap_and_export(potentials_to_export)
-            np.save(
-                "{}_potential_{}.npy".format(self.filename, key),
-                potentials_to_export,
-            )
-
             kinetic_energies_to_export = self.kinetic_energies[
                 self._npy_starting_index : iter_
             ]
@@ -554,15 +668,13 @@ class LangevinSimulation(_Simulation):
                 kinetic_energies_to_export,
             )
 
-        self._npy_starting_index = iter_
-        self._npy_file_index += 1
+        super().write(iter_)
+
 
     def timestep(
         self,
-        x_old: torch.Tensor,
-        v_old: torch.Tensor,
+        data: AtomicData,
         forces: torch.Tensor,
-        masses: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Timestep method for Langevin dynamics
         Parameters
@@ -581,6 +693,9 @@ class LangevinSimulation(_Simulation):
         v_new :
             velocites after propagation
         """
+        v_old = data.velocities
+        masses = data.masses
+        x_old = data.pos
         # BB (velocity update); uses whole timestxep
         v_new = v_old + self.dt * forces / masses[:, None]
 
@@ -601,14 +716,14 @@ class LangevinSimulation(_Simulation):
         return x_new, v_new
 
     def calculate_potential_and_forces(
-        self, data_old: AtomicData
+        self, data: AtomicData
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Method to calculate predicted forces by forwarding the current
         coordinates through self.model.
 
         Parameters
         ----------
-        data_old :
+        data :
             collated AtomicData instance from the previous timestep
 
         Returns
@@ -619,111 +734,18 @@ class LangevinSimulation(_Simulation):
             vector forces predicted by the model
         """
 
-        data_old = self.model(data_old)
-        potential = data_old.out[ENERGY_KEY].detach()
-        forces = data_old.out[FORCE_KEY]
+        data = self.model(data)
+        potential = data.out[ENERGY_KEY].detach()
+        forces = data.out[FORCE_KEY]
         return potential, forces
 
-    def simulate(self, overwrite: bool = False) -> np.ndarray:
-        """Generates independent simulations.
 
-        Parameters
-        ----------
-        overwrite :
-            Set to True if you wish to overwrite any saved simulation data
-
-        Returns
-        -------
-        simulated_coords :
-            Shape [n_simulations, n_frames, n_atoms, n_dimensions]
-            Also an attribute; stores the simulation coordinates at the
-            save_interval
-        """
-        self._set_up_simulation(overwrite)
-        data_old = self.initial_data
-
-        # for each simulation step
-        # initialize velocities at zero
-        v_old = torch.tensor(
-            np.zeros(self.initial_data.pos.shape), dtype=torch.float32
-        )
-        data_old.velocities = v_old
-
-        for t in tqdm(range(self.length), desc="Simulation timestep"):
-            # produce potential and forces from model
-            potential, forces = self.calculate_potential_and_forces(data_old)
-            x_old = data_old.pos
-            v_old = data_old.velocities
-
-            # step forward in time
-            x_new, v_new = self.timestep(x_old, v_old, forces, data_old.masses)
-
-            # save to arrays if relevant
-            if (t + 1) % self.save_interval == 0:
-
-                # save arrays
-                self.save(
-                    x_new,
-                    v_new,
-                    forces,
-                    potential,
-                    self.initial_data[MASS_KEY],
-                    t,
-                )
-
-                # write numpys to file if relevant; this can be indented here because
-                # it only happens when time points are also recorded
-                if self.export_interval is not None:
-                    if (t + 1) % self.export_interval == 0:
-                        self.write((t + 1) // self.save_interval)
-
-                # log if relevant; this can be indented here because
-                # it only happens when time when time points are also recorded
-                if self.log_interval is not None:
-                    if int((t + 1) % self.log_interval) == 0:
-                        self.log((t + 1) // self.save_interval)
-
-            # prepare for next timestep
-            data_old.pos = x_new
-            data_old.velocities = v_new
-
-            # reset data outputs to collect the new forces/energies
-            data_old.out = {}
-
-        # if relevant, save the remainder of the simulation
-        if self.export_interval is not None:
-            if int(t + 1) % self.export_interval > 0:
-                self.write(t + 1)
-
-        # if relevant, log that simulation has been completed
-        if self.log_interval is not None:
-            printstring = "Done simulating ({})".format(time.asctime())
-            if self.log_type == "print":
-                print(printstring)
-            elif self.log_type == "write":
-                printstring += "\n"
-                file = open(self._log_file, "a")
-                file.write(printstring)
-                file.close()
-
-        # reshape output attributes
-        self.simulated_coords = self._swap_and_export(self.simulated_coords)
-
-        if self.save_forces:
-            self.simulated_forces = self._swap_and_export(self.simulated_forces)
-
+    def reshape_output(self):
+        super().reshape_output()
         if self.save_energies:
-            self.simulated_potential = self._swap_and_export(
-                self.simulated_potential
-            )
             self.simulated_kinetic_energies = self._swap_and_export(
                 self.simulated_kinetic_energies
             )
-
-        self._simulated = True
-
-        return self.simulated_coords
-
 
 class OverdampedSimulation(_Simulation):
     r"""Overdamped Langevin simulation class for trained models.
@@ -843,120 +865,10 @@ class OverdampedSimulation(_Simulation):
                 "an overdamped Langevin scheme is being used for integration."
             )
 
-    def _set_up_simulation(self, overwrite: bool = False):
-        """Method to setup up saving and logging options"""
-        if self._simulated and not overwrite:
-            raise RuntimeError(
-                "Simulation results are already populated. "
-                "To rerun, set overwrite=True."
-            )
-
-        self._save_size = int(self.length / self.save_interval)
-
-        self.simulated_coords = torch.zeros(
-            (self._save_size, self.n_sims, self.n_atoms, self.n_dims)
-        )
-        if self.save_forces:
-            self.simulated_forces = torch.zeros(
-                (self._save_size, self.n_sims, self.n_atoms, self.n_dims)
-            )
-        else:
-            self.simulated_forces = None
-
-        if self.save_energies:
-            self.simulated_potential = torch.zeros(self._save_size, self.n_sims)
-        else:
-            self.simulated_potential = None
-
-        if self.log_interval is not None:
-            printstring = "Generating {} simulations of length {} saved at {}-step intervals ({})".format(
-                self.n_sims, self.length, self.save_interval, time.asctime()
-            )
-            if self.log_type == "print":
-                print(printstring)
-
-            elif self.log_type == "write":
-                printstring += "\n"
-                file = open(self._log_file, "a")
-                file.write(printstring)
-                file.close()
-
-    def save(
-        self,
-        x_new: torch.Tensor,
-        forces: torch.Tensor,
-        potential: torch.tensor,
-        t: int,
-    ):
-        """Utility to store saved values of coordinates and, if relevant,
-        also forces, potential, and/or kinetic energy
-        Parameters
-        ----------
-        x_new :
-            current coordinates
-        forces:
-            current forces
-        potential :
-            current potential
-        t :
-            current timestep
-        """
-        x_new = x_new.view(-1, self.n_atoms, self.n_dims)
-        forces = forces.view(-1, self.n_atoms, self.n_dims)
-
-        save_ind = t // self.save_interval
-
-        self.simulated_coords[save_ind, :, :] = x_new
-
-        if self.save_forces:
-            self.simulated_forces[save_ind, :, :] = forces
-
-        if self.save_energies:
-            if self.simulated_potential is None:
-                assert potential.shape[0] == self.n_sims
-                potential_dims = [self._save_size, self.n_sims] + [
-                    potential.shape[j] for j in range(1, len(potential.shape))
-                ]
-                self.simulated_potential = torch.zeros((potential_dims))
-
-            self.simulated_potential[t // self.save_interval] = potential
-
-    def write(self, iter_: int):
-        """Utility to write numpy arrays to disk"""
-        key = self._get_numpy_count()
-
-        coords_to_export = self.simulated_coords[
-            self._npy_starting_index : iter_
-        ]
-        coords_to_export = self._swap_and_export(coords_to_export)
-        np.save("{}_coords_{}.npy".format(self.filename, key), coords_to_export)
-
-        if self.save_forces:
-            forces_to_export = self.simulated_forces[
-                self._npy_starting_index : iter_
-            ]
-            forces_to_export = self._swap_and_export(forces_to_export)
-            np.save(
-                "{}_forces_{}.npy".format(self.filename, key), forces_to_export
-            )
-
-        if self.save_energies:
-            potentials_to_export = self.simulated_potential[
-                self._npy_starting_index : iter_
-            ]
-            potentials_to_export = self._swap_and_export(potentials_to_export)
-            np.save(
-                "{}_potential_{}.npy".format(self.filename, key),
-                potentials_to_export,
-            )
-
-        self._npy_starting_index = iter_
-        self._npy_file_index += 1
-
     def timestep(
         self,
-        x_old: torch.Tensor,
-        forces: torch.Tensor,
+        data: AtomicData,
+        forces: torch.Tensor
     ) -> torch.Tensor:
         """Timestep method for Langevin dynamics
         Parameters
@@ -971,6 +883,7 @@ class OverdampedSimulation(_Simulation):
         x_new :
             coordinates after propagation
         """
+        x_old = data.pos
 
         noise = torch.randn(size=x_old.size(), generator=self.rng).to(
             self.device
@@ -983,14 +896,14 @@ class OverdampedSimulation(_Simulation):
         return x_new
 
     def calculate_potential_and_forces(
-        self, data_old: AtomicData
+        self, data: AtomicData
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Method to calculate predicted forces by forwarding the current
         coordinates through self.model.
 
         Parameters
         ----------
-        data_old :
+        data :
             collated AtomicData instance from the previous timestep
 
         Returns
@@ -1001,93 +914,8 @@ class OverdampedSimulation(_Simulation):
             vector forces predicted by the model
         """
 
-        data_old = self.model(data_old)
-        potential = data_old.out[ENERGY_KEY].detach()
-        forces = data_old.out[FORCE_KEY]
+        data = self.model(data)
+        potential = data.out[ENERGY_KEY].detach()
+        forces = data.out[FORCE_KEY]
         return potential, forces
 
-    def simulate(self, overwrite: bool = False) -> np.ndarray:
-        """Generates independent simulations.
-
-        Parameters
-        ----------
-        overwrite :
-            Set to True if you wish to overwrite any saved simulation data
-
-        Returns
-        -------
-        simulated_coords :
-            Shape [n_simulations, n_frames, n_atoms, n_dimensions]
-            Also an attribute; stores the simulation coordinates at the
-            save_interval
-        """
-        self._set_up_simulation(overwrite)
-        data_old = self.initial_data
-
-        for t in tqdm(range(self.length), desc="Simulation timestep"):
-            # produce potential and forces from model
-            potential, forces = self.calculate_potential_and_forces(data_old)
-            x_old = data_old.pos
-
-            # step forward in time
-            x_new = self.timestep(x_old, forces)
-
-            # save to arrays if relevant
-            if (t + 1) % self.save_interval == 0:
-
-                # save arrays
-                self.save(
-                    x_new,
-                    forces,
-                    potential,
-                    t,
-                )
-
-                # write numpys to file if relevant; this can be indented here because
-                # it only happens when time points are also recorded
-                if self.export_interval is not None:
-                    if (t + 1) % self.export_interval == 0:
-                        self.write((t + 1) // self.save_interval)
-
-                # log if relevant; this can be indented here because
-                # it only happens when time when time points are also recorded
-                if self.log_interval is not None:
-                    if int((t + 1) % self.log_interval) == 0:
-                        self.log((t + 1) // self.save_interval)
-
-            # prepare for next timestep
-            data_old.pos = x_new
-
-            # reset data outputs to collect the new forces/energies
-            data_old.out = {}
-
-        # if relevant, save the remainder of the simulation
-        if self.export_interval is not None:
-            if int(t + 1) % self.export_interval > 0:
-                self.write(t + 1)
-
-        # if relevant, log that simulation has been completed
-        if self.log_interval is not None:
-            printstring = "Done simulating ({})".format(time.asctime())
-            if self.log_type == "print":
-                print(printstring)
-            elif self.log_type == "write":
-                printstring += "\n"
-                file = open(self._log_file, "a")
-                file.write(printstring)
-                file.close()
-
-        # reshape output attributes
-        self.simulated_coords = self._swap_and_export(self.simulated_coords)
-
-        if self.save_forces:
-            self.simulated_forces = self._swap_and_export(self.simulated_forces)
-
-        if self.save_energies:
-            self.simulated_potential = self._swap_and_export(
-                self.simulated_potential
-            )
-
-        self._simulated = True
-
-        return self.simulated_coords
