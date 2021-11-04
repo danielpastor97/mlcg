@@ -170,7 +170,7 @@ class _Simulation(object):
             if initial_masses == None and MASS_KEY not in data:
                 raise ValueError(
                     "Masses are none for frame {}, but previous frames "
-                    "have masses {}.".format(frame, masses)
+                    "have masses {}.".format(frame, data.masses)
                 )
             if MASS_KEY in data:
                 if data.masses.shape != atom_types.shape:
@@ -332,7 +332,7 @@ class _Simulation(object):
         data: torch.Tensor,
         forces: torch.Tensor,
         potential: torch.tensor,
-        t: int
+        t: int,
     ):
         """Utility to store saved values of coordinates and, if relevant,
         also forces, potential, and/or kinetic energy

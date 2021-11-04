@@ -1,7 +1,7 @@
-
 from typing import List
 import torch
 import numpy as np
+import warnings
 
 from ..data.atomic_data import AtomicData
 from ..data._keys import MASS_KEY, VELOCITY_KEY
@@ -11,7 +11,7 @@ from .base import _Simulation
 class LangevinSimulation(_Simulation):
     r"""Langevin simulatin class for trained models.
 
-    The following BAOA(F)B integration scheme is used, where:
+    The following (F)BBAOA integration scheme is used, where:
 
     .. code-block::python
 
@@ -145,10 +145,11 @@ class LangevinSimulation(_Simulation):
         self.vscale = np.exp(-self.dt * self.friction)
         self.noisescale = np.sqrt(1 - self.vscale * self.vscale)
 
-
         if VELOCITY_KEY not in self.initial_data:
             # initialize velocities at zero
-            self.initial_data.velocities = torch.zeros_like(self.initial_data.pos)
+            self.initial_data.velocities = torch.zeros_like(
+                self.initial_data.pos
+            )
 
         assert self.initial_data.velocities.shape == self.initial_data.pos.shape
 
@@ -197,8 +198,6 @@ class LangevinSimulation(_Simulation):
         data.pos = x_new
         data.velocities = v_new
         return data
-
-
 
     def _set_up_simulation(self, overwrite: bool = False):
         """Method to setup up saving and logging options"""
@@ -271,6 +270,7 @@ class LangevinSimulation(_Simulation):
             self.simulated_kinetic_energies = self._swap_and_export(
                 self.simulated_kinetic_energies
             )
+
 
 class OverdampedSimulation(_Simulation):
     r"""Overdamped Langevin simulation class for trained models.
@@ -390,11 +390,7 @@ class OverdampedSimulation(_Simulation):
                 "an overdamped Langevin scheme is being used for integration."
             )
 
-    def timestep(
-        self,
-        data: AtomicData,
-        forces: torch.Tensor
-    ) -> AtomicData:
+    def timestep(self, data: AtomicData, forces: torch.Tensor) -> AtomicData:
         """Timestep method for Langevin dynamics
         Parameters
         ----------
@@ -419,5 +415,3 @@ class OverdampedSimulation(_Simulation):
         )
         data.pos = x_new
         return data
-
-
