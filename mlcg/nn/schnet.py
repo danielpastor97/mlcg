@@ -3,6 +3,7 @@ from typing import Optional, List, Final
 import torch
 from torch import nn
 from torch_geometric.nn import MessagePassing
+from torch_scatter import scatter
 from ..neighbor_list.neighbor_list import (
     atomic_data2neighbor_list,
     validate_neighborlist,
@@ -149,6 +150,7 @@ class SchNet(nn.Module):
             x = x + block(x, edge_index, distances, rbf_expansion)
 
         energy = self.output_network(x)
+        energy = scatter(energy, data.batch, dim=0, reduce="sum")
         data.out[self.name][ENERGY_KEY] = energy
 
         return data

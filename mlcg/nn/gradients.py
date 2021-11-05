@@ -1,7 +1,88 @@
 import torch
-from typing import Sequence
+from typing import Sequence, Dict, List
 from ..data.atomic_data import AtomicData
-from ..data._keys import FORCE_KEY, ENERGY_KEY
+from ..data._keys import *
+
+
+class SumOut(torch.nn.Module):
+    """Property pooling wrapper for models
+
+    Parameters
+    ----------
+    models:
+        Dictionary of predictors models keyed by their name attribute
+    targets:
+        List of prediction targets that will be pooled
+    """
+
+    def __init__(
+        self,
+        models: torch.nn.ModuleDict,
+        targets: List[str] = [ENERGY_KEY, FORCE_KEY],
+    ):
+        super(SumOut, self).__init__()
+        self.targets = targets
+        self.models = models
+
+    def forward(self, data: AtomicData) -> AtomicData:
+        """Sums output properties from individual models into global
+        property predictions
+
+        Parameters
+        ----------
+        data:
+            AtomicData instance whose 'out' field has been populated
+            for each predictor in the model. For example:
+
+        .. code-block::python
+
+            AtomicData(
+                out: {
+                    SchNet: {
+                        ENERGY_KEY: ...,
+                        FORCE_KEY: ...,
+                    },
+                    bonds: {
+                        ENERGY_KEY: ...,
+                        FORCE_KEY: ...,
+                    },
+
+            ...
+            )
+
+        Returns
+        -------
+        data:
+            AtomicData instance with updated 'out' field that now contains
+            prediction target keys that map to tensors that have summed
+            up the respective contributions from each predictor in the model.
+            For example:
+
+        .. code-block::python
+
+            AtomicData(
+                out: {
+                    SchNet: {
+                        ENERGY_KEY: ...,
+                        FORCE_KEY: ...,
+                    },
+                    bonds: {
+                        ENERGY_KEY: ...,
+                        FORCE_KEY: ...,
+                    },
+                    ENERGY_KEY: ...,
+                    FORCE_KEY: ...,
+            ...
+            )
+
+        """
+        for target in self.targets:
+            data.out[target] = 0.00
+        for name in self.models.keys():
+            data = self.models[name](data)
+            for target in self.targets:
+                data.out[target] += data.out[name][target]
+        return data
 
 
 class GradientsOut(torch.nn.Module):
@@ -74,5 +155,5 @@ class GradientsOut(torch.nn.Module):
 
             data.out[self.name][FORCE_KEY] = -dy_dr
             assert not torch.any(torch.isnan(dy_dr)), f"nan in {self.name}"
-        data.pos.requires_grad_(False)
+        data.pos = data.pos.detach()
         return data

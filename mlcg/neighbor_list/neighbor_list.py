@@ -1,7 +1,5 @@
 from typing import Mapping, Optional
-from numpy import isin, zeros
 import torch
-from torch.distributed.rpc import is_available
 from .torch_impl import torch_neighbor_list
 
 
@@ -86,6 +84,7 @@ def make_neighbor_list(
         cell_shifts=cell_shifts,
         rcut=rcut,
         self_interaction=self_interaction,
+        mapping_batch=torch.zeros((index_mapping.shape[1]), dtype=torch.long),
     )
 
 

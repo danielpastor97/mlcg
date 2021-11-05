@@ -5,6 +5,59 @@ from pytorch_lightning.plugins.environments.cluster_environment import (
 )
 from typing import List, Optional, Union, Any, Dict
 
+from .model import PLModel
+from ..nn import SumOut
+
+
+def extract_model_from_checkpoint(checkpoint_path, hparams_file):
+    plmodel = PLModel.load_from_checkpoint(
+        checkpoint_path=checkpoint_path, hparams_file=hparams_file
+    )
+    return plmodel.get_model()
+
+
+def merge_priors_and_checkpoint(
+    checkpoint_path: str,
+    priors: Union[str, torch.nn.ModuleDict],
+    hparams_file: Optional[str] = None,
+) -> torch.nn.Module:
+    """load prior models and trained model from a checkpoint and merge them
+    into a :ref:`mlcg.nn.SumOut` module.
+
+    Parameters
+    ----------
+    checkpoint_path :
+        full path to the checkpoint file
+    priors :
+        If :obj:`torch.nn.ModuleDict`, it should be the collection of priors
+        used as a baseline for training the ML model. If :obj:`str`, it should
+        be a full path to the file holding the priors.
+    hparams_file :
+        full path to the hyper parameter file associated with the checkpoint file.
+        It is typically not necessary to provide it.
+
+    Returns
+    -------
+        model :ref:`mlcg.nn.SumOut` module containing the trained model with
+        the priors
+    """
+
+    # merged_model should be a ModuleDict
+    merged_model = torch.nn.ModuleDict()
+    ml_model = extract_model_from_checkpoint(checkpoint_path, hparams_file)
+    merged_model[ml_model.name] = ml_model
+
+    if isinstance(priors, str):
+        prior_model = torch.load(priors)
+    else:
+        prior_model = priors
+
+    for key in prior_model.keys():
+        merged_model[key] = prior_model[key]
+
+    model = SumOut(models=merged_model)
+    return model
+
 
 class SingleDevicePlugin(plp.SingleDevicePlugin):
     """Plugin that handles communication on a single device."""

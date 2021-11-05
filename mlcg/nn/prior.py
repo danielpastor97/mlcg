@@ -1,4 +1,5 @@
 import torch
+from torch_scatter import scatter
 from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit
 
@@ -46,6 +47,7 @@ class Harmonic(torch.nn.Module, _Prior):
 
     def forward(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
+        mapping_batch = data.neighbor_list[self.name]["mapping_batch"]
         interaction_types = [
             data.atom_types[mapping[ii]] for ii in range(self.order)
         ]
@@ -53,6 +55,7 @@ class Harmonic(torch.nn.Module, _Prior):
         y = Harmonic.compute(
             features, self.x_0[interaction_types], self.k[interaction_types], 0
         )
+        y = scatter(y, mapping_batch, dim=0, reduce="sum")
         data.out[self.name] = {"energy": y}
         return data
 
@@ -153,11 +156,13 @@ class Repulsion(torch.nn.Module, _Prior):
 
     def forward(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
+        mapping_batch = data.neighbor_list[self.name]["mapping_batch"]
         interaction_types = [
             data.atom_types[mapping[ii]] for ii in range(self.order)
         ]
         features = self.data2features(data)
         y = Repulsion.compute(features, self.sigma[interaction_types])
+        y = scatter(y, mapping_batch, dim=0, reduce="sum")
         data.out[self.name] = {"energy": y}
         return data
 

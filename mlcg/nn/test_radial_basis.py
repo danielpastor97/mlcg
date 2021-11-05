@@ -1,9 +1,6 @@
-import networkx as nx
 import torch
 import pytest
-import numpy as np
-
-from mlcg.nn.radial_basis import *
+from mlcg.nn.radial_basis import GaussianBasis, ExpNormalBasis
 
 data = torch.randn(100, 3)
 linear_data = torch.linspace(0, 10, 100)

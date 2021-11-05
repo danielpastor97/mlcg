@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional, Tuple
 from copy import deepcopy
 import torch
-import torch.nn as nn
 from scipy.integrate import trapezoid
 
 from ..data import AtomicData
@@ -292,7 +291,7 @@ def fit_baseline_models(
     nbins: int = 100,
     bmin: Optional[float] = None,
     bmax: Optional[float] = None,
-) -> Tuple[List[nn.Module], Dict]:
+) -> Tuple[torch.nn.ModuleDict, Dict]:
     r"""Function for parametrizing a list of priors based on type-specific interactions contained in
     a collated AtomicData structure
 
