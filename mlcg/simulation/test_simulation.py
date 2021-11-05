@@ -4,11 +4,8 @@ import torch
 import pytest
 from ase.atoms import Atoms
 
-from mlcg.simulation import (
-    _Simulation,
-    LangevinSimulation,
-    OverdampedSimulation,
-)
+from mlcg.simulation.base import _Simulation
+from mlcg.simulation.langevin import LangevinSimulation, OverdampedSimulation
 from mlcg.nn.test_outs import ASE_prior_model
 from mlcg.data.atomic_data import AtomicData
 from mlcg.data._keys import MASS_KEY, POSITIONS_KEY, ATOM_TYPE_KEY
@@ -143,10 +140,12 @@ def test_data_list_raises(
 
     if isinstance(expected_raise, Exception):
         with pytest.raises(expected_raise):
-            sim = _Simulation(full_model, initial_data_list)
+            simulation = _Simulation()
+            simulation.attach_configurations(initial_data_list)
     if isinstance(expected_raise, UserWarning):
         with pytest.warns(expected_raise):
-            sim = _Simulation(full_model, initial_data_list)
+            simulation = _Simulation()
+            simulation.attach_configurations(initial_data_list)
 
 
 @pytest.mark.parametrize(
@@ -165,8 +164,8 @@ def test_data_list_raises(
             get_initial_data,
             True,
             LangevinSimulation,
-            [],
-            {"friction": 1.0},
+            [1.0],
+            {},
         ),
     ],
     indirect=["ASE_prior_model", "get_initial_data"],
@@ -188,9 +187,9 @@ def test_simulation_run(
         mol, neighbor_lists, corruptor=None, add_masses=add_masses
     )
 
-    simulation = sim_class(
-        full_model, initial_data_list, *sim_args, **sim_kwargs
-    )
+    simulation = sim_class(*sim_args, **sim_kwargs)
+    simulation.attach_configurations(initial_data_list)
+    simulation.attach_model(full_model)
     simulation.simulate()
 
 
@@ -210,8 +209,8 @@ def test_simulation_run(
             get_initial_data,
             True,
             LangevinSimulation,
-            [],
-            {"friction": 1.0},
+            [1.0],
+            {},
         ),
     ],
     indirect=["ASE_prior_model", "get_initial_data"],
@@ -237,9 +236,9 @@ def test_overwrite_protection(
         filename = tmp + "/my_sim_coords_000.npy"
         open(filename, "w").close()
         sim_kwargs["filename"] = filename
-        simulation = sim_class(
-            full_model, initial_data_list, *sim_args, **sim_kwargs
-        )
+        simulation = sim_class(*sim_args, **sim_kwargs)
+        simulation.attach_configurations(initial_data_list)
+        simulation.attach_model(full_model)
         simulation.simulate()
 
         with pytest.raises(RuntimeError):
