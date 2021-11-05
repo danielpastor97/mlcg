@@ -102,7 +102,9 @@ class ChignolinDataset(InMemoryDataset):
         topology_fn = join(self.raw_dir, "chignolin_50ns_0/structure.pdb")
         topo = mdtraj.load(topology_fn).remove_solvent().topology
         topology = Topology.from_mdtraj(topo)
-        embeddings, cg_matrix, _ = build_cg_matrix(topology, cg_mapping=CA_MAP)
+        embeddings, masses, cg_matrix, _ = build_cg_matrix(
+            topology, cg_mapping=CA_MAP
+        )
         cg_topo = build_cg_topology(topology, cg_mapping=CA_MAP)
         copy(topology_fn, self.processed_paths[1])
 
@@ -143,6 +145,7 @@ class ChignolinDataset(InMemoryDataset):
                     atom_types=z,
                     pos=pos,
                     forces=force,
+                    masses=masses,
                     neighborlist=prior_nls,
                     traj_id=i_traj,
                     frame_id=i_frame,
