@@ -4,6 +4,7 @@ import os
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.cli import instantiate_class
 from typing import Optional
+from copy import deepcopy
 
 from ..data import AtomicData
 from ..nn import Loss, GradientsOut
@@ -109,3 +110,6 @@ class PLModel(pl.LightningModule):
         )
 
         return loss
+
+    def get_model(self):
+        return deepcopy(self.model)
