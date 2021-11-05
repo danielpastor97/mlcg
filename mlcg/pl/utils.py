@@ -1,12 +1,9 @@
-from numpy import isin
 import torch
 import pytorch_lightning.plugins as plp
 from pytorch_lightning.plugins.environments.cluster_environment import (
     ClusterEnvironment,
 )
 from typing import List, Optional, Union, Any, Dict
-
-from mlcg.nn import prior
 
 from .model import PLModel
 from ..nn import SumOut

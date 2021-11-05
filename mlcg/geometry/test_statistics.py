@@ -3,17 +3,14 @@ import pytest
 import numpy as np
 
 from mlcg.geometry.topology import Topology
-from mlcg.geometry.statistics import compute_statistics, fit_baseline_models
+from mlcg.geometry.statistics import compute_statistics
 from mlcg.geometry.statistics import _symmetrise_map
 from mlcg.nn.prior import HarmonicBonds, HarmonicAngles, Repulsion
 from mlcg.data.atomic_data import AtomicData
-from mlcg.geometry.utils import ase_bonds2tensor, ase_angles2tensor
 from mlcg.neighbor_list.neighbor_list import make_neighbor_list
 
 from torch_geometric.data.collate import collate
 from ase.build import molecule
-from ase.geometry.analysis import Analysis
-from ase.neighborlist import natural_cutoffs
 
 # Physical units
 temperature = 350  # K

@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional, Tuple
 from copy import deepcopy
 import torch
-import torch.nn as nn
 from scipy.integrate import trapezoid
 
 from ..data import AtomicData

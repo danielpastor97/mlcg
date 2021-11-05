@@ -1,7 +1,6 @@
 import torch
 from torch_geometric.data.collate import collate
 import pytest
-import numpy as np
 
 from mlcg.nn.schnet import StandardSchNet
 from mlcg.nn.radial_basis import GaussianBasis
