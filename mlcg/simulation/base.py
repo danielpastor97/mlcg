@@ -32,7 +32,7 @@ class _Simulation(object):
     save_potential : bool, default=False
         Whether to save potential at the same saved interval as the simulation
         coordinates
-    length : int, default=100
+    n_timesteps : int, default=100
         The length of the simulation in simulation timesteps
     save_interval : int, default=10
         The interval at which simulation timesteps should be saved. Must be
@@ -74,7 +74,7 @@ class _Simulation(object):
         beta: float = 1.0,
         save_forces: bool = False,
         save_energies: bool = False,
-        length: int = 100,
+        n_timesteps: int = 100,
         save_interval: int = 10,
         random_seed: Optional[int] = None,
         device: str = "cpu",
@@ -87,7 +87,7 @@ class _Simulation(object):
         self.initial_data = None
         self.save_forces = save_forces
         self.save_energies = save_energies
-        self.length = length
+        self.n_timesteps = n_timesteps
         self.save_interval = save_interval
         self.dt = dt
         self.beta = beta
@@ -153,7 +153,7 @@ class _Simulation(object):
         self._set_up_simulation(overwrite)
         data = deepcopy(self.initial_data)
         _, forces = self.calculate_potential_and_forces(data)
-        for t in tqdm(range(self.length), desc="Simulation timestep"):
+        for t in tqdm(range(self.n_timesteps), desc="Simulation timestep"):
             # step forward in time
             data, potential, forces = self.timestep(data, forces)
 
@@ -208,7 +208,7 @@ class _Simulation(object):
     def log(self, iter_: int):
         """Utility to print log statement or write it to an text file"""
         printstring = "{}/{} time points saved ({})".format(
-            iter_, self.length // self.save_interval, time.asctime()
+            iter_, self.n_timesteps // self.save_interval, time.asctime()
         )
 
         if self.log_type == "print":
@@ -339,10 +339,10 @@ class _Simulation(object):
         - Sets up saving parameters for numpy and log files, if relevant
         """
 
-        # make sure save interval is a factor of total length
-        if self.length % self.save_interval != 0:
+        # make sure save interval is a factor of total n_timesteps
+        if self.n_timesteps % self.save_interval != 0:
             raise ValueError(
-                "The save_interval must be a factor of the simulation length"
+                "The save_interval must be a factor of the simulation n_timesteps"
             )
 
         # check whether a directory is specified if any saving is done
@@ -358,7 +358,7 @@ class _Simulation(object):
 
         # saving numpys
         if self.export_interval is not None:
-            if self.length // self.export_interval >= 1000:
+            if self.n_timesteps // self.export_interval >= 1000:
                 raise ValueError(
                     "Simulation saving is not implemented if more than 1000 files will be generated"
                 )
@@ -434,7 +434,7 @@ class _Simulation(object):
                 "To rerun, set overwrite=True."
             )
 
-        self._save_size = int(self.length / self.save_interval)
+        self._save_size = int(self.n_timesteps / self.save_interval)
 
         self.simulated_coords = torch.zeros(
             (self._save_size, self.n_sims, self.n_atoms, self.n_dims)
@@ -452,8 +452,8 @@ class _Simulation(object):
             self.simulated_potential = None
 
         if self.log_interval is not None:
-            printstring = "Generating {} simulations of length {} saved at {}-step intervals ({})".format(
-                self.n_sims, self.length, self.save_interval, time.asctime()
+            printstring = "Generating {} simulations of n_timesteps {} saved at {}-step intervals ({})".format(
+                self.n_sims, self.n_timesteps, self.save_interval, time.asctime()
             )
             if self.log_type == "print":
                 print(printstring)

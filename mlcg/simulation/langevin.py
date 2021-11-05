@@ -50,7 +50,7 @@ class LangevinSimulation(_Simulation):
 
     """
 
-    def __init__(self, friction: float, **kwargs: Any):
+    def __init__(self, friction: float = 1e-3, **kwargs: Any):
 
         super(LangevinSimulation, self).__init__(**kwargs)
 
