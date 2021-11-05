@@ -50,15 +50,9 @@ class LangevinSimulation(_Simulation):
 
     """
 
-    def __init__(
-        self,
-        friction: float,
-        **kwargs: Any
-    ):
+    def __init__(self, friction: float, **kwargs: Any):
 
-        super(LangevinSimulation, self).__init__(
-            **kwargs
-        )
+        super(LangevinSimulation, self).__init__(**kwargs)
 
         assert friction > 0
         self.friction = friction
@@ -207,9 +201,12 @@ class LangevinSimulation(_Simulation):
                 self.simulated_kinetic_energies
             )
 
+
 # pipe the doc from the base class into the child class so that it's properly
 # displayed by sphinx
 LangevinSimulation.__doc__ += _Simulation.__doc__
+
+
 class OverdampedSimulation(_Simulation):
     r"""Overdamped Langevin simulation class for trained models.
 
@@ -232,15 +229,9 @@ class OverdampedSimulation(_Simulation):
         parameters in the case that they have some estimate of the diffusion.
     """
 
-    def __init__(
-        self,
-        diffusion: float = 1.0,
-        **kwargs: Any
-    ):
+    def __init__(self, diffusion: float = 1.0, **kwargs: Any):
 
-        super(OverdampedSimulation, self).__init__(
-            **kwargs
-        )
+        super(OverdampedSimulation, self).__init__(**kwargs)
 
         assert diffusion is not None
         assert diffusion > 0
@@ -294,6 +285,7 @@ class OverdampedSimulation(_Simulation):
         data.pos = x_new
         potential, forces = self.calculate_potential_and_forces(data)
         return data, potential, forces
+
 
 # pipe the doc from the base class into the child class so that it's properly
 # displayed by sphinx
