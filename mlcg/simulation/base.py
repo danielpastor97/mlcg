@@ -453,7 +453,10 @@ class _Simulation(object):
 
         if self.log_interval is not None:
             printstring = "Generating {} simulations of n_timesteps {} saved at {}-step intervals ({})".format(
-                self.n_sims, self.n_timesteps, self.save_interval, time.asctime()
+                self.n_sims,
+                self.n_timesteps,
+                self.save_interval,
+                time.asctime(),
             )
             if self.log_type == "print":
                 print(printstring)
