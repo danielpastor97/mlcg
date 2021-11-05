@@ -1,0 +1,33 @@
+name: CodeCov
+on:
+  push:
+    branches: [ main ]
+  pull_request_target: # Run on fork PRs
+    branches: [ main ]
+    types: [opened, reopened, synchronize]
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    container: nec4/pytorch_geometric_cpu:v1.1
+    env:
+      OS: ubuntu-latest
+      PYTHON: '3.8'
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: ‘2’
+    - name: Install Python dependencies
+      uses: py-actions/py-dependency-install@v2
+      with:
+        path: ${{ github.workspace }}/requirements.txt
+    - name: Generate Report
+      run: |
+        coverage run -m pytest
+        coverage xml
+    - name: Upload Coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: false
+        files: ./coverage.xml

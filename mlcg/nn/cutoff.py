@@ -12,6 +12,14 @@ class _Cutoff(nn.Module):
         self.cutoff_lower = None
         self.cutoff_upper = None
 
+    def check_cutoff(self):
+        if self.cutoff_upper < self.cutoff_lower:
+            raise ValueError(
+                "Upper cutoff {} is less than lower cutoff {}".format(
+                    self.cutoff_upper, self.cutoff_lower
+                )
+            )
+
     def forward(self):
         raise NotImplementedError
 
@@ -45,19 +53,21 @@ class IdentityCutoff(_Cutoff):
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
 
-    def forwawrd(self, dist: torch.Tensor) -> torch.Tensor:
+        self.check_cutoff()
+
+    def forward(self, distances: torch.Tensor) -> torch.Tensor:
         r"""Applies identity transform to input distances
 
         Parameters
         ----------
-        dist:
+        distances:
             Input distances of shape (total_num_distances)
 
         Returns
         -------
             Identity-transformed output distances of shape (total_num_edges)
         """
-        return dist
+        return distances
 
 
 class CosineCutoff(_Cutoff):
@@ -84,6 +94,8 @@ class CosineCutoff(_Cutoff):
         super(CosineCutoff, self).__init__()
         self.cutoff_lower = cutoff_lower
         self.cutoff_upper = cutoff_upper
+
+        self.check_cutoff()
 
     def forward(self, distances: torch.Tensor) -> torch.Tensor:
         """Applies cutoff envelope to distances.

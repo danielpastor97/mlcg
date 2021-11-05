@@ -2,7 +2,6 @@ import torch
 from torch.nn.modules.loss import _Loss
 from torch.nn import functional as F
 from typing import Optional, List
-import warnings
 
 from ..data._keys import FORCE_KEY
 from ..data import AtomicData

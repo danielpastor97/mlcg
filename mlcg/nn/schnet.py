@@ -3,6 +3,7 @@ from typing import Optional, List, Final
 import torch
 from torch import nn
 from torch_geometric.nn import MessagePassing
+from torch_scatter import scatter
 from ..neighbor_list.neighbor_list import (
     atomic_data2neighbor_list,
     validate_neighborlist,
@@ -48,7 +49,7 @@ class SchNet(nn.Module):
         distance cutoffs and expect more than 32 neighbors per node/atom.
     """
 
-    name: Final[str] = "Schnet"
+    name: Final[str] = "SchNet"
 
     def __init__(
         self,
@@ -149,6 +150,7 @@ class SchNet(nn.Module):
             x = x + block(x, edge_index, distances, rbf_expansion)
 
         energy = self.output_network(x)
+        energy = scatter(energy, data.batch, dim=0, reduce="sum")
         data.out[self.name][ENERGY_KEY] = energy
 
         return data
@@ -402,9 +404,7 @@ class StandardSchNet(SchNet):
     ):
 
         if num_interactions < 1:
-            raise RuntimeError(
-                "At least one interaction block must be specified"
-            )
+            raise ValueError("At least one interaction block must be specified")
 
         embedding_layer = nn.Embedding(embedding_size, hidden_channels)
 
@@ -436,54 +436,3 @@ class StandardSchNet(SchNet):
             output_network,
             max_num_neighbors=max_num_neighbors,
         )
-
-
-def create_schnet(
-    rbf_layer: nn.Module,
-    cutoff: nn.Module,
-    output_network: nn.Module,
-    hidden_channels: int = 128,
-    embedding_size: int = 100,
-    num_filters: int = 128,
-    num_interactions: int = 3,
-    activation: type = nn.Tanh,
-    cutoff_lower: float = 0.0,
-    cutoff_upper: float = 0.5,
-    max_num_neighbors: int = 1000,
-    aggr: str = "add",
-) -> SchNet:
-
-    r"""Helper function to create a typical SchNet"""
-
-    if num_interactions < 1:
-        raise RuntimeError("At least one interaction block must be specified")
-
-    embedding_layer = nn.Embedding(embedding_size, hidden_channels)
-
-    interaction_blocks = []
-    for _ in range(num_interactions):
-        filter_network = nn.Sequential(
-            nn.Linear(rbf_layer.num_rbf, num_filters),
-            activation,
-            nn.Linear(num_filters, num_filters),
-        )
-        cfconv = CFConv(
-            filter_network,
-            num_filters=num_filters,
-            in_channels=hidden_channels,
-            out_channels=hidden_channels,
-            aggr=aggr,
-        )
-        block = InteractionBlock(cfconv, hidden_channels, activation)
-        interaction_blocks.append(block)
-
-    schnet = SchNet(
-        embedding_layer,
-        interaction_blocks,
-        rbf_layer,
-        output_network,
-        cutoff,
-        max_num_neighbors=max_num_neighbors,
-    )
-
-    return schnet

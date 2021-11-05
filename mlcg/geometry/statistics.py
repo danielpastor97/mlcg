@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional, Tuple
 from copy import deepcopy
 import torch
-import torch.nn as nn
 from scipy.integrate import trapezoid
 
 from ..data import AtomicData
@@ -268,6 +267,7 @@ def compute_statistics(
     )
 
     interaction_types = _symmetrise_map[order](interaction_types)
+
     statistics = {}
     for unique_key in unique_keys.t():
         # find which values correspond to unique_key type of interaction
@@ -326,8 +326,8 @@ def fit_baseline_models(
     nbins: int = 100,
     bmin: Optional[float] = None,
     bmax: Optional[float] = None,
-) -> Tuple[List[nn.Module], Dict]:
-    """Function for parametrizing a list of priors based on type-specific interactions contained in
+) -> Tuple[torch.nn.ModuleDict, Dict]:
+    r"""Function for parametrizing a list of priors based on type-specific interactions contained in
     a collated AtomicData structure
 
     Parameters

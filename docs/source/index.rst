@@ -24,6 +24,7 @@ Contents
    :maxdepth: 2
 
    training
+   simulation
    autodoc
    dev/dev
    bibliography

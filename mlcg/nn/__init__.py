@@ -1,5 +1,5 @@
-from .gradients import GradientsOut
-from .schnet import SchNet, create_schnet
+from .gradients import GradientsOut, SumOut
+from .schnet import SchNet, StandardSchNet
 from .radial_basis import GaussianBasis, ExpNormalBasis
 from .cutoff import CosineCutoff, IdentityCutoff
 from .losses import ForceRMSE, Loss
