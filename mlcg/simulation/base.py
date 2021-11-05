@@ -2,7 +2,7 @@
 # Authors: Brooke Husic, Nick Charron, Jiang Wang
 # Contributors: Dominik Lemm, Andreas Kraemer
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple, Union
 import torch
 import numpy as np
 
@@ -18,7 +18,55 @@ from ..data._keys import ENERGY_KEY, FORCE_KEY, MASS_KEY, VELOCITY_KEY
 
 
 class _Simulation(object):
-    """Abstract simulation class"""
+    """
+    Parameters
+    ----------
+    dt : float, default=5e-4
+        The integration time step for Langevin dynamics.
+    beta : float, default=1
+        The thermodynamic inverse temperature, :math:`1/(k_B T)`, for Boltzman
+        constant :math:`k_B` and temperature :math:`T`.
+    save_forces : bool, default=False
+        Whether to save forces at the same saved interval as the simulation
+        coordinates
+    save_potential : bool, default=False
+        Whether to save potential at the same saved interval as the simulation
+        coordinates
+    length : int, default=100
+        The length of the simulation in simulation timesteps
+    save_interval : int, default=10
+        The interval at which simulation timesteps should be saved. Must be
+        a factor of the simulation length
+    random_seed : int, default=None
+        Seed for random number generator; if seeded, results always will be
+        identical for the same random seed
+    device : str, default='cpu'
+        Device upon which simulation compuation will be carried out
+    export_interval : int, default=None
+        If not None, .npy files will be saved. If an int is given, then
+        the int specifies at what intervals numpy files will be saved per
+        observable. This number must be an integer multiple of save_interval.
+        All output files should be the same shape. Forces and potentials will
+        also be saved according to the save_forces and save_potential
+        arguments, respectively. If friction is not None, kinetic energies
+        will also be saved. This method is only implemented for a maximum of
+        1000 files per observable due to file naming conventions.
+    log_interval : int, default=None
+        If not None, a log will be generated indicating simulation start and
+        end times as well as completion updates at regular intervals. If an
+        int is given, then the int specifies how many log statements will be
+        output. This number must be a multiple of save_interval.
+    log_type : str, default='write'
+        Only relevant if log_interval is not None. If 'print', a log statement
+        will be printed. If 'write', the log will be written to a .txt file.
+    filename : str, default=None
+        Specifies the location to which numpys and/or log files are saved.
+        Must be provided if export_interval is not None and/or if log_interval
+        is not None and log_type is 'write'. This provides the base file name;
+        for numpy outputs, '_coords_000.npy' or similar is added. For log
+        outputs, '_log.txt' is added.
+
+    """
 
     def __init__(
         self,
@@ -28,12 +76,12 @@ class _Simulation(object):
         save_energies: bool = False,
         length: int = 100,
         save_interval: int = 10,
-        random_seed: int = None,
-        device: torch.device = torch.device("cpu"),
-        export_interval: int = None,
-        log_interval: int = None,
+        random_seed: Optional[int] = None,
+        device: str = "cpu",
+        export_interval: Optional[int] = None,
+        log_interval: Optional[int] = None,
         log_type: str = "write",
-        filename: str = None,
+        filename: Optional[str] = None,
     ):
         self.model = None
         self.initial_data = None
@@ -43,7 +91,7 @@ class _Simulation(object):
         self.save_interval = save_interval
         self.dt = dt
         self.beta = beta
-        self.device = device
+        self.device = torch.device(device)
         self.export_interval = export_interval
         self.log_interval = log_interval
 
