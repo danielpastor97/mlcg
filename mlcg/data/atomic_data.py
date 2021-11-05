@@ -13,6 +13,7 @@ from ._keys import (
     TAG_KEY,
     ENERGY_KEY,
     FORCE_KEY,
+    MASS_KEY,
     VELOCITY_KEY,
 )
 
