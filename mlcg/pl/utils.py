@@ -11,12 +11,19 @@ from mlcg.nn import prior
 from .model import PLModel
 from ..nn import SumOut
 
+
 def extract_model_from_checkpoint(checkpoint_path, hparams_file):
-    plmodel = PLModel.load_from_checkpoint(checkpoint_path=checkpoint_path,hparams_file=hparams_file)
+    plmodel = PLModel.load_from_checkpoint(
+        checkpoint_path=checkpoint_path, hparams_file=hparams_file
+    )
     return plmodel.get_model()
 
 
-def merge_priors_and_checkpoint(checkpoint_path:str, priors:Union[str, torch.nn.ModuleDict],hparams_file:Optional[str]=None) -> torch.nn.Module:
+def merge_priors_and_checkpoint(
+    checkpoint_path: str,
+    priors: Union[str, torch.nn.ModuleDict],
+    hparams_file: Optional[str] = None,
+) -> torch.nn.Module:
     """load prior models and trained model from a checkpoint and merge them
     into a :ref:`mlcg.nn.SumOut` module.
 
@@ -44,6 +51,7 @@ def merge_priors_and_checkpoint(checkpoint_path:str, priors:Union[str, torch.nn.
     prior_model[ml_model.name] = ml_model
     model = SumOut(models=prior_model)
     return model
+
 
 class SingleDevicePlugin(plp.SingleDevicePlugin):
     """Plugin that handles communication on a single device."""
