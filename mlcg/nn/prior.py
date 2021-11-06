@@ -242,6 +242,7 @@ class Dihedral(torch.nn.Module, _Prior):
 
     def forward(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
+        mapping_batch = data.neighbor_list[self.name]["mapping_batch"]
         interaction_types = [
             data.atom_types[mapping[ii]] for ii in range(self.order)
         ]
@@ -255,6 +256,7 @@ class Dihedral(torch.nn.Module, _Prior):
             self.theta_2[interaction_types],
             self.k_2[interaction_types],
         )
+        y = scatter(y,mapping_batch, dim=0, reduce="sum")
         data.out[self.name] = {"energy": y}
         return data
 
