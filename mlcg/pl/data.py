@@ -52,8 +52,8 @@ class DataModule(pl.LightningDataModule):
     ) -> None:
 
         super(DataModule, self).__init__()
-        self.save_hyperparameters()
-        
+        # self.save_hyperparameters()
+
         # assume dataset is similart to torch_geometric.dataset.Dataset
         self.dataset_init_kwargs = {
             "root": dataset.root,
@@ -83,7 +83,8 @@ class DataModule(pl.LightningDataModule):
             dataset = torch.load(self.dataset_root)
         else:
             dataset = self.dataset_cls(**self.dataset_init_kwargs)
-        return dataset
+        n = len(dataset)
+        return list([dataset[ii] for ii in range(0,n,self.train_stride)])
 
     def prepare_data(self):
         # make sure the dataset is downloaded
@@ -108,7 +109,7 @@ class DataModule(pl.LightningDataModule):
             splits=self.splits_fn,
         )
 
-        self.train_dataset = [dataset[ii] for ii in self.idx_train[::self.train_stride]]
+        self.train_dataset = [dataset[ii] for ii in self.idx_train]
 
         self.val_dataset = [dataset[ii] for ii in self.idx_val]
         self.test_dataset = [dataset[ii] for ii in self.idx_test]
