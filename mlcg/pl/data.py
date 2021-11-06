@@ -84,7 +84,7 @@ class DataModule(pl.LightningDataModule):
         else:
             dataset = self.dataset_cls(**self.dataset_init_kwargs)
         n = len(dataset)
-        return list([dataset[ii] for ii in range(0,n,self.train_stride)])
+        return list([dataset[ii] for ii in range(0, n, self.train_stride)])
 
     def prepare_data(self):
         # make sure the dataset is downloaded

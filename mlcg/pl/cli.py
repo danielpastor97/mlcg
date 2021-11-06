@@ -45,8 +45,8 @@ class LightningCLI(plc.LightningCLI):
     def parse_arguments(self, parser: plc.LightningArgumentParser) -> None:
         """Parses command line arguments and stores it in self.config"""
         self.config = self.parser.parse_args()
-        if 'subcommand' in self.config:
-            config = self.config[self.config['subcommand']]
+        if "subcommand" in self.config:
+            config = self.config[self.config["subcommand"]]
         else:
             config = self.config
 
