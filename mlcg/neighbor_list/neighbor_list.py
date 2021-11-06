@@ -1,4 +1,4 @@
-from typing import Mapping, Optional
+from typing import Dict, Mapping, Optional
 import torch
 from .torch_impl import torch_neighbor_list
 
@@ -8,7 +8,7 @@ def atomic_data2neighbor_list(
     rcut: float,
     self_interaction: bool = False,
     max_num_neighbors: int = 1000,
-) -> dict:
+) -> Dict:
     """Build a neighborlist from a :ref:`mlcg.data.atomic_data.AtomicData` by
     searching for neighboring atom within a maximum radius `rcut`.
 
@@ -52,7 +52,7 @@ def make_neighbor_list(
     cell_shifts: Optional[torch.Tensor] = None,
     rcut: Optional[float] = None,
     self_interaction: Optional[bool] = None,
-):
+) -> Dict:
     """Build a neighbor_list dictionary.
 
     Parameters
@@ -92,7 +92,7 @@ class _EmptyField:
     pass
 
 
-def validate_neighborlist(inp: dict) -> bool:
+def validate_neighborlist(inp: Dict) -> bool:
     """Tool to validate that the neighborlist dictionary has the required fields"""
     validator = {
         "tag": [str],

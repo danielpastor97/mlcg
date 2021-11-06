@@ -1,13 +1,49 @@
 import torch
-
+from torch_geometric.data import Data
 from torch_cluster import radius, radius_graph
 
 from typing import Tuple
 
 
 def torch_neighbor_list(
-    data, rcut, self_interaction=True, num_workers=1, max_num_neighbors=1000
-):
+    data: Data,
+    rcut: float,
+    self_interaction: bool = True,
+    num_workers: int = 1,
+    max_num_neighbors: int = 1000,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Function for computing neighbor lists from pytorch geometric data
+    instances that may or may not use periodic boundary conditions
+
+    Parameters
+    ----------
+    data:
+        Pytorch geometric data instance
+    rcut:
+        upper distance cutoff, in which neighbors with distances larger
+        than this cutoff will be excluded.
+    self_interaction:
+        If True, each atom will be considered it's own neighbor. This can
+        be convenient for certain bases and representations
+    num_workers:
+        Number of threads to spawn and use for computing the neighbor list
+    max_number_neighbors
+        kwarg for radius_graph function from torch_cluster package,
+        specifying the maximum number of neighbors for each atom
+
+    Returns
+    -------
+    idx_i:
+        The atom indices of the first atoms in each neighbor pair
+    idx_j:
+        The atom indices of the second atoms in each neighbor pair
+    cell_shifts:
+        The cell shifts associated with minimum image distances
+        in the presence of periodic boundary conditions
+    self_interaction_mask:
+        Mask for excluding self interactions
+    """
+
     if "pbc" in data:
         pbc = data.pbc
     else:
@@ -54,6 +90,8 @@ def compute_images(
     batch: torch.Tensor,
     n_atoms: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """TODO: add doc"""
+
     cell = cell.view((-1, 3, 3)).to(torch.float64)
     pbc = pbc.view((-1, 3))
     reciprocal_cell = torch.linalg.inv(cell).transpose(2, 1)
@@ -111,6 +149,7 @@ def compute_images(
 
 @torch.jit.script
 def strides_of(v: torch.Tensor) -> torch.Tensor:
+    """TODO: add docs"""
     strides = torch.zeros(v.shape[0] + 1, dtype=torch.int64, device=v.device)
     strides[1:] = v
     strides = torch.cumsum(strides, dim=0)
@@ -120,6 +159,7 @@ def strides_of(v: torch.Tensor) -> torch.Tensor:
 def torch_neighbor_list_no_pbc(
     data, rcut, self_interaction=True, num_workers=1, max_num_neighbors=1000
 ):
+    """TODO: add docs"""
     if "batch" not in data:
         batch = torch.zeros(
             data.pos.shape[0], dtype=torch.long, device=data.pos.device
@@ -143,6 +183,7 @@ def torch_neighbor_list_no_pbc(
 def get_j_idx(
     edge_index: torch.Tensor, batch_images: torch.Tensor, n_atoms: torch.Tensor
 ) -> torch.Tensor:
+    """TODO: add docs"""
     # get neighbor index reffering to the list of original positions
     n_neighbors = torch.bincount(edge_index[0])
     strides = strides_of(n_atoms)
@@ -164,6 +205,7 @@ def get_j_idx(
 def torch_neighbor_list_pbc(
     data, rcut, self_interaction=True, num_workers=1, max_num_neighbors=1000
 ):
+    """TODO: add docs"""
     if "batch" not in data:
         batch_y = torch.zeros(
             data.pos.shape[0], dtype=torch.long, device=data.pos.device
@@ -208,7 +250,7 @@ def torch_neighbor_list_pbc(
     return idx_i, idx_j, cell_shifts, self_interaction_mask
 
 
-def wrap_positions(data, eps=1e-7):
+def wrap_positions(data: Data, eps=1e-7) -> None:
     """Wrap positions to unit cell.
 
     Returns positions changed by a multiple of the unit cell vectors to
@@ -217,7 +259,7 @@ def wrap_positions(data, eps=1e-7):
     Parameters:
 
     data:
-        torch_geometric.Data
+        torch_geometric.Data instance
     eps: float
         Small number to prevent slightly negative coordinates from being
         wrapped.
