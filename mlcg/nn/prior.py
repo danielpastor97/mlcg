@@ -256,7 +256,7 @@ class Dihedral(torch.nn.Module, _Prior):
             self.theta_2[interaction_types],
             self.k_2[interaction_types],
         )
-        y = scatter(y,mapping_batch, dim=0, reduce="sum")
+        y = scatter(y, mapping_batch, dim=0, reduce="sum")
         data.out[self.name] = {"energy": y}
         return data
 
