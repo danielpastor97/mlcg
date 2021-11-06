@@ -68,17 +68,14 @@ class PLModel(pl.LightningModule):
     def configure_optimizers(self) -> dict:
         optimizer = instantiate_class(self.model.parameters(), self.optimizer)
         scheduler = instantiate_class(optimizer, self.lr_scheduler)
-        name = self.lr_scheduler["class_path"].split(".")[-1]
         if self.monitor is None:
-            {"optimizer": optimizer, "lr_scheduler": scheduler, "name": name}
+            {"optimizer": optimizer, "lr_scheduler": scheduler}
         else:
             return {
                 "optimizer": optimizer,
                 "lr_scheduler": scheduler,
                 "monitor": self.monitor,
                 "frequency": self.step_frequency,
-                "interval": self.scheduler_interval,
-                "name": name,
             }
 
     def training_step(self, data: AtomicData, batch_idx: int) -> torch.Tensor:

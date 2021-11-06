@@ -183,7 +183,6 @@ class ChignolinDataset(InMemoryDataset):
                 sub_data_list,
                 baseline_models,
             )
-
         print("collating data_list")
         datas, slices = self.collate(data_list)
         torch.save((cg_topo), self.processed_paths[2])
