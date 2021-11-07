@@ -48,7 +48,7 @@ class DataModule(pl.LightningDataModule):
         inference_batch_size: int = 64,
         num_workers: int = 1,
         loading_stride: int = 1,
-        save_local_copy: bool = True,
+        save_local_copy: bool = False,
     ) -> None:
 
         super(DataModule, self).__init__()
