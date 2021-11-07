@@ -186,6 +186,12 @@ class ChignolinDataset(InMemoryDataset):
 
         print("collating data_list")
         datas, slices = self.collate(data_list)
+
+        # remove baseline_forces and prior's neighbor lists to reduce
+        # memory footprint of the dataset
+        delattr(datas, "baseline_forces")
+        datas.neighbor_list = {}
+
         torch.save((cg_topo), self.processed_paths[2])
         torch.save(baseline_models, self.processed_paths[3])
         torch.save((datas, slices), self.processed_paths[0])
