@@ -151,6 +151,7 @@ class SchNet(nn.Module):
 
         energy = self.output_network(x)
         energy = scatter(energy, data.batch, dim=0, reduce="sum")
+        energy = energy.view(len(energy))
         data.out[self.name][ENERGY_KEY] = energy
 
         return data

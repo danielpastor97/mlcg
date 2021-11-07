@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Dict
 import torch
 import pytest
@@ -10,13 +11,22 @@ from mlcg.geometry.statistics import fit_baseline_models
 from mlcg.neighbor_list.neighbor_list import make_neighbor_list
 from mlcg.nn.prior import HarmonicBonds, HarmonicAngles
 from mlcg.nn.gradients import SumOut, GradientsOut
+from mlcg.nn.schnet import StandardSchNet
+from mlcg.nn.cutoff import CosineCutoff
+from mlcg.nn.radial_basis import GaussianBasis
 from mlcg.data._keys import ENERGY_KEY, FORCE_KEY
 from mlcg.data.atomic_data import AtomicData
+
+standard_cutoff = CosineCutoff(cutoff_lower=0, cutoff_upper=5)
+standard_basis = GaussianBasis(cutoff_lower=0, cutoff_upper=5)
+
+schnet = StandardSchNet(standard_basis, standard_cutoff, [128])
+schnet_force_model = GradientsOut(schnet, targets=[FORCE_KEY]).double()
 
 
 @pytest.fixture
 def ASE_prior_model():
-    def _model_builder(mol: str = "AlF3") -> Dict:
+    def _model_builder(mol: str = "AlF3", sum_out=True) -> Dict:
         """Fixture that returns a simple prior-only model of
         an ASE molecule with HarmonicBonds and HarmonicAngles
         priors whose parameters are estimated from coordinates
@@ -104,7 +114,11 @@ def ASE_prior_model():
             for name in priors.keys()
         }
 
-        full_model = SumOut(priors)
+        if sum_out:
+            full_model = SumOut(priors)
+        else:
+            full_model = priors
+
         model_with_data = {
             "model": full_model,
             "collated_prior_data": collated_prior_data,
@@ -151,3 +165,39 @@ def test_outs(ASE_prior_model, out_targets):
     for target, shape in zip(model.targets, expected_shapes):
         assert target in collated_data.out.keys()
         assert shape == collated_data.out[target].shape
+
+
+@pytest.mark.parametrize(
+    "ASE_prior_model, network_model, out_targets",
+    [(ASE_prior_model, schnet_force_model, [ENERGY_KEY, FORCE_KEY])],
+    indirect=["ASE_prior_model"],
+)
+def test_sum_outs(ASE_prior_model, network_model, out_targets):
+    """Tests property aggregating with SumOut"""
+    data_dictionary = ASE_prior_model(sum_out=False)
+
+    prior_model = data_dictionary["model"]
+    collated_data = data_dictionary["collated_prior_data"]
+    collated_data_2 = deepcopy(data_dictionary["collated_prior_data"])
+
+    for prior in prior_model.keys():
+        collated_data = prior_model[prior](collated_data)
+    collated_data = network_model(collated_data)
+    target_totals = {target: 0.00 for target in out_targets}
+    for target in out_targets:
+        for key in collated_data.out.keys():
+            target_totals[target] += collated_data.out[key][target]
+
+    module_collection = torch.nn.ModuleDict()
+    for key in prior_model.keys():
+        module_collection[key] = prior_model[key]
+    module_collection[network_model.name] = network_model
+    aggregate_model = SumOut(module_collection, out_targets)
+    collated_data_2 = aggregate_model(collated_data_2)
+
+    # Test to make sure the the aggregate data matches the target totals
+    for target in out_targets:
+        np.testing.assert_array_equal(
+            target_totals[target].detach().numpy(),
+            collated_data_2.out[target].detach().numpy(),
+        )
