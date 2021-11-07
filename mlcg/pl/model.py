@@ -59,7 +59,9 @@ class PLModel(pl.LightningModule):
                 self.derivative = True
 
     def configure_optimizers(self) -> dict:
-        optimizer = instantiate_class(self.model.parameters(), init=self.optimizer)
+        optimizer = instantiate_class(
+            self.model.parameters(), init=self.optimizer
+        )
         scheduler = instantiate_class(optimizer, self.lr_scheduler)
         if self.monitor is None:
             {"optimizer": optimizer, "lr_scheduler": scheduler}
