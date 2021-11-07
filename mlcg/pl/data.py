@@ -30,8 +30,8 @@ class DataModule(pl.LightningDataModule):
         number of structure to include in each validation/training batches.
     num_workers;
         number of `cpu` used for loading the dataset (see `here <https://pytorch-lightning.readthedocs.io/en/stable/guides/speed.html?highlight=num_workers#num-workers>`_ for more details).
-    train_stride:
-        stride used to subselect the training set. Useful parameter for debugging on a particular dataset.
+    loading_stride:
+        stride used to subselect the dataset. Useful parameter for debugging purposes.
     save_local_copy:
         saves the input dataset in log_dir
 
@@ -47,7 +47,7 @@ class DataModule(pl.LightningDataModule):
         batch_size: int = 512,
         inference_batch_size: int = 64,
         num_workers: int = 1,
-        train_stride: int = 1,
+        loading_stride: int = 1,
         save_local_copy: bool = True,
     ) -> None:
 
@@ -73,7 +73,7 @@ class DataModule(pl.LightningDataModule):
         self.test_ratio = test_ratio
         self.log_dir = log_dir
         self.splits = splits
-        self.train_stride = train_stride
+        self.loading_stride = loading_stride
         self.splits_fn = os.path.join(self.log_dir, "splits.npz")
 
     def load_dataset(self):
@@ -81,7 +81,7 @@ class DataModule(pl.LightningDataModule):
             dataset = torch.load(self.dataset_root)
         else:
             dataset = self.dataset_cls(**self.dataset_init_kwargs)
-        return dataset
+        return [dataset[ii] for ii in range(0,len(dataset),self.loading_stride)]
 
     def prepare_data(self):
         # make sure the dataset is downloaded
@@ -106,11 +106,10 @@ class DataModule(pl.LightningDataModule):
             splits=self.splits_fn,
         )
 
-        self.train_dataset = tuple(
-            [dataset[ii] for ii in self.idx_train[:: self.train_stride]]
-        )
-        self.val_dataset = tuple([dataset[ii] for ii in self.idx_val])
-        self.test_dataset = tuple([dataset[ii] for ii in self.idx_test])
+        self.train_dataset = [dataset[ii] for ii in self.idx_train]
+
+        self.val_dataset = [dataset[ii] for ii in self.idx_val]
+        self.test_dataset = [dataset[ii] for ii in self.idx_test]
 
     def train_dataloader(self):
         return self._get_dataloader(self.train_dataset, "train")
