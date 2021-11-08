@@ -7,6 +7,7 @@ from typing import Final
 from ..geometry.topology import Topology
 from ..geometry.internal_coordinates import compute_distances, compute_angles
 
+
 class _Prior(object):
     def __init__(self) -> None:
         super(_Prior, self).__init__()
@@ -98,6 +99,7 @@ class Harmonic(torch.nn.Module, _Prior):
         nl = topology.neighbor_list(type)
         return {type: nl}
 
+
 class HarmonicBonds(Harmonic):
     name: Final[str] = "bonds"
     _order = 2
@@ -113,6 +115,7 @@ class HarmonicBonds(Harmonic):
     def compute_features(pos, mapping):
         return Harmonic.compute_features(pos, mapping, HarmonicBonds.name)
 
+
 class HarmonicAngles(Harmonic):
     name: Final[str] = "angles"
     _order = 2
@@ -127,6 +130,7 @@ class HarmonicAngles(Harmonic):
     @staticmethod
     def compute_features(pos, mapping):
         return Harmonic.compute_features(pos, mapping, HarmonicAngles.name)
+
 
 class Repulsion(torch.nn.Module, _Prior):
     name: Final[str] = "repulsion"

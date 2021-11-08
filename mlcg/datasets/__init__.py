@@ -1,5 +1,3 @@
 from .chignolin import ChignolinDataset
 
-__all__ = [
-    "ChignolinDataset"
-]
+__all__ = ["ChignolinDataset"]

@@ -89,6 +89,8 @@ class SumOut(torch.nn.Module):
         for _, model in self.models.items():
             nl.updat(**model.neighbor_list(**kwargs))
         return nl
+
+
 class GradientsOut(torch.nn.Module):
     """Gradient wrapper for models.
 
