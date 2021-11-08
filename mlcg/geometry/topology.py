@@ -218,7 +218,8 @@ class Topology(object):
         for i_at in range(self.n_atoms):
             residue = topo.add_residue(self.resnames[i_at], chain)
             topo.add_atom(self.names[i_at], self.types[i_at], residue)
-        for idx1, idx2 in self.bonds:
+        for idx in range(len(self.bonds)):
+            idx1, idx2 = self.bonds[0][idx], self.bonds[1][idx]
             a1, a2 = topo.atom(idx1), topo.atom(idx2)
             topo.add_bond(a1, a2)
         return topo
@@ -347,6 +348,7 @@ class Topology(object):
             ]
 
         nx.draw(graph, **drawing_kwargs)
+
 
 def get_connectivity_matrix(
     topology: Topology, directed: bool = False
