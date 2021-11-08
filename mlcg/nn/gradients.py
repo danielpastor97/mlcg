@@ -146,16 +146,16 @@ class GradientsOut(torch.nn.Module):
         if FORCE_KEY in self.targets:
             y = data.out[self.name][ENERGY_KEY]
             dy_dr = torch.autograd.grad(
-                y,
+                y.sum(),
                 data.pos,
-                grad_outputs=torch.ones_like(y),
-                retain_graph=self.training,
+                # grad_outputs=torch.ones_like(y),
+                # retain_graph=self.training,
                 create_graph=self.training,
             )[0]
 
             data.out[self.name][FORCE_KEY] = -dy_dr
-            assert not torch.any(torch.isnan(dy_dr)), f"nan in {self.name}"
-        data.pos.requires_grad_(False)
+            # assert not torch.any(torch.isnan(dy_dr)), f"nan in {self.name}"
+        data.pos = data.pos.detach()
         return data
 
     def neighbor_list(self, **kwargs: Any):
