@@ -303,6 +303,49 @@ class Topology(object):
         topo = mdtraj.load(filename).topology
         return Topology.from_mdtraj(topo)
 
+    def draw(
+        self,
+        layout: Callable = nx.drawing.layout.spring_layout,
+        layout_kwargs: Dict = None,
+        drawing_kwargs: Dict = None,
+    ) -> None:
+        """Use NetworkX to draw the current molecular topology.
+        by default, node labels correspond to atom types.
+
+        Parameters
+        ----------
+        layout:
+            NetworkX layout drawing function (from networkx.drawing.layout) that
+            determines the positions of the nodes
+        layout_kwargs:
+            keyword arguments for the node layout drawing function
+        drawing_kwargs:
+            keyword arguments for nx.draw
+        """
+
+        from matplotlib.pyplot import get_cmap
+
+        if layout_kwargs == None:
+            layout_kwargs = {}
+        if drawing_kwargs == None:
+            drawing_kwargs = {}
+        connectivity = get_connectivity_matrix(self)
+        graph = nx.Graph(connectivity.numpy())
+        node_pos = layout(graph, **layout_kwargs)
+        drawing_kwargs["pos"] = node_pos
+
+        if "labels" not in list(drawing_kwargs.keys()):
+            drawing_kwargs["labels"] = {
+                node: str(self.types[node]) for node in graph.nodes
+            }
+        if "node_color" not in list(drawing_kwargs.keys()):
+            num_colors = len(np.arange(1, max(self.types) + 2))
+            cmap = get_cmap("viridis", num_colors)
+            drawing_kwargs["node_color"] = [
+                cmap.colors[node_type, :3] for node_type in self.types
+            ]
+
+        nx.draw(graph, **drawing_kwargs)
 
 def get_connectivity_matrix(
     topology: Topology, directed: bool = False
