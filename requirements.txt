@@ -12,4 +12,4 @@ ipython
 # developer tools
 pytest
 coverage[toml]
-black
+black[jupyter]

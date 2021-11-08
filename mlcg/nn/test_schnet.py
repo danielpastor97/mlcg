@@ -70,7 +70,7 @@ collated_data, _, _ = collate(
 )
 
 force_shape = collated_data.pos.shape
-energy_shape = torch.Size([len(test_molecules), 1])
+energy_shape = torch.Size([len(test_molecules)])
 
 
 @pytest.mark.parametrize(
