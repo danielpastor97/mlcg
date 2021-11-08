@@ -1,5 +1,5 @@
 import torch
-from typing import Sequence, Dict, List
+from typing import Sequence, Any, List
 from ..data.atomic_data import AtomicData
 from ..data._keys import *
 
@@ -84,7 +84,11 @@ class SumOut(torch.nn.Module):
                 data.out[target] += data.out[name][target]
         return data
 
-
+    def neighbor_list(self, **kwargs):
+        nl = {}
+        for _, model in self.models.items():
+            nl.updat(**model.neighbor_list(**kwargs))
+        return nl
 class GradientsOut(torch.nn.Module):
     """Gradient wrapper for models.
 
@@ -134,12 +138,6 @@ class GradientsOut(torch.nn.Module):
             gradient operations.
         """
 
-        if self.name not in data.out:
-            data.out[self.name] = {}
-
-        # if ENERGY_KEY not in data.out[self.name]:
-        #     data.pos.requires_grad_(True)
-        #     data = self.model(data)
         data.pos.requires_grad_(True)
         data = self.model(data)
 
@@ -155,5 +153,8 @@ class GradientsOut(torch.nn.Module):
 
             data.out[self.name][FORCE_KEY] = -dy_dr
             assert not torch.any(torch.isnan(dy_dr)), f"nan in {self.name}"
-        data.pos = data.pos.detach()
+        data.pos.requires_grad_(False)
         return data
+
+    def neighbor_list(self, **kwargs: Any):
+        return self.model.neighbor_list(**kwargs)
