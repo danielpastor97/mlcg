@@ -217,9 +217,14 @@ class Topology(object):
         topo = mdtraj.Topology()
         chain = topo.add_chain()
         for i_at in range(self.n_atoms):
-            if self.names[i_at].strip().upper() not in Element._elements_by_symbol:
+            if (
+                self.names[i_at].strip().upper()
+                not in Element._elements_by_symbol
+            ):
                 # TODO:change the default mass and radius to something more meaningful
-                element = Element(self.types[i_at], self.names[i_at], self.names[i_at], 10, 2)
+                element = Element(
+                    self.types[i_at], self.names[i_at], self.names[i_at], 10, 2
+                )
             else:
                 element = Element.getBySymbol(self.names[i_at])
 
