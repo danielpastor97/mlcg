@@ -6,6 +6,7 @@ __pycache__/
 
 Untitled.ipynb
 examples/notebooks/train
+examples/notebooks/simulate
 .vscode
 
 # C extensions
