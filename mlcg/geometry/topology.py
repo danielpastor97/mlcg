@@ -3,17 +3,19 @@ import warnings
 
 try:
     import mdtraj
+    from mdtraj.core.element import Element
 except ModuleNotFoundError:
     warnings(f"Failed to import mdtraj")
 from ase.geometry.analysis import Analysis
-from ase.neighborlist import natural_cutoffs
 from ase import Atoms
-from .utils import ase_z2name
-from typing import NamedTuple, List, Optional, Tuple, Dict
+from typing import NamedTuple, List, Optional, Tuple, Dict, Callable
 import torch
+import numpy as np
 import networkx as nx
+
+from .utils import ase_z2name
 from ..neighbor_list.neighbor_list import make_neighbor_list
-from .statistics import (
+from ._symmetrize import (
     _symmetrise_map,
     _symmetrise_angle_interaction,
     _symmetrise_distance_interaction,
@@ -215,9 +217,21 @@ class Topology(object):
         topo = mdtraj.Topology()
         chain = topo.add_chain()
         for i_at in range(self.n_atoms):
+            if (
+                self.names[i_at].strip().upper()
+                not in Element._elements_by_symbol
+            ):
+                # TODO:change the default mass and radius to something more meaningful
+                element = Element(
+                    self.types[i_at], self.names[i_at], self.names[i_at], 10, 2
+                )
+            else:
+                element = Element.getBySymbol(self.names[i_at])
+
             residue = topo.add_residue(self.resnames[i_at], chain)
-            topo.add_atom(self.names[i_at], self.types[i_at], residue)
-        for idx1, idx2 in self.bonds:
+            topo.add_atom(self.names[i_at], element, residue)
+        for idx in range(len(self.bonds)):
+            idx1, idx2 = self.bonds[0][idx], self.bonds[1][idx]
             a1, a2 = topo.atom(idx1), topo.atom(idx2)
             topo.add_bond(a1, a2)
         return topo
@@ -302,6 +316,50 @@ class Topology(object):
         """Uses mdtraj reader to read the input topology."""
         topo = mdtraj.load(filename).topology
         return Topology.from_mdtraj(topo)
+
+    def draw(
+        self,
+        layout: Callable = nx.drawing.layout.spring_layout,
+        layout_kwargs: Dict = None,
+        drawing_kwargs: Dict = None,
+    ) -> None:
+        """Use NetworkX to draw the current molecular topology.
+        by default, node labels correspond to atom types.
+
+        Parameters
+        ----------
+        layout:
+            NetworkX layout drawing function (from networkx.drawing.layout) that
+            determines the positions of the nodes
+        layout_kwargs:
+            keyword arguments for the node layout drawing function
+        drawing_kwargs:
+            keyword arguments for nx.draw
+        """
+
+        from matplotlib.pyplot import get_cmap
+
+        if layout_kwargs == None:
+            layout_kwargs = {}
+        if drawing_kwargs == None:
+            drawing_kwargs = {}
+        connectivity = get_connectivity_matrix(self)
+        graph = nx.Graph(connectivity.numpy())
+        node_pos = layout(graph, **layout_kwargs)
+        drawing_kwargs["pos"] = node_pos
+
+        if "labels" not in list(drawing_kwargs.keys()):
+            drawing_kwargs["labels"] = {
+                node: str(self.types[node]) for node in graph.nodes
+            }
+        if "node_color" not in list(drawing_kwargs.keys()):
+            num_colors = len(np.arange(1, max(self.types) + 2))
+            cmap = get_cmap("viridis", num_colors)
+            drawing_kwargs["node_color"] = [
+                cmap.colors[node_type, :3] for node_type in self.types
+            ]
+
+        nx.draw(graph, **drawing_kwargs)
 
 
 def get_connectivity_matrix(
