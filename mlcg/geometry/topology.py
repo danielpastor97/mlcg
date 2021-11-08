@@ -23,7 +23,17 @@ from ._symmetrize import (
 
 
 class Atom(NamedTuple):
-    """Define an atom"""
+    """Define an atom
+
+    Attributes
+    ----------
+    type: int
+        Atom type/integer label
+    name: Optional[str] = None
+        Atom name
+    resname: Optional[str] = None
+        Name of the residue containing the atom
+    """
 
     #: type of the atom
     type: int
@@ -34,7 +44,7 @@ class Atom(NamedTuple):
 
 
 class Topology(object):
-    """Define the topology of an isolated protein."""
+    """Topology of an isolated protein."""
 
     #: types of the atoms
     types: List[int]
@@ -126,8 +136,10 @@ class Topology(object):
 
         Parameters
         ----------
-        idx:
-            index of the atoms bonded together
+        idx1:
+            The index of the first atom in the bond
+        idx2:
+            The index of the second atom in the bond
         """
         self.bonds[0].append(idx1)
         self.bonds[1].append(idx2)
@@ -139,7 +151,17 @@ class Topology(object):
           2---3
          /
         1
+
+        Parameters
+        ----------
+        idx1:
+            The index of the first atom defining the angle
+        idx2:
+            The index of the central atom defining the angle
+        idx3:
+            The index of the last atom defining the angle
         """
+
         self.angles[0].append(idx1)
         self.angles[1].append(idx2)
         self.angles[2].append(idx3)
@@ -155,7 +177,19 @@ class Topology(object):
             2-----3
            /
           1
+
+        Parameters
+        ----------
+        idx1:
+            The index of the first atom defining the dihedral
+        idx2:
+            The index of the second atom defining the dihedral
+        idx3:
+            The index of the third atom defining the dihedral
+        idx3:
+            The index of the last atom defining the dihedral
         """
+
         self.dihedrals[0].append(idx1)
         self.dihedrals[1].append(idx2)
         self.dihedrals[2].append(idx3)
@@ -170,6 +204,7 @@ class Topology(object):
         edge_index:
             Edge index tensor of shape (2, n_bonds)
         """
+
         if edge_index.shape[0] != 2:
             raise ValueError("Bond edge index must have shape (2, n_bonds)")
 
@@ -184,6 +219,7 @@ class Topology(object):
         edge_index:
             Edge index tensor of shape (3, n_angles)
         """
+
         if edge_index.shape[0] != 3:
             raise ValueError("Angle edge index must have shape (3, n_angles)")
 
@@ -198,6 +234,7 @@ class Topology(object):
         edge_index:
             Edge index tensor of shape (4, n_dihedrals)
         """
+
         if edge_index.shape[0] != 4:
             raise ValueError(
                 "Dihedral edge index must have shape (4, n_dihedrals)"
@@ -403,7 +440,14 @@ def add_chain_bonds(topology: Topology) -> None:
     """Add bonds to the topology assuming a chain-like pattern, i.e. atoms are
     linked together following their insertion order.
     A four atoms chain will are linked like: `1-2-3-4`.
+
+    Parameters
+    ----------
+    topology:
+        Topology instance to which the bonds should be added
+
     """
+
     for i in range(topology.n_atoms - 1):
         topology.add_bond(i, i + 1)
 
@@ -412,7 +456,14 @@ def add_chain_angles(topology: Topology) -> None:
     """Add angles to the topology assuming a chain-like pattern, i.e. angles are
     defined following the insertion order of the atoms in the topology.
     A four atoms chain `1-2-3-4` will fine the angles: `1-2-3, 2-3-4`.
+
+    Parameters
+    ----------
+    topology:
+        Topology instance to which the angles should be added
+
     """
+
     for i in range(topology.n_atoms - 2):
         topology.add_angle(i, i + 1, i + 2)
 
@@ -439,6 +490,7 @@ def get_n_pairs(
     pairs:
         Edge index tensor of shape (2, n_pairs)
     """
+
     graph = nx.Graph(connectivity_matrix.numpy())
     pairs = ([], [])
     for atom in graph.nodes:
