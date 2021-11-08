@@ -286,7 +286,7 @@ def fit_baseline_models(
     statistics = {}
     models = torch.nn.ModuleDict()
     for TargetPrior in priors_cls:
-        k = TargetPrior._name
+        k = TargetPrior.name
         statistics[k] = compute_statistics(
             data,
             k,
