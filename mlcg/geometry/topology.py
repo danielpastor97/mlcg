@@ -9,6 +9,7 @@ from ase.geometry.analysis import Analysis
 from ase import Atoms
 from typing import NamedTuple, List, Optional, Tuple, Dict, Callable
 import torch
+import numpy as np
 import networkx as nx
 
 from .utils import ase_z2name
