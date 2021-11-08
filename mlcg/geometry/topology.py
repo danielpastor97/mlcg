@@ -372,17 +372,17 @@ def get_connectivity_matrix(
     ----------
     topology:
         Topology for which a connectivity matrix will be constructed
+    directed:
+        If True, an asymmetric connectivity matrix will be returned
+        correspending to a directed graph. If false, the connectivity
+        matrix will be symmetric and the corresponding graph will be
+        undirected.
 
     Returns
     -------
     connectivity_matrix:
         Torch tensor of shape (n_atoms, n_atoms) representing the
         connectivity/adjacency matrix from the bonded graph.
-    directed:
-        If True, an asymmetric connectivity matrix will be returned
-        correspending to a directed graph. If false, the connectivity
-        matrix will be symmetric and the corresponding graph will be
-        undirected.
     """
 
     if len(topology.bonds[0]) == 0 and len(topology.bonds[1]) == 0:
