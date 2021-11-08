@@ -3,6 +3,7 @@ import warnings
 
 try:
     import mdtraj
+    from mdtraj.core.element import Element
 except ModuleNotFoundError:
     warnings(f"Failed to import mdtraj")
 from ase.geometry.analysis import Analysis
@@ -216,8 +217,14 @@ class Topology(object):
         topo = mdtraj.Topology()
         chain = topo.add_chain()
         for i_at in range(self.n_atoms):
+            if self.names[i_at].strip().upper() not in Element._elements_by_symbol:
+                # TODO:change the default mass and radius to something more meaningful
+                element = Element(self.types[i_at], self.names[i_at], self.names[i_at], 10, 2)
+            else:
+                element = Element.getBySymbol(self.names[i_at])
+
             residue = topo.add_residue(self.resnames[i_at], chain)
-            topo.add_atom(self.names[i_at], self.types[i_at], residue)
+            topo.add_atom(self.names[i_at], element, residue)
         for idx in range(len(self.bonds)):
             idx1, idx2 = self.bonds[0][idx], self.bonds[1][idx]
             a1, a2 = topo.atom(idx1), topo.atom(idx2)
