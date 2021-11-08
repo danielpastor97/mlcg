@@ -4,14 +4,14 @@ from os.path import join
 import numpy as np
 import torch
 from torch_geometric.data import InMemoryDataset, extract_tar
-from torch_geometric.loader import DataLoader
 from torch_geometric.data.collate import collate
 from shutil import copy
 import mdtraj
 
 
 from ..utils import tqdm, download_url
-from ..geometry import Topology, fit_baseline_models
+from ..geometry.topology import Topology
+from ..geometry.statistics import fit_baseline_models
 from ..cg import build_cg_matrix, build_cg_topology, CA_MAP
 from ..data import AtomicData
 from ..nn import (
@@ -21,9 +21,6 @@ from ..nn import (
     GradientsOut,
 )
 from .utils import remove_baseline_forces, chunker
-
-import matplotlib
-import matplotlib.pyplot as plt
 
 
 class ChignolinDataset(InMemoryDataset):

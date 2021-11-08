@@ -6,14 +6,14 @@ try:
 except ModuleNotFoundError:
     warnings(f"Failed to import mdtraj")
 from ase.geometry.analysis import Analysis
-from ase.neighborlist import natural_cutoffs
 from ase import Atoms
-from .utils import ase_z2name
 from typing import NamedTuple, List, Optional, Tuple, Dict
 import torch
 import networkx as nx
+
+from .utils import ase_z2name
 from ..neighbor_list.neighbor_list import make_neighbor_list
-from .statistics import (
+from ._symmetrize import (
     _symmetrise_map,
     _symmetrise_angle_interaction,
     _symmetrise_distance_interaction,
