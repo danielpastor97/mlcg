@@ -13,7 +13,7 @@ def extract_model_from_checkpoint(checkpoint_path, hparams_file):
     plmodel = PLModel.load_from_checkpoint(
         checkpoint_path=checkpoint_path, hparams_file=hparams_file
     )
-    return plmodel.model
+    return plmodel.get_model()
 
 
 def merge_priors_and_checkpoint(
