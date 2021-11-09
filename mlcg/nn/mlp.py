@@ -5,7 +5,32 @@ from typing import List
 
 class MLP(nn.Module):
     """
-    Multilayer Perceptron for regression of scalars
+    Multilayer perceptron for regression of scalars
+
+    Note: No activation is applied to the final output,
+    and the final output contains no learnable bias.
+
+    Parameters
+    ----------
+    layer_widths:
+        the width of outputs after passing through
+        each linear layer. Eg, for an width specification:
+
+        ..code-block::python
+
+            [10, 10, 1]
+
+        an n-dimensional example will be transformed
+        to a 10-dimensional feature, then a second
+        10-dimensional feature, then finally to a
+        1-dimensional scalar feature.
+
+    activation_func:
+        The (non-linear) activation function to apply
+        to the output of each linear transformation,
+        with the exception of the final output, which
+        is simply the output of a linear transformation
+        with no bias
     """
 
     def __init__(
