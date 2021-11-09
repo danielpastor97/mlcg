@@ -3,7 +3,7 @@ mlcg-tools
 
 .. image:: https://codecov.io/gh/ClementiGroup/mlcg-tools/branch/main/graph/badge.svg?token=TXZNC7X73E
      :target: https://codecov.io/gh/ClementiGroup/mlcg-tools
-    
+
 .. start-intro
 
 This repository collects a set of tools to apply machine learning techniques to coarse grain atomic systems.
@@ -17,8 +17,9 @@ Installation
 Some special installs that are one well handled by requirements.txt:
 
 .. code:: bash
+    conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
 
-    conda install pyg=2.0.1 -c pyg -c conda-forge
+    conda install pyg -c pyg -c conda-forge
 
 .. end-install
 
