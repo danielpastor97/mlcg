@@ -30,8 +30,8 @@ class DataModule(pl.LightningDataModule):
         number of structure to include in each validation/training batches.
     num_workers;
         number of `cpu` used for loading the dataset (see `here <https://pytorch-lightning.readthedocs.io/en/stable/guides/speed.html?highlight=num_workers#num-workers>`_ for more details).
-    train_stride:
-        stride used to subselect the training set. Useful parameter for debugging on a particular dataset.
+    loading_stride:
+        stride used to subselect the dataset. Useful parameter for debugging purposes.
     save_local_copy:
         saves the input dataset in log_dir
 
@@ -47,8 +47,8 @@ class DataModule(pl.LightningDataModule):
         batch_size: int = 512,
         inference_batch_size: int = 64,
         num_workers: int = 1,
-        train_stride: int = 1,
-        save_local_copy: bool = True,
+        loading_stride: int = 1,
+        save_local_copy: bool = False,
     ) -> None:
 
         super(DataModule, self).__init__()
@@ -75,7 +75,7 @@ class DataModule(pl.LightningDataModule):
         self.test_ratio = test_ratio
         self.log_dir = log_dir
         self.splits = splits
-        self.train_stride = train_stride
+        self.loading_stride = loading_stride
         self.splits_fn = os.path.join(self.log_dir, "splits.npz")
 
     def load_dataset(self):
@@ -83,8 +83,9 @@ class DataModule(pl.LightningDataModule):
             dataset = torch.load(self.dataset_root)
         else:
             dataset = self.dataset_cls(**self.dataset_init_kwargs)
-        n = len(dataset)
-        return list([dataset[ii] for ii in range(0, n, self.train_stride)])
+        return [
+            dataset[ii] for ii in range(0, len(dataset), self.loading_stride)
+        ]
 
     def prepare_data(self):
         # make sure the dataset is downloaded

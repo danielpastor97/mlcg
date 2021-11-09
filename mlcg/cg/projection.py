@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Dict, Callable
+from typing import Optional, Tuple, Dict, Callable, OrderedDict
 from collections import OrderedDict
 import numpy as np
 
@@ -11,7 +11,7 @@ def build_cg_matrix(
     topology: Topology,
     cg_mapping: Dict[Tuple[str, str], Tuple[str, int, int]] = CA_MAP,
     special_terminal: bool = True,
-):
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, OrderedDict]:
     cg_mapping_ = OrderedDict()
     n_atoms = topology.n_atoms
     for i_at, at in enumerate(topology.atoms):

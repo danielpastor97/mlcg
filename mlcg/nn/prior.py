@@ -2,7 +2,9 @@ import torch
 from torch_scatter import scatter
 from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit
+from typing import Final
 
+from ..geometry.topology import Topology
 from ..geometry.internal_coordinates import compute_distances, compute_angles
 
 
@@ -92,46 +94,46 @@ class Harmonic(torch.nn.Module, _Prior):
         return stat
 
     @staticmethod
-    def neighbor_list(topology, type) -> None:
+    def neighbor_list(topology: Topology, type: str) -> None:
         assert type in Harmonic._compute_map
         nl = topology.neighbor_list(type)
         return {type: nl}
 
 
 class HarmonicBonds(Harmonic):
-    _name = "bonds"
+    name: Final[str] = "bonds"
     _order = 2
 
     def __init__(self, statistics) -> None:
-        super(HarmonicBonds, self).__init__(statistics, HarmonicBonds._name)
+        super(HarmonicBonds, self).__init__(statistics, HarmonicBonds.name)
 
     @staticmethod
-    def neighbor_list(topology) -> dict:
-        return Harmonic.neighbor_list(topology, HarmonicBonds._name)
+    def neighbor_list(topology: Topology) -> dict:
+        return Harmonic.neighbor_list(topology, HarmonicBonds.name)
 
     @staticmethod
     def compute_features(pos, mapping):
-        return Harmonic.compute_features(pos, mapping, HarmonicBonds._name)
+        return Harmonic.compute_features(pos, mapping, HarmonicBonds.name)
 
 
 class HarmonicAngles(Harmonic):
-    _name = "angles"
+    name: Final[str] = "angles"
     _order = 2
 
     def __init__(self, statistics) -> None:
-        super(HarmonicAngles, self).__init__(statistics, HarmonicAngles._name)
+        super(HarmonicAngles, self).__init__(statistics, HarmonicAngles.name)
 
     @staticmethod
-    def neighbor_list(topology) -> dict:
-        return Harmonic.neighbor_list(topology, HarmonicAngles._name)
+    def neighbor_list(topology: Topology) -> dict:
+        return Harmonic.neighbor_list(topology, HarmonicAngles.name)
 
     @staticmethod
     def compute_features(pos, mapping):
-        return Harmonic.compute_features(pos, mapping, HarmonicAngles._name)
+        return Harmonic.compute_features(pos, mapping, HarmonicAngles.name)
 
 
 class Repulsion(torch.nn.Module, _Prior):
-    _name = "repulsion"
+    name: Final[str] = "repulsion"
     _neighbor_list_name = "fully connected"
 
     def __init__(self, statistics) -> None:
@@ -139,7 +141,7 @@ class Repulsion(torch.nn.Module, _Prior):
         keys = torch.tensor(list(statistics.keys()), dtype=torch.long)
         self.allowed_interaction_keys = list(statistics.keys())
         self.order = 2
-        self.name = self._name
+        self.name = self.name
         unique_types = torch.unique(keys.flatten())
         assert unique_types.min() >= 0
         max_type = unique_types.max()
@@ -147,7 +149,6 @@ class Repulsion(torch.nn.Module, _Prior):
         sigma = torch.zeros(sizes)
         for key in statistics.keys():
             sigma[key] = statistics[key]["sigma"]
-
         self.register_buffer("sigma", sigma)
 
     def data2features(self, data):
@@ -183,9 +184,9 @@ class Repulsion(torch.nn.Module, _Prior):
         return stat
 
     @staticmethod
-    def neighbor_list(topology) -> dict:
+    def neighbor_list(topology: Topology) -> dict:
         return {
-            Repulsion._name: topology.neighbor_list(
+            Repulsion.name: topology.neighbor_list(
                 Repulsion._neighbor_list_name
             )
         }

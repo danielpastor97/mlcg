@@ -1,3 +1,4 @@
+from typing import Dict
 import torch
 import pytest
 import numpy as np
@@ -15,7 +16,7 @@ from mlcg.data.atomic_data import AtomicData
 
 @pytest.fixture
 def ASE_prior_model():
-    def _model_builder(mol: str = "AlF3"):
+    def _model_builder(mol: str = "AlF3") -> Dict:
         """Fixture that returns a simple prior-only model of
         an ASE molecule with HarmonicBonds and HarmonicAngles
         priors whose parameters are estimated from coordinates

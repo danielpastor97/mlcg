@@ -17,8 +17,9 @@ Installation
 Some special installs that are one well handled by requirements.txt:
 
 .. code:: bash
+    conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
 
-    conda install pyg=2.0.2 -c pyg -c conda-forge
+    conda install pyg -c pyg -c conda-forge
 
 .. end-install
 

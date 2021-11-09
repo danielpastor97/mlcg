@@ -1,6 +1,4 @@
 import torch
-import sys
-import os
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.cli import instantiate_class
 from typing import Optional
@@ -31,21 +29,16 @@ class PLModel(pl.LightningModule):
             How many epochs/steps should pass between calls to
             `scheduler.step()`. 1 corresponds to updating the learning
             rate after every epoch/step.
-        scheduler_interval:
-            The unit of the scheduler's step size, could also be 'step'.
-            'epoch' updates the scheduler on epoch end whereas 'step'
-            updates it after a optimizer update.
     """
 
     def __init__(
         self,
         model: torch.nn.Module,
         loss: Loss,
-        optimizer: dict = None,
-        lr_scheduler: dict = None,
-        monitor: Optional[str] = None,
+        optimizer: Optional[dict] = None,
+        lr_scheduler: Optional[dict] = None,
+        monitor: str = "validation_loss",
         step_frequency: int = 1,
-        scheduler_interval: str = "epoch",
     ) -> None:
         """ """
 
@@ -58,7 +51,6 @@ class PLModel(pl.LightningModule):
         self.optimizer = optimizer
         self.monitor = monitor
         self.step_frequency = step_frequency
-        self.scheduler_interval = scheduler_interval
 
         self.derivative = False
         for module in self.modules():
@@ -66,7 +58,9 @@ class PLModel(pl.LightningModule):
                 self.derivative = True
 
     def configure_optimizers(self) -> dict:
-        optimizer = instantiate_class(self.model.parameters(), self.optimizer)
+        optimizer = instantiate_class(
+            self.model.parameters(), init=self.optimizer
+        )
         scheduler = instantiate_class(optimizer, self.lr_scheduler)
         if self.monitor is None:
             {"optimizer": optimizer, "lr_scheduler": scheduler}
@@ -108,5 +102,5 @@ class PLModel(pl.LightningModule):
 
         return loss
 
-    def get_model(self):
+    def get_model(self) -> torch.nn.Module:
         return deepcopy(self.model)

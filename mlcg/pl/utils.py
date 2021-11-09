@@ -29,24 +29,33 @@ def merge_priors_and_checkpoint(
     checkpoint_path :
         full path to the checkpoint file
     priors :
-        If :obj:`torch.nn.ModuleDict`, it should be the collection of priors used as a baseline for training the ML model.
-        If :obj:`str`, it should be a full path to the file hoding the priors.
+        If :obj:`torch.nn.ModuleDict`, it should be the collection of priors
+        used as a baseline for training the ML model. If :obj:`str`, it should
+        be a full path to the file holding the priors.
     hparams_file :
-        full path to the hyper parameter file associated with the checkpoint file. It is typically not necessary to provide it.
+        full path to the hyper parameter file associated with the checkpoint file.
+        It is typically not necessary to provide it.
 
     Returns
     -------
-        a :ref:`mlcg.nn.SumOut` module containing the trained model with the priors
+        model :ref:`mlcg.nn.SumOut` module containing the trained model with
+        the priors
     """
 
+    # merged_model should be a ModuleDict
+    merged_model = torch.nn.ModuleDict()
     ml_model = extract_model_from_checkpoint(checkpoint_path, hparams_file)
+    merged_model[ml_model.name] = ml_model
+
     if isinstance(priors, str):
         prior_model = torch.load(priors)
     else:
         prior_model = priors
-    # prior_model should be a ModuleDict
-    prior_model[ml_model.name] = ml_model
-    model = SumOut(models=prior_model)
+
+    for key in prior_model.keys():
+        merged_model[key] = prior_model[key]
+
+    model = SumOut(models=merged_model)
     return model
 
 
