@@ -8,6 +8,7 @@ from ..geometry.topology import Topology
 from ..geometry.internal_coordinates import compute_distances, compute_angles
 from ..data.atomic_data import AtomicData
 
+
 class _Prior(object):
     """Abstract prior class"""
 

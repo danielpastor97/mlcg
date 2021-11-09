@@ -57,7 +57,7 @@ class Loss(torch.nn.Module):
 
 
 class ForceRMSE(_Loss):
-    """Force root-mean-square error loss, as defined by:
+    r"""Force root-mean-square error loss, as defined by:
 
     ..math::
 
@@ -101,6 +101,7 @@ class ForceRMSE(_Loss):
         ----------
         data:
             AtomicData instance containing the force keyword in the 'out' field
+            as well as a base attribute
 
         Returns
         -------
