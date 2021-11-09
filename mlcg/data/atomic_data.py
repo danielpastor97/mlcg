@@ -73,6 +73,7 @@ class AtomicData(Data):
             ), f"number of atoms {torch.sum(self.n_atoms)} and number of positions {self.pos.shape[0]}"
 
             assert self.pos.shape[1] == 3
+        if "masses" in self and "pos" in self:
             assert len(self.masses) == self.pos.shape[0]
 
         if CELL_KEY in self and self.cell is not None:
