@@ -36,6 +36,29 @@ data.out[FORCE_KEY] = simple_prediction
             data,
             torch.sqrt(((data[FORCE_KEY] - data.out[FORCE_KEY]) ** 2).mean()),
         ),
+        (
+            ForceRMSE,
+            [],
+            {"reduction": "sum"},
+            data,
+            torch.sqrt(((data[FORCE_KEY] - data.out[FORCE_KEY]) ** 2).sum()),
+        ),
+        (
+            Loss,
+            [[ForceRMSE(), ForceRMSE()]],
+            {},
+            data,
+            2
+            * torch.sqrt(((data[FORCE_KEY] - data.out[FORCE_KEY]) ** 2).mean()),
+        ),
+        (
+            Loss,
+            [[ForceRMSE(), ForceRMSE()]],
+            {"weights": [1.2, 0.5]},
+            data,
+            1.7
+            * torch.sqrt(((data[FORCE_KEY] - data.out[FORCE_KEY]) ** 2).mean()),
+        ),
     ],
 )
 def test_generalized_loss(
