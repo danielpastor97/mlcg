@@ -8,6 +8,7 @@ from ..nn.prior import Dihedral, Harmonic, _Prior
 from ..utils import tensor2tuple
 from ._symmetrize import _symmetrise_map, _flip_map
 
+
 def _get_all_unique_keys(
     unique_types: torch.tensor, order: int
 ) -> torch.tensor:

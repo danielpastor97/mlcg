@@ -1,6 +1,19 @@
 import torch
 
 
+def _symmetrise_distance_interaction(
+    unique_interaction_types: torch.tensor,
+) -> torch.tensor:
+    """Distance based interactions are symmetric w.r.t. the direction hence
+    the need for only considering interactions (a,b) with a < b.
+    """
+    mask = unique_interaction_types[0] > unique_interaction_types[1]
+    ee = unique_interaction_types[0, mask]
+    unique_interaction_types[0, mask] = unique_interaction_types[1, mask]
+    unique_interaction_types[1, mask] = ee
+    return unique_interaction_types
+
+
 def _symmetrise_angle_interaction(
     unique_interaction_types: torch.tensor,
 ) -> torch.tensor:
@@ -22,25 +35,39 @@ def _symmetrise_angle_interaction(
     return unique_interaction_types
 
 
-def _symmetrise_distance_interaction(
+def _symmetrise_dihedral_interaction(
     unique_interaction_types: torch.tensor,
 ) -> torch.tensor:
-    """Distance based interactions are symmetric w.r.t. the direction hence
-    the need for only considering interactions (a,b) with a < b.
+    """For dihedrals defined as::
+      2---3---4
+     /
+    1
+    atoms [(1,2,3,4) and (4,3,2,1)] can be exchanged without changing the dihedral
+    so the resulting interaction is symmetric w.r.t such transformations.
+    Hence the need for only considering interactions (a,b,c,d) with a < d.
     """
-    mask = unique_interaction_types[0] > unique_interaction_types[1]
-    ee = unique_interaction_types[0, mask]
-    unique_interaction_types[0, mask] = unique_interaction_types[1, mask]
-    unique_interaction_types[1, mask] = ee
+    mask = unique_interaction_types[0] > unique_interaction_types[3]
+    ee0 = unique_interaction_types[0, mask]
+    ee1 = unique_interaction_types[1, mask]
+    ee2 = unique_interaction_types[2, mask]
+    ee3 = unique_interaction_types[3, mask]
+    unique_interaction_types[0, mask] = ee3
+    unique_interaction_types[1, mask] = ee2
+    unique_interaction_types[2, mask] = ee1
+    unique_interaction_types[3, mask] = ee0
     return unique_interaction_types
 
 
 _symmetrise_map = {
     2: _symmetrise_distance_interaction,
     3: _symmetrise_angle_interaction,
+    4: _symmetrise_dihedral_interaction,
 }
 
 _flip_map = {
     2: lambda tup: torch.tensor([tup[1], tup[0]], dtype=torch.long),
     3: lambda tup: torch.tensor([tup[2], tup[1], tup[0]], dtype=torch.long),
+    4: lambda tup: torch.tensor(
+        [tup[3], tup[2], tup[1], tup[0]], dtype=torch.long
+    ),
 }
