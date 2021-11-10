@@ -16,9 +16,7 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         layers = []
         for w_in, w_out in zip(layer_widths[:-2], layer_widths[1:-1]):
-            layers.append(
-                nn.Linear(w_in, w_out, bias=True, dtype=torch.float64)
-            )
+            layers.append(nn.Linear(w_in, w_out, bias=True))
             layers.append(activation_func)
         # last layer without activation function and bias
         layers.append(
@@ -26,7 +24,6 @@ class MLP(nn.Module):
                 layer_widths[-2],
                 layer_widths[-1],
                 bias=False,
-                dtype=torch.float64,
             )
         )
 
