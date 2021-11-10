@@ -1,0 +1,35 @@
+# simulation:
+#   class_path: mlcg.simulation.LangevinSimulation
+#   init_args:
+#     friction: 1e-3
+#     n_timesteps: 500
+#     dt: 5e-3
+#     beta: 1.0
+#     save_forces: false
+#     save_energies: false
+#     save_interval: 10
+#     random_seed: 103838
+#     device: cpu
+#     export_interval: 50
+#     log_interval: 10
+#     log_type: write
+#     filename: cln_model
+# model_file: SOME_PATH
+# structure_file: SOME_PATH
+
+simulation:
+  friction: 1e-3
+  n_timesteps: 500
+  dt: 5e-3
+  beta: 1.0
+  save_forces: false
+  save_energies: false
+  save_interval: 10
+  random_seed: 103838
+  device: cpu
+  export_interval: 50
+  log_interval: 10
+  log_type: write
+  filename: cln_model
+model_file: SOME_PATH
+structure_file: SOME_PATH
