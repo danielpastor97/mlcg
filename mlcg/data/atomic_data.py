@@ -22,14 +22,14 @@ class AtomicData(Data):
     """A data object holding atomic structures.
     The attribute names are defined in :py:data:`mlcg.data._keys`
 
-    Attributes
-    ----------
+    Attributes (collated)
+    ---------------------
 
-    pos: [n_atoms, 3]
+    pos: [n_atoms * n_structures, 3]
         set of atomic positions in each structures
-    atom_types: [n_atoms]
+    atom_types: [n_atoms * n_structures]
         if atoms then it's the atomic number, if it's a CG bead then it's a number defined by the CG mapping
-    masses: [n_atoms]
+    masses: [n_atoms * n_structures]
         Masses of each atom
     pbc: [n_structures, 3] (Optional)
         periodic boundary conditions
@@ -39,18 +39,15 @@ class AtomicData(Data):
         metadata about each structure
     energy: [n_structures] (Optional)
         reference energy associated with each structures
-    forces: [n_atoms, 3] (Optional)
+    forces: [n_atoms * n_structures, 3] (Optional)
         reference forces associated with each structures
-    velocities: [n_atoms, 3] (optional)
+    velocities: [n_atoms * n_structures, 3] (optional)
         velocities associated with each structure
     neighborlist: Dict[str, Dict[str, Any]] (Optional)
         contains information about the connectivity formatted according to
         :ref:`mlcg.neighbor_list.neighbor_list.make_neighbor_list`.
     batch: [n_atoms]
         maps the atoms to their structure index (from 0 to n_structures-1)
-
-
-
     """
 
     def __init__(
@@ -96,6 +93,7 @@ class AtomicData(Data):
             assert self.pbc.dtype == torch.bool
 
     def __inc__(self, key: str, value: Any, *args, **kwargs) -> Any:
+        """Method for incrementing nested values during collation"""
         if "index" in key or "face" in key:
             return self.num_nodes
         elif "mapping_batch" == key:
@@ -109,7 +107,26 @@ class AtomicData(Data):
         energy_tag: str = ENERGY_KEY,
         force_tag: str = FORCE_KEY,
     ):
-        """TODO add doc"""
+        r"""Method for constructing an AtomicData instance from
+        an ASE Atoms instance. Atom types are taken from atomic
+        numbers, while periodic flags, masses, cell vectors, and
+        configuration tags are taken from the ASE Atoms attributes.
+
+        Parameters
+        ----------
+        frame:
+            Input ase.atom.Atoms instance
+        energy_tag:
+            String value used to access the ASE energy
+        force_tag:
+            String value used to access the ASE forces
+
+        Returns
+        -------
+        data:
+            Populated AtomicData instance
+        """
+
         z = torch.from_numpy(frame.get_atomic_numbers())
         pos = torch.from_numpy(frame.get_positions())
         masses = torch.from_numpy(frame.get_masses())
@@ -146,7 +163,41 @@ class AtomicData(Data):
         neighborlist: Optional[Dict[str, Dict[str, Any]]] = None,
         **kwargs,
     ):
-        """TODO add doc"""
+        r"""Method for constructing an AtomicData instance directly
+        from input tensors
+
+        Parameters
+        ----------
+        pos:
+            Cartesian coordinates of a single configuration, of shape
+            (n_atoms, 3)
+        atom_types:
+            Atom type labels of shape (n_atoms)
+        masses:
+            Atom masses of shape (n_atoms)
+        pbc:
+            Period boundary condition flags for the frame
+        cell:
+            Box vectors for the configuration, for computing periodic
+            images, of shape (3,3)
+        tag:
+            String tag for the configuration
+        energy:
+            Reference scalar energy for the configuration
+        forces:
+            Reference cartesian forces for the configuration, of
+            shape (n_atoms, 3)
+        velocities:
+            Atomic velocities, of shape (n_atoms, 3)
+        neighborlist:
+            Neighborlist dictionary for tagged features. Eg,
+
+        Returns
+        -------
+        data:
+            Populated AtomicData instance
+        """
+
         data = {}
         data.update(**kwargs)
         data[ATOM_TYPE_KEY] = torch.as_tensor(atom_types)
