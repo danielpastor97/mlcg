@@ -4,6 +4,7 @@ from torch_geometric.data import Data
 from torch_cluster import radius, radius_graph
 from ..data.atomic_data import AtomicData
 
+
 def torch_neighbor_list(
     data: Data,
     rcut: float,

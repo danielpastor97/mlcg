@@ -22,7 +22,6 @@ from ._symmetrize import (
 )
 
 
-
 class Atom(NamedTuple):
     """Define an atom
 
