@@ -103,7 +103,7 @@ class GradientsOut(torch.nn.Module):
 
     Example
     -------
-        To preduct forces from an energy model, one woule supply a model that
+        To predict forces from an energy model, one would supply a model that
         predicts a scalar atom property (an energy) and specify the FORCE_KEY
         in the targets.
     """

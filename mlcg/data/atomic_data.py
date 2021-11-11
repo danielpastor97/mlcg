@@ -22,8 +22,8 @@ class AtomicData(Data):
     """A data object holding atomic structures.
     The attribute names are defined in :py:data:`mlcg.data._keys`
 
-    Attributes (collated)
-    ---------------------
+    Attributes
+    ----------
 
     pos: [n_atoms * n_structures, 3]
         set of atomic positions in each structures

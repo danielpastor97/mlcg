@@ -184,7 +184,7 @@ class SchNet(nn.Module):
 
 
 class InteractionBlock(nn.Module):
-    r"""Interaction blocks for SchNet. Consists of atomwise
+    r"""Interaction blocks for `SchNet`. Consists of atomwise
     transformations of embedded features that are continuously
     convolved with filters generated from radial basis function-expanded
     pairwise distances.
@@ -254,7 +254,7 @@ class InteractionBlock(nn.Module):
 
 
 class CFConv(MessagePassing):
-    r"""Forward pass through the interaction block.
+    r"""Continuous filter convolutions for `SchNet`.
 
     Parameters
     ----------
@@ -358,7 +358,7 @@ class CFConv(MessagePassing):
 
 
 class StandardSchNet(SchNet):
-    """Small wrapper class for :ref:`SchNet` to simplify the definition of the
+    """Small wrapper class for `SchNet` to simplify the definition of the
     SchNet model through an input file.
 
     Parameters

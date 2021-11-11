@@ -23,7 +23,7 @@ def build_cg_matrix(
     cg_mapping:
         Mapping dictionary with the following structure:
 
-        ..code_block::python
+        .. code_block:: python
 
             {
                 (residue name, atom name) : (compound name, type, mass)
@@ -32,7 +32,7 @@ def build_cg_matrix(
 
         Eg, a row for an alanine carbon alpha atom would be:
 
-        ..code-block::python
+        .. code-block:: python
 
             {
                 ("ALA", "CA") : ("CA_A", 1, 12)

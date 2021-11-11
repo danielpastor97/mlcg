@@ -19,7 +19,7 @@ class _Prior(object):
 class Harmonic(torch.nn.Module, _Prior):
     r"""1-D Harmonic prior interaction for feature :math:`x` of the form:
 
-    ..math::
+    .. math::
 
         U_{\text{Harmonic}}(x) = \frac{k}{2}\left( x - x_0 \right)^2
 
@@ -227,9 +227,9 @@ class HarmonicAngles(Harmonic):
 class Repulsion(torch.nn.Module, _Prior):
     """1-D power law repulsion prior for feature :math:`x` of the form:
 
-    ..math::
+    .. math::
 
-        U_{\text{Repulsion}}(x) = \left( \frac{\sigma}{x}\right)^6
+        U_(x) = \left( \frac{\sigma}{x} \right)^6
 
     where :math:`\sigma` is the excluded volume.
     """

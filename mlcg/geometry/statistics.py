@@ -120,19 +120,18 @@ def compute_statistics(
         the `TargetPrior`. The following key/value pairs are common across all `TargetPrior`
         choices:
 
+        .. code-block:: python
+
             (*specific_types) : {
                 "p" : torch.tensor of shape [n_bins], containing the normalized bin counts
                     of the of the 1-D feature corresponding to the atom_type group
                     (*specific_types) = (specific_types[0], specific_types[1], ...)
-                "p_bin: : torch.tensor of shape [n_bins] containing the bin center values
+                "p_bin": : torch.tensor of shape [n_bins] containing the bin center values
                 "V" : torch.tensor of shape [n_bins], containing the emperically estimated
-                    free energy curve according to a directly Boltzmann inversion:
-
-                        .. math::
-
-                            V = -\frac{1}{\beta}\log{\left( p \right)}
-
+                    free energy curve according to a direct Boltzmann inversion of the
+                    normalized probability distribution for the feature.
                 "V_bin" : torch_tensor of shape [n_bins], containing the bin center values
+            }
 
         Other sub-key/value pairs apart from those enumerated above, may appear depending
         on the chosen `TargetPrior`. For example, if `TargetPrior` is `HarmonicBonds`, there
@@ -140,39 +139,40 @@ def compute_statistics(
 
     Example
     -------
-    ```
-    my_data = AtomicData(
-        out={},
-        pos=[769600, 3],
-        atom_types=[769600],
-        n_atoms=[20800],
-        neighbor_list={
-            bonds={
-              tag=[20800],
-              order=[20800],
-              index_mapping=[2, 748800],
-              cell_shifts=[20800],
-              rcut=[20800],
-              self_interaction=[20800]
-            },
-            angles={
-              tag=[20800],
-              order=[20800],
-              index_mapping=[3, 977600],
-              cell_shifts=[20800],
-              rcut=[20800],
-              self_interaction=[20800]
-            }
-        },
-        batch=[769600],
-        ptr=[20801]
-    )
 
-    angle_stats = bond_stats = compute_statistics(my_data,
-         'bonds', beta=beta,
-         TargetPrior=HarmonicBonds
-    )
-    ```
+    .. code-block:: python
+
+        my_data = AtomicData(
+            out={},
+            pos=[769600, 3],
+            atom_types=[769600],
+            n_atoms=[20800],
+            neighbor_list={
+                bonds={
+                  tag=[20800],
+                  order=[20800],
+                  index_mapping=[2, 748800],
+                  cell_shifts=[20800],
+                  rcut=[20800],
+                  self_interaction=[20800]
+                },
+                angles={
+                  tag=[20800],
+                  order=[20800],
+                  index_mapping=[3, 977600],
+                  cell_shifts=[20800],
+                  rcut=[20800],
+                  self_interaction=[20800]
+                }
+            },
+            batch=[769600],
+            ptr=[20801]
+        )
+
+        angle_stats = bond_stats = compute_statistics(my_data,
+             'bonds', beta=beta,
+             TargetPrior=HarmonicBonds
+        )
 
     """
 

@@ -22,6 +22,7 @@ from ._symmetrize import (
 )
 
 
+
 class Atom(NamedTuple):
     """Define an atom
 
@@ -401,7 +402,7 @@ class Topology(object):
 
 def get_connectivity_matrix(
     topology: Topology, directed: bool = False
-) -> torch.tensor:
+) -> torch.Tensor:
     """Produces a full connectivity matrix from the graph structure
     implied by Topology.bonds
 
@@ -470,7 +471,7 @@ def add_chain_angles(topology: Topology) -> None:
 
 def get_n_pairs(
     connectivity_matrix: torch.Tensor, n: int = 3, unique: bool = True
-) -> torch.tensor:
+) -> torch.Tensor:
     """This function uses networkx to identify those pairs
     that are exactly n atoms away. Paths are found using Dijkstra's algorithm.
 
@@ -509,7 +510,7 @@ def get_n_pairs(
     return pairs
 
 
-def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
+def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.Tensor:
     """This function use networkx to grab all connected paths defined
     by n connecting edges. Paths are found using Dijkstra's algorithm.
 

@@ -256,15 +256,15 @@ def wrap_positions(data: Data, eps=1e-7) -> None:
     Returns positions changed by a multiple of the unit cell vectors to
     fit inside the space spanned by these vectors.
 
-    Parameters:
-
+    Parameters
+    ----------
     data:
         torch_geometric.Data instance
     eps: float
         Small number to prevent slightly negative coordinates from being
         wrapped.
-
     """
+
     center = torch.tensor((0.5, 0.5, 0.5)).view(1, 3)
     assert (
         data.n_atoms.shape[0] == 1

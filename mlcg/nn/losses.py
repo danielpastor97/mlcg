@@ -59,9 +59,9 @@ class Loss(torch.nn.Module):
 class ForceRMSE(_Loss):
     r"""Force root-mean-square error loss, as defined by:
 
-    ..math::
+    .. math::
 
-        L\left(f,\hat{f}\right) = \sqrt{ \frac{1}{Nd}\sum_{i}^{N} \left\Vert f_N - \hat{f}_N \right\Vert ^2 }
+        L\left(f,\hat{f}\right) = \sqrt{ \frac{1}{Nd}\sum_{i}^{N} \left\Vert f_i - \hat{f}_i \right\Vert ^2 }
 
     where :math:`f` are predicted forces, :math:`\hat{f}` are reference forces, :math:`N` is
     the number of examples/structures, and :math:`d` is the real space dimensionality

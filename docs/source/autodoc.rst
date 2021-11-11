@@ -17,7 +17,7 @@ TODO: describe the data structure and its use.
    :members:
 
 
-Coarse graining utilities
+Coarse Graining Utilities
 -------------------------
 
 TODO: document the CG mapping format.
