@@ -1,9 +1,8 @@
+from typing import Tuple, Optional
 import torch
 from torch_geometric.data import Data
 from torch_cluster import radius, radius_graph
-
-from typing import Tuple
-
+from ..data.atomic_data import AtomicData
 
 def torch_neighbor_list(
     data: Data,
@@ -157,9 +156,40 @@ def strides_of(v: torch.Tensor) -> torch.Tensor:
 
 
 def torch_neighbor_list_no_pbc(
-    data, rcut, self_interaction=True, num_workers=1, max_num_neighbors=1000
-):
-    """TODO: add docs"""
+    data: AtomicData,
+    rcut: float,
+    self_interaction: Optional[bool] = True,
+    num_workers: Optional[int] = 1,
+    max_num_neighbors: Optional[int] = 1000,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Function for producing torch neighborlists without periodic boundary
+    conditions
+
+    Parameters
+    ----------
+    data:
+        AtomicData instance
+    rcut:
+        Upper distance cutoff for determining neighbor edges
+    self_interaction:
+        If True, self edges will added for each atom
+    num_workers:
+        Number of threads to use for neighbor enumeration
+    max_num_neighbors:
+        The maximum number of neighbors to return for each atom. For larger
+        systems, it is important to make sure that this number is sufficiently
+        large.
+
+    Returns
+    -------
+    edges_i:
+        The first atoms in each edge
+    edges_j:
+        The second atoms in each edge
+    self_interaction_mask:
+        Boolean tensor identifying self_interacting edges
+    """
+
     if "batch" not in data:
         batch = torch.zeros(
             data.pos.shape[0], dtype=torch.long, device=data.pos.device
@@ -203,9 +233,41 @@ def get_j_idx(
 
 
 def torch_neighbor_list_pbc(
-    data, rcut, self_interaction=True, num_workers=1, max_num_neighbors=1000
-):
-    """TODO: add docs"""
+    data: AtomicData,
+    rcut: float,
+    self_interaction: Optional[bool] = True,
+    num_workers: Optional[int] = 1,
+    max_num_neighbors: Optional[int] = 1000,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Function for returning torch neighborlists from AtomicData instances
+    with periodic boundary conditions. The minimum image convention is used
+    for resolving periodic shifts.
+
+    Parameters
+    ----------
+    data:
+        AtomicData instance
+    rcut:
+        Upper distance cutoff for determining neighbor edges
+    self_interaction:
+        If True, self edges will added for each atom
+    num_workers:
+        Number of threads to use for neighbor enumeration
+    max_num_neighbors:
+        The maximum number of neighbors to return for each atom. For larger
+        systems, it is important to make sure that this number is sufficiently
+        large.
+
+    Returns
+    -------
+    edges_i:
+        The first atoms in each edge
+    edges_j:
+        The second atoms in each edge
+    self_interaction_mask:
+        Boolean tensor identifying self_interacting edges
+    """
+
     if "batch" not in data:
         batch_y = torch.zeros(
             data.pos.shape[0], dtype=torch.long, device=data.pos.device
