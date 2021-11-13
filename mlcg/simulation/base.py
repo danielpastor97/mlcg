@@ -105,7 +105,9 @@ class _Simulation(object):
         if random_seed is None:
             self.rng = None
         else:
-            self.rng = torch.Generator(device=self.device).manual_seed(random_seed)
+            self.rng = torch.Generator(device=self.device).manual_seed(
+                random_seed
+            )
         self.random_seed = random_seed
         self._simulated = False
 
