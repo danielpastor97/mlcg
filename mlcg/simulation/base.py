@@ -103,9 +103,9 @@ class _Simulation(object):
         self.input_option_checks()
 
         if random_seed is None:
-            self.rng = torch.default_generator
+            self.rng = None
         else:
-            self.rng = torch.Generator().manual_seed(random_seed)
+            self.rng = torch.Generator(device=self.device).manual_seed(random_seed)
         self.random_seed = random_seed
         self._simulated = False
 
@@ -152,6 +152,7 @@ class _Simulation(object):
         """
         self._set_up_simulation(overwrite)
         data = deepcopy(self.initial_data)
+        data.to(self.device)
         _, forces = self.calculate_potential_and_forces(data)
         for t in tqdm(range(self.n_timesteps), desc="Simulation timestep"):
             # step forward in time
