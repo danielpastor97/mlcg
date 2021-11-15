@@ -1,4 +1,4 @@
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Tuple
 import torch
 from jsonargparse import (
     ActionConfigFile,
@@ -7,19 +7,37 @@ from jsonargparse import (
 )
 
 from .base import _Simulation
-
+from ..data import AtomicData
 
 def parse_simulation_config(
     simulation_class,
     description: str = "Simulation command line tool",
     parser_kwargs: Dict[str, Any] = None,
-):
+    subclass_mode: bool = False,
+) -> Tuple[torch.nn.Module, List[AtomicData], _Simulation]:
+    """Utility to parse a configuration file for run MD simulations with the
+    classes defined in library.
 
+    Parameters
+    ----------
+    simulation_class :
+        a child class of _Simulation
+    description : str, optional
+        cli description, by default "Simulation command line tool"
+    parser_kwargs : Dict[str, Any], optional
+        more arguments to the parser, by default None
+    subclass_mode: bool, optional
+        Whether allow any subclass of the given class. So if true,
+        one could provide `_Simulation` as input here but define `LangevinSimulation` in the input file, e.g. `{"simulation":"class_path": "mlcg.simulation.LangevinSimulation", "init_args": {.....}}`.
+    Returns
+    -------
+    model, atomic_data_list, simulation_obj
+    """
     parser_kwargs = {} if parser_kwargs is None else parser_kwargs
     parser_kwargs.update({"description": description})
     parser = SimulationParser(**parser_kwargs)
     parser.add_simulation_args(
-        simulation_class, "simulation", subclass_mode=False
+        simulation_class, "simulation", subclass_mode=subclass_mode
     )
     parser.add_argument(
         "-mf",
@@ -50,7 +68,7 @@ def parse_simulation_config(
     return model, initial_data_list, simulation
 
 
-class MisconfigurationException(Exception):
+class ConfigurationException(Exception):
     """
     Exception used to inform users
     """
@@ -97,7 +115,8 @@ class SimulationParser(ArgumentParser):
         nested_key:
             Name of the nested namespace to store arguments.
         subclass_mode:
-            Whether allow any subclass of the given class.
+            Whether allow any subclass of the given class. So if true,
+            one could provide `_Simulation` as input here but define `LangevinSimulation` in the input file, e.g. `{"simulation":"class_path": "mlcg.simulation.LangevinSimulation", "init_args": {.....}}`.
         """
         if callable(simulation_class) and not isinstance(
             simulation_class, type
@@ -121,7 +140,7 @@ class SimulationParser(ArgumentParser):
                 instantiate=True,
                 sub_configs=True,
             )
-        raise MisconfigurationException(
+        raise ConfigurationException(
             f"Cannot add arguments from: {simulation_class}. You should provide either a callable or a subclass of: "
             "Trainer, LightningModule, LightningDataModule, or Callback."
         )
