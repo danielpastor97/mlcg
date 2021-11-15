@@ -9,6 +9,7 @@ from jsonargparse import (
 from .base import _Simulation
 from ..data import AtomicData
 
+
 def parse_simulation_config(
     simulation_class,
     description: str = "Simulation command line tool",
