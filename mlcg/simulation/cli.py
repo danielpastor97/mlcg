@@ -5,6 +5,7 @@ from jsonargparse import (
     ArgumentParser,
     class_from_function,
 )
+from jsonargparse.typing import Path_fr
 
 from .base import _Simulation
 from ..data import AtomicData
@@ -44,7 +45,7 @@ def parse_simulation_config(
         "-mf",
         "--model_file",
         metavar="FN",
-        type=str,
+        type=Path_fr,
         help="path to the pytorch model file (including the priors) in pytorch format",
     )
 
@@ -52,7 +53,7 @@ def parse_simulation_config(
         "-sf",
         "--structure_file",
         metavar="FN",
-        type=str,
+        type=Path_fr,
         help="path to the starting configurations in pytorch format",
     )
 
