@@ -11,7 +11,7 @@ from mlcg.data.atomic_data import AtomicData
 from mlcg.data._keys import ENERGY_KEY, FORCE_KEY
 from ase.build import molecule
 
-standard_basis = GaussianBasis()
+standard_basis = GaussianBasis(cutoff=5)
 standard_cutoff = IdentityCutoff(cutoff_lower=0, cutoff_upper=5)
 
 # prepare some data with ASE
@@ -76,8 +76,8 @@ energy_shape = torch.Size([len(test_molecules)])
 @pytest.mark.parametrize(
     "basis, cutoff, expected_warning",
     [
-        (GaussianBasis(0, 5), CosineCutoff(0, 5), None),
-        (GaussianBasis(1, 5), CosineCutoff(0, 5), UserWarning),
+        (GaussianBasis(IdentityCutoff(0, 5)), CosineCutoff(0, 5), None),
+        (GaussianBasis(IdentityCutoff(1, 5)), CosineCutoff(0, 5), UserWarning),
     ],
 )
 def test_cutoff_warning(basis, cutoff, expected_warning):

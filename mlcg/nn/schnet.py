@@ -1,7 +1,6 @@
 import warnings
 from typing import Optional, List, Final
 import torch
-from torch import nn
 from torch_geometric.nn import MessagePassing
 from torch_scatter import scatter
 from ..neighbor_list.neighbor_list import (
@@ -13,7 +12,7 @@ from ..geometry.internal_coordinates import compute_distances
 from .mlp import MLP
 
 
-class SchNet(nn.Module):
+class SchNet(torch.nn.Module):
     r"""PyTorch Geometric implementation of SchNet
     Code adapted from `[PT_geom_schnet]_`  which is based on the architecture
     described in [Schnet]_ .
@@ -25,7 +24,7 @@ class SchNet(nn.Module):
     embedding_layer:
         Initial embedding layer that transforms atoms/coarse grain bead
         types into embedded features
-    interaction_blocks: list of torch.nn.Module or torch.nn.Sequential
+    interaction_blocks: list of torch.torch.nn.Module or torch.torch.nn.Sequential
         Sequential interaction blocks of the model, where each interaction
         block applies
     rbf_layer:
@@ -52,11 +51,10 @@ class SchNet(nn.Module):
 
     def __init__(
         self,
-        embedding_layer: nn.Module,
-        interaction_blocks: List[nn.Module],
-        rbf_layer: nn.Module,
-        output_network: nn.Module,
-        upper_distance_cutoff: float = 5,
+        embedding_layer: torch.nn.Module,
+        interaction_blocks: List[torch.nn.Module],
+        rbf_layer: torch.nn.Module,
+        output_network: torch.nn.Module,
         self_interaction: bool = False,
         max_num_neighbors: int = 1000,
     ):
@@ -66,13 +64,12 @@ class SchNet(nn.Module):
         self.embedding_layer = embedding_layer
         self.rbf_layer = rbf_layer
         self.max_num_neighbors = max_num_neighbors
-        self.upper_distance_cutoff = upper_distance_cutoff
         self.self_interaction = self_interaction
 
         if isinstance(interaction_blocks, List):
-            self.interaction_blocks = nn.Sequential(*interaction_blocks)
+            self.interaction_blocks = torch.nn.Sequential(*interaction_blocks)
         elif isinstance(interaction_blocks, InteractionBlock):
-            self.interaction_blocks = nn.Sequential(interaction_blocks)
+            self.interaction_blocks = torch.nn.Sequential(interaction_blocks)
         else:
             raise RuntimeError(
                 "interaction_blocks must be a single InteractionBlock or "
@@ -84,15 +81,15 @@ class SchNet(nn.Module):
     def reset_parameters(self):
         """Method for resetting linear layers in each SchNet component"""
         for layer in self.embedding_layer:
-            if isinstance(layer, nn.Linear):
-                nn.init.xavier_uniform_(layer.weight)
+            if isinstance(layer, torch.nn.Linear):
+                torch.nn.init.xavier_uniform_(layer.weight)
                 layer.bias.fill_(0)
         self.rbf_layer.reset_parameters()
         for block in self.interaction_blocks:
             block.reset_parameters()
         for layer in self.output_network:
-            if isinstance(layer, nn.Linear):
-                nn.init.xavier_uniform_(layer.weight)
+            if isinstance(layer, torch.nn.Linear):
+                torch.nn.init.xavier_uniform_(layer.weight)
                 layer.bias.fill_(0)
 
     def forward(self, data: AtomicData) -> AtomicData:
@@ -117,7 +114,7 @@ class SchNet(nn.Module):
 
         if not self.is_nl_compatible(neighbor_list):
             neighbor_list = self.neighbor_list(
-                data, self.upper_distance_cutoff, self.max_num_neighbors
+                data, self.rbf_layer.cutoff.cutoff_upper, self.max_num_neighbors
             )[self.name]
         edge_index = neighbor_list["index_mapping"]
         distances = compute_distances(
@@ -164,7 +161,7 @@ class SchNet(nn.Module):
         }
 
 
-class InteractionBlock(nn.Module):
+class InteractionBlock(torch.nn.Module):
     r"""Interaction blocks for SchNet. Consists of atomwise
     transformations of embedded features that are continuously
     convolved with filters generated from radial basis function-expanded
@@ -183,20 +180,20 @@ class InteractionBlock(nn.Module):
 
     def __init__(
         self,
-        cfconv_layer: nn.Module,
+        cfconv_layer: torch.nn.Module,
         hidden_channels: int = 128,
-        activation: type = nn.Tanh,
+        activation: type = torch.nn.Tanh,
     ):
         super(InteractionBlock, self).__init__()
         self.conv = cfconv_layer
         self.activation = activation
-        self.lin = nn.Linear(hidden_channels, hidden_channels)
+        self.lin = torch.nn.Linear(hidden_channels, hidden_channels)
 
         self.reset_parameters()
 
     def reset_parameters(self):
         self.conv.reset_parameters()
-        nn.init.xavier_uniform_(self.lin.weight)
+        torch.nn.init.xavier_uniform_(self.lin.weight)
         self.lin.bias.data.fill_(0)
 
     def forward(
@@ -256,16 +253,16 @@ class CFConv(MessagePassing):
 
     def __init__(
         self,
-        filter_network: nn.Module,
-        cutoff: nn.Module,
+        filter_network: torch.nn.Module,
+        cutoff: torch.nn.Module,
         in_channels: int = 128,
         out_channels: int = 128,
         num_filters: int = 128,
         aggr: str = "add",
     ):
         super(CFConv, self).__init__(aggr=aggr)
-        self.lin1 = nn.Linear(in_channels, num_filters, bias=False)
-        self.lin2 = nn.Linear(num_filters, out_channels)
+        self.lin1 = torch.nn.Linear(in_channels, num_filters, bias=False)
+        self.lin2 = torch.nn.Linear(num_filters, out_channels)
         self.filter_network = filter_network
         self.cutoff = cutoff
 
@@ -277,8 +274,8 @@ class CFConv(MessagePassing):
         are set to 0.
         """
 
-        nn.init.xavier_uniform_(self.lin1.weight)
-        nn.init.xavier_uniform_(self.lin2.weight)
+        torch.nn.init.xavier_uniform_(self.lin1.weight)
+        torch.nn.init.xavier_uniform_(self.lin2.weight)
         self.lin2.bias.data.fill_(0)
 
     def forward(
@@ -377,14 +374,14 @@ class StandardSchNet(SchNet):
 
     def __init__(
         self,
-        rbf_layer: nn.Module,
-        cutoff: nn.Module,
+        rbf_layer: torch.nn.Module,
+        cutoff: torch.nn.Module,
         output_hidden_layer_widths: List[int],
         hidden_channels: int = 128,
         embedding_size: int = 100,
         num_filters: int = 128,
         num_interactions: int = 3,
-        activation: nn.Module = nn.Tanh(),
+        activation: torch.nn.Module = torch.nn.Tanh(),
         max_num_neighbors: int = 1000,
         aggr: str = "add",
     ):
@@ -392,29 +389,29 @@ class StandardSchNet(SchNet):
         if num_interactions < 1:
             raise ValueError("At least one interaction block must be specified")
 
-        if cutoff.cutoff_lower != rbf_layer.cutoff_lower:
+        if cutoff.cutoff_lower != rbf_layer.cutoff.cutoff_lower:
             warnings.warn(
                 "Cutoff function lower cutoff, {}, and radial basis function "
                 " lower cutoff, {}, do not match.".format(
-                    cutoff.cutoff_lower, rbf_layer.cutoff_lower
+                    cutoff.cutoff_lower, rbf_layer.cutoff.cutoff_lower
                 )
             )
-        if cutoff.cutoff_upper != rbf_layer.cutoff_upper:
+        if cutoff.cutoff_upper != rbf_layer.cutoff.cutoff_upper:
             warnings.warn(
                 "Cutoff function upper cutoff, {}, and radial basis function "
                 " upper cutoff, {}, do not match.".format(
-                    cutoff.cutoff_upper, rbf_layer.cutoff_upper
+                    cutoff.cutoff_upper, rbf_layer.cutoff.cutoff_upper
                 )
             )
 
-        embedding_layer = nn.Embedding(embedding_size, hidden_channels)
+        embedding_layer = torch.nn.Embedding(embedding_size, hidden_channels)
 
         interaction_blocks = []
         for _ in range(num_interactions):
-            filter_network = nn.Sequential(
-                nn.Linear(rbf_layer.num_rbf, num_filters),
+            filter_network = torch.nn.Sequential(
+                torch.nn.Linear(rbf_layer.num_rbf, num_filters),
                 activation,
-                nn.Linear(num_filters, num_filters),
+                torch.nn.Linear(num_filters, num_filters),
             )
             cfconv = CFConv(
                 filter_network,
@@ -435,6 +432,5 @@ class StandardSchNet(SchNet):
             interaction_blocks,
             rbf_layer,
             output_network,
-            upper_distance_cutoff=cutoff.cutoff_upper,
             max_num_neighbors=max_num_neighbors,
         )
