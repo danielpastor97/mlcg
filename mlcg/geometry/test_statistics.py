@@ -53,7 +53,7 @@ angle_species = torch.tensor(test_topo.types)[angle_edges]
 non_bond_species = torch.tensor(test_topo.types)[non_bonded_edges]
 dihedral_species = torch.tensor(test_topo.types)[dihedral_edges]
 
-nls_tags = ["bonds", "angles", "non-bonded","dihedrals"]
+nls_tags = ["bonds", "angles", "non-bonded", "dihedrals"]
 nls_orders = [2, 3, 2, 4]
 nls_edges = [bond_edges, angle_edges, non_bonded_edges, dihedral_edges]
 data_list = []
