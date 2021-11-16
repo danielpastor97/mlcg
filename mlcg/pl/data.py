@@ -52,6 +52,8 @@ class DataModule(pl.LightningDataModule):
     ) -> None:
 
         super(DataModule, self).__init__()
+        # self.save_hyperparameters()
+
         # assume dataset is similart to torch_geometric.dataset.Dataset
         self.dataset_init_kwargs = {
             "root": dataset.root,

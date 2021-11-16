@@ -8,7 +8,9 @@ jobs:
       - checkout
       - run:
           name: "Install dependencies and repo"
-          command: "pip install --use-feature=in-tree-build ."
+          command: |
+            pip install -r requirements.txt
+            pip install --use-feature=in-tree-build .
       - run:
           name: "Run tests"
           command: "pytest ."

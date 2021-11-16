@@ -5,6 +5,10 @@ import requests
 from sklearn.model_selection import train_test_split
 from torch_geometric.data.makedirs import makedirs
 import sys
+from ruamel.yaml import YAML
+
+yaml = YAML(pure="true", typ="safe")
+yaml.default_flow_style = False
 
 
 def is_notebook():
@@ -86,8 +90,13 @@ def download_url(url: str, folder: str, log: bool = True):
 def load_yaml(fn):
     """load a yaml file"""
     with open(fn, "r") as f:
-        data = yaml.safe_load(f)
+        data = yaml.load(f)
     return data
+
+
+def dump_yaml(fn, data):
+    with open(fn, "w") as f:
+        yaml.dump(data, f)
 
 
 def train_val_test_split(

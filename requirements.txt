@@ -1,6 +1,7 @@
 mdtraj
 pyyaml>=6.0
-pytorch-lightning[extra]
+ruamel.yaml # mostly because it support scientific notation
+pytorch-lightning[extra] >= 1.5.0
 tqdm
 ase
 e3nn
