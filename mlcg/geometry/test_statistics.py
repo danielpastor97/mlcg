@@ -5,7 +5,7 @@ import numpy as np
 from mlcg.geometry.topology import Topology
 from mlcg.geometry.statistics import compute_statistics
 from mlcg.geometry.statistics import _symmetrise_map
-from mlcg.nn.prior import HarmonicBonds, HarmonicAngles, Repulsion
+from mlcg.nn.prior import HarmonicBonds, HarmonicAngles, Repulsion, Dihedral
 from mlcg.data.atomic_data import AtomicData
 from mlcg.neighbor_list.neighbor_list import make_neighbor_list
 
@@ -38,6 +38,7 @@ test_topo = Topology.from_ase(mol)
 
 bond_edges = test_topo.bonds2torch()
 angle_edges = test_topo.angles2torch()
+dihedral_edges = test_topo.dihedrals2torch()
 print(bond_edges)
 # Add some nonbonded edges
 non_bonded_edges = torch.tensor(
@@ -50,10 +51,11 @@ non_bonded_edges = torch.tensor(
 bond_species = torch.tensor(test_topo.types)[bond_edges]
 angle_species = torch.tensor(test_topo.types)[angle_edges]
 non_bond_species = torch.tensor(test_topo.types)[non_bonded_edges]
+dihedral_species = torch.tensor(test_topo.types)[dihedral_edges]
 
-nls_tags = ["bonds", "angles", "non-bonded"]
-nls_orders = [2, 3, 2]
-nls_edges = [bond_edges, angle_edges, non_bonded_edges]
+nls_tags = ["bonds", "angles", "non-bonded","dihedrals"]
+nls_orders = [2, 3, 2, 4]
+nls_edges = [bond_edges, angle_edges, non_bonded_edges, dihedral_edges]
 data_list = []
 
 for frame in range(mock_data_frames.shape[0]):
@@ -78,6 +80,7 @@ collated_data, _, _ = collate(
         (collated_data, "bonds", beta, HarmonicBonds, bond_species),
         (collated_data, "angles", beta, HarmonicAngles, angle_species),
         (collated_data, "non-bonded", beta, Repulsion, non_bond_species),
+        (collated_data, "dihedrals", beta, Dihedral, dihedral_species),
     ],
 )
 def test_unique_species(
