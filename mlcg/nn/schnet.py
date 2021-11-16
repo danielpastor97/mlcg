@@ -24,7 +24,7 @@ class SchNet(torch.nn.Module):
     embedding_layer:
         Initial embedding layer that transforms atoms/coarse grain bead
         types into embedded features
-    interaction_blocks: list of torch.torch.nn.Module or torch.torch.nn.Sequential
+    interaction_blocks: list of torch.nn.Module or torch.nn.Sequential
         Sequential interaction blocks of the model, where each interaction
         block applies
     rbf_layer:
