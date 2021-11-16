@@ -8,7 +8,7 @@ from ase.build import molecule
 from mlcg.geometry import Topology
 from mlcg.geometry.statistics import fit_baseline_models
 from mlcg.neighbor_list.neighbor_list import make_neighbor_list
-from mlcg.nn.prior import HarmonicBonds, HarmonicAngles
+from mlcg.nn.prior import HarmonicBonds, HarmonicAngles, Dihedral
 from mlcg.nn.gradients import SumOut, GradientsOut
 from mlcg.data._keys import ENERGY_KEY, FORCE_KEY
 from mlcg.data.atomic_data import AtomicData
@@ -64,11 +64,12 @@ def ASE_prior_model():
         # Set up some data with bond/angle neighborlists:
         bond_edges = test_topo.bonds2torch()
         angle_edges = test_topo.angles2torch()
+        dihedral_edges = test_topo.dihedrals2torch()
 
         # Generete some noisy data for the priors
-        nls_tags = ["bonds", "angles"]
-        nls_orders = [2, 3]
-        nls_edges = [bond_edges, angle_edges]
+        nls_tags = ["bonds", "angles", "dihedrals"]
+        nls_orders = [2, 3, 4]
+        nls_edges = [bond_edges, angle_edges, dihedral_edges]
 
         neighbor_lists = {
             tag: make_neighbor_list(tag, order, edge_list)
@@ -93,7 +94,7 @@ def ASE_prior_model():
             add_batch=True,
         )
         # Fit the priors
-        prior_cls = [HarmonicBonds, HarmonicAngles]
+        prior_cls = [HarmonicBonds, HarmonicAngles, Dihedral]
         priors, stats = fit_baseline_models(
             collated_prior_data, beta, prior_cls
         )
