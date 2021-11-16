@@ -42,31 +42,35 @@ class LightningCLI(plc.LightningCLI):
             link_to="model.lr_scheduler",
         )
 
-    def parse_arguments(self) -> None:
+    def parse_arguments(self, parser: plc.LightningArgumentParser) -> None:
         """Parses command line arguments and stores it in self.config"""
         self.config = self.parser.parse_args()
+        if "subcommand" in self.config:
+            config = self.config[self.config["subcommand"]]
+        else:
+            config = self.config
 
-        trainer = self.config["trainer"]
+        trainer = config["trainer"]
         default_root_dir = trainer.get("default_root_dir")
         if default_root_dir is not None:
             for ii, logger in enumerate(trainer.get("logger", [])):
                 save_dir = logger["init_args"].get("save_dir")
                 if save_dir == "default_root_dir":
-                    self.config["trainer"]["logger"][ii]["init_args"][
+                    config["trainer"]["logger"][ii]["init_args"][
                         "save_dir"
                     ] = default_root_dir
 
-            log_dir = self.config["data"].get("log_dir")
+            log_dir = config["data"].get("log_dir")
             if log_dir == "default_root_dir":
                 path = osp.join(default_root_dir, "data")
                 makedirs(path)
-                self.config["data"]["log_dir"] = path
+                config["data"]["log_dir"] = path
 
             for ii, callback in enumerate(trainer.get("callbacks", [])):
                 dirpath = callback["init_args"].get("dirpath")
                 if dirpath == "default_root_dir":
                     path = osp.join(default_root_dir, "ckpt")
                     makedirs(path)
-                    self.config["trainer"]["callbacks"][ii]["init_args"][
+                    config["trainer"]["callbacks"][ii]["init_args"][
                         "dirpath"
                     ] = path

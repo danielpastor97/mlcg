@@ -1,9 +1,8 @@
 import torch
-import sys
-import os
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.cli import instantiate_class
 from typing import Optional
+from copy import deepcopy
 
 from ..data import AtomicData
 from ..nn import Loss, GradientsOut
@@ -36,8 +35,8 @@ class PLModel(pl.LightningModule):
         self,
         model: torch.nn.Module,
         loss: Loss,
-        optimizer: dict = None,
-        lr_scheduler: dict = None,
+        optimizer: Optional[dict] = None,
+        lr_scheduler: Optional[dict] = None,
         monitor: str = "validation_loss",
         step_frequency: int = 1,
     ) -> None:
@@ -103,5 +102,5 @@ class PLModel(pl.LightningModule):
 
         return loss
 
-    def get_model(self):
-        return self.model
+    def get_model(self) -> torch.nn.Module:
+        return deepcopy(self.model)

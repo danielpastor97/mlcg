@@ -10,21 +10,16 @@ trainer:
   profiler: null
 
   # Training on one/multiple GPU
-  # accelerator: 'ddp'
-  # gpus: 4
-  # num_nodes: 1
+  # accelerator: 'gpu'
+  # strategy: 'ddp'
+  # devices: 4
+  # precision: 32
 
   # Training on the CPU
-  accelerator:
-    class_path: pytorch_lightning.accelerators.CPUAccelerator
-    init_args:
-      precision_plugin:
-        class_path: pytorch_lightning.plugins.DoublePrecisionPlugin
-        init_args: {}
-      training_type_plugin:
-        class_path: mlcg.pl.SingleDevicePlugin
-        init_args:
-          device: 'cpu'
+  accelerator: 'cpu'
+  devices: 1
+  precision: 32
+
   benchmark: false
   logger:
     - class_path: pytorch_lightning.loggers.TensorBoardLogger
@@ -39,7 +34,7 @@ trainer:
         save_dir: default_root_dir
         name: ''
         version: ''
-  checkpoint_callback: true
+  enable_checkpointing: true
   callbacks:
     - class_path: pytorch_lightning.callbacks.EarlyStopping
       init_args:
@@ -67,8 +62,6 @@ trainer:
   deterministic: true
   auto_lr_find: false
   terminate_on_nan: true
-  amp_backend: native
-  amp_level: O2
 # define the model and training objectives using mlcg.pl.PLModel
 model:
   loss:
@@ -112,18 +105,17 @@ model:
               trainable: false
   # necessary parameters when using ReduceLROnPlateau
   monitor: validation_loss
-  scheduler_interval: 'epoch'
   step_frequency: 1
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
-    lr: 0.0001
+    lr: 1e-4
     weight_decay: 0
 lr_scheduler:
   class_path: torch.optim.lr_scheduler.ReduceLROnPlateau
   init_args:
-    factor: 0.1
-    patience: 10
+    factor: 0.8
+    patience: 5
     min_lr: 1e-5
 # define the dataset through mlcg.pl.DataModule
 data:
@@ -137,5 +129,5 @@ data:
   batch_size: 1024
   inference_batch_size: 1024
   num_workers: 0
-  loading_stride: 100
+  loading_stride: 1000
   save_local_copy: false

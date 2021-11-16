@@ -74,6 +74,9 @@ db.sqlite3-journal
 instance/
 .webassets-cache
 
+examples/notebooks/train
+examples/notebooks/simulate
+
 # Scrapy stuff:
 .scrapy
 

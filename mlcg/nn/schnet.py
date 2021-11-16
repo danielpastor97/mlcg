@@ -130,7 +130,7 @@ class SchNet(torch.nn.Module):
 
         energy = self.output_network(x)
         energy = scatter(energy, data.batch, dim=0, reduce="sum")
-        energy = energy.view(len(energy))
+        energy = energy.squeeze()
         data.out[self.name] = {ENERGY_KEY: energy}
 
         return data
