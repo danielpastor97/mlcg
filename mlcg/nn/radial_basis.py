@@ -18,7 +18,9 @@ def visualize_basis(rbf_layer: nn.Module):
     import matplotlib.pyplot as plt
 
     distances = torch.linspace(
-        rbf_layer.cutoff.cutoff_lower - 1, rbf_layer.cutoff.cutoff_upper + 1, 1000
+        rbf_layer.cutoff.cutoff_lower - 1,
+        rbf_layer.cutoff.cutoff_upper + 1,
+        1000,
     )
     expanded_distances = rbf_layer(distances)
 
