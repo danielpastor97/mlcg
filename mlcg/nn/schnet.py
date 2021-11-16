@@ -35,9 +35,8 @@ class SchNet(nn.Module):
         Output neural network that predicts scalar energies from SchNet
         features. This network should transform (num_examples * num_atoms,
         hidden_channels) to (num_examples * num atoms, 1).
-    cutoff:
-        Cutoff function to apply to basis-expanded distances before filter
-        generation.
+    upper_distance_cutoff:
+        Upper distance cutoff used for making neighbor lists.
     self_interaction:
         If True, self interactions/distancess are calculated.
     max_num_neighbors:
@@ -56,8 +55,8 @@ class SchNet(nn.Module):
         embedding_layer: nn.Module,
         interaction_blocks: List[nn.Module],
         rbf_layer: nn.Module,
-        cutoff: nn.Module,
         output_network: nn.Module,
+        upper_distance_cutoff: float = 5,
         self_interaction: bool = False,
         max_num_neighbors: int = 1000,
     ):
@@ -66,8 +65,8 @@ class SchNet(nn.Module):
 
         self.embedding_layer = embedding_layer
         self.rbf_layer = rbf_layer
-        self.cutoff = cutoff
         self.max_num_neighbors = max_num_neighbors
+        self.upper_distance_cutoff = upper_distance_cutoff
         self.self_interaction = self_interaction
 
         if isinstance(interaction_blocks, List):
@@ -78,21 +77,6 @@ class SchNet(nn.Module):
             raise RuntimeError(
                 "interaction_blocks must be a single InteractionBlock or "
                 "a list of InteractionBlocks."
-            )
-
-        if self.cutoff.cutoff_lower != self.rbf_layer.cutoff_lower:
-            warnings.warn(
-                "Cutoff function lower cutoff, {}, and radial basis function "
-                " lower cutoff, {}, do not match.".format(
-                    self.cutoff.cutoff_lower, self.rbf_layer.cutoff_lower
-                )
-            )
-        if self.cutoff.cutoff_upper != self.rbf_layer.cutoff_upper:
-            warnings.warn(
-                "Cutoff function upper cutoff, {}, and radial basis function "
-                " upper cutoff, {}, do not match.".format(
-                    self.cutoff.cutoff_upper, self.rbf_layer.cutoff_upper
-                )
             )
 
         self.output_network = output_network
@@ -133,7 +117,7 @@ class SchNet(nn.Module):
 
         if not self.is_nl_compatible(neighbor_list):
             neighbor_list = self.neighbor_list(
-                data, self.cutoff.cutoff_upper, self.max_num_neighbors
+                data, self.upper_distance_cutoff, self.max_num_neighbors
             )[self.name]
         edge_index = neighbor_list["index_mapping"]
         distances = compute_distances(
@@ -142,9 +126,7 @@ class SchNet(nn.Module):
             neighbor_list["cell_shifts"],
         )
 
-        rbf_expansion = self.rbf_layer(distances) * self.cutoff(
-            distances
-        ).unsqueeze(-1)
+        rbf_expansion = self.rbf_layer(distances)
 
         for block in self.interaction_blocks:
             x = x + block(x, edge_index, distances, rbf_expansion)
@@ -259,6 +241,8 @@ class CFConv(MessagePassing):
     ----------
     filter_net:
         Neural network for generating filters from expanded pairwise distances
+    cutoff:
+        Cutoff envelope to apply to the output of the filter generating network.
     in_channels:
         Hidden input dimensions
     out_channels:
@@ -273,7 +257,7 @@ class CFConv(MessagePassing):
     def __init__(
         self,
         filter_network: nn.Module,
-        cutoff: Optional[nn.Module] = None,
+        cutoff: nn.Module,
         in_channels: int = 128,
         out_channels: int = 128,
         num_filters: int = 128,
@@ -283,10 +267,9 @@ class CFConv(MessagePassing):
         self.lin1 = nn.Linear(in_channels, num_filters, bias=False)
         self.lin2 = nn.Linear(num_filters, out_channels)
         self.filter_network = filter_network
+        self.cutoff = cutoff
 
         self.reset_parameters()
-
-        # self.inspector = None
 
     def reset_parameters(self):
         r"""Method for resetting the weights of the linear
@@ -326,7 +309,8 @@ class CFConv(MessagePassing):
             Updated embedded features of shape (num_examples * num_atoms,
             hidden_channels)
         """
-        W = self.filter_network(edge_attr)
+        C = self.cutoff(edge_weight)
+        W = self.filter_network(edge_attr) * C.view(-1, 1)
 
         x = self.lin1(x)
         # propagate_type: (x: Tensor, W: Tensor)
@@ -358,14 +342,15 @@ class CFConv(MessagePassing):
 
 class StandardSchNet(SchNet):
     """Small wrapper class for :ref:`SchNet` to simplify the definition of the
-    SchNet model through an input file.
+    SchNet model through an input file. The upper distance cutoff attribute
+    in is set by default to match the upper cutoff value in the cutoff function.
 
     Parameters
     ----------
     rbf_layer:
         radial basis function used to project the distances :math:`r_{ij}`.
     cutoff:
-        smooth cutoff function.
+        smooth cutoff function to supply to the CFConv
     output_hidden_layer_widths:
         List giving the number of hidden nodes of each hidden layer of the MLP
         used to predict the target property from the learned representation.
@@ -407,6 +392,21 @@ class StandardSchNet(SchNet):
         if num_interactions < 1:
             raise ValueError("At least one interaction block must be specified")
 
+        if cutoff.cutoff_lower != rbf_layer.cutoff_lower:
+            warnings.warn(
+                "Cutoff function lower cutoff, {}, and radial basis function "
+                " lower cutoff, {}, do not match.".format(
+                    cutoff.cutoff_lower, rbf_layer.cutoff_lower
+                )
+            )
+        if cutoff.cutoff_upper != rbf_layer.cutoff_upper:
+            warnings.warn(
+                "Cutoff function upper cutoff, {}, and radial basis function "
+                " upper cutoff, {}, do not match.".format(
+                    cutoff.cutoff_upper, rbf_layer.cutoff_upper
+                )
+            )
+
         embedding_layer = nn.Embedding(embedding_size, hidden_channels)
 
         interaction_blocks = []
@@ -418,6 +418,7 @@ class StandardSchNet(SchNet):
             )
             cfconv = CFConv(
                 filter_network,
+                cutoff=cutoff,
                 num_filters=num_filters,
                 in_channels=hidden_channels,
                 out_channels=hidden_channels,
@@ -433,7 +434,7 @@ class StandardSchNet(SchNet):
             embedding_layer,
             interaction_blocks,
             rbf_layer,
-            cutoff,
             output_network,
+            upper_distance_cutoff=cutoff.cutoff_upper,
             max_num_neighbors=max_num_neighbors,
         )
