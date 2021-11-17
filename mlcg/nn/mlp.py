@@ -30,10 +30,10 @@ class MLP(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        torch.nn.init.xavier_uniform_(self.output_network[0].weight)
-        self.output_network[0].bias.data.fill_(0)
-        torch.nn.init.xavier_uniform_(self.output_network[2].weight)
-        self.output_network[2].bias.data.fill_(0)
+        torch.nn.init.xavier_uniform_(self.layers[0].weight)
+        self.layers[0].bias.data.fill_(0)
+        torch.nn.init.xavier_uniform_(self.layers[2].weight)
+        self.layers[2].bias.data.fill_(0)
 
     def forward(self, x):
         """Forward pass"""

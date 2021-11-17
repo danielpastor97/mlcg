@@ -275,9 +275,9 @@ class CFConv(MessagePassing):
         are set to 0.
         """
 
-        torch.nn.init.xavier_uniform(self.filter_network[0].weight)
+        torch.nn.init.xavier_uniform_(self.filter_network[0].weight)
         self.filter_network[0].bias.data.fill_(0)
-        torch.nn.init.xavier_uniform(self.filter_network[2].weight)
+        torch.nn.init.xavier_uniform_(self.filter_network[2].weight)
         self.filter_network[2].bias.data.fill_(0)
         torch.nn.init.xavier_uniform_(self.lin1.weight)
         torch.nn.init.xavier_uniform_(self.lin2.weight)
