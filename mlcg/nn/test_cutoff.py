@@ -19,7 +19,9 @@ def test_identity_cutoff():
     """Test to make sure that IdentityCutoff performs an identity transform"""
     cutoff = IdentityCutoff()
     data_out = cutoff(data)
-    np.testing.assert_array_equal(data.numpy(), data_out.numpy())
+    np.testing.assert_array_equal(
+        torch.ones_like(data).numpy(), data_out.numpy()
+    )
 
 
 @pytest.mark.parametrize(
