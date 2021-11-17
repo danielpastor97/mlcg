@@ -81,7 +81,7 @@ class SchNet(torch.nn.Module):
 
     def reset_parameters(self):
         """Method for resetting linear layers in each SchNet component"""
-        self.embedding_layer.reset_parameters():
+        self.embedding_layer.reset_parameters()
         self.rbf_layer.reset_parameters()
         for block in self.interaction_blocks:
             block.reset_parameters()
