@@ -77,20 +77,15 @@ class SchNet(torch.nn.Module):
             )
 
         self.output_network = output_network
+        self.reset_parameters()
 
     def reset_parameters(self):
         """Method for resetting linear layers in each SchNet component"""
-        for layer in self.embedding_layer:
-            if isinstance(layer, torch.nn.Linear):
-                torch.nn.init.xavier_uniform_(layer.weight)
-                layer.bias.fill_(0)
+        self.embedding_layer.reset_parameters():
         self.rbf_layer.reset_parameters()
         for block in self.interaction_blocks:
             block.reset_parameters()
-        for layer in self.output_network:
-            if isinstance(layer, torch.nn.Linear):
-                torch.nn.init.xavier_uniform_(layer.weight)
-                layer.bias.fill_(0)
+        self.output_network.reset_parameters()
 
     def forward(self, data: AtomicData) -> AtomicData:
         r"""Forward pass through the SchNet architecture.
