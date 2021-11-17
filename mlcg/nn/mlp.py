@@ -22,7 +22,6 @@ class MLP(torch.nn.Module):
             torch.nn.Linear(
                 layer_widths[-2],
                 layer_widths[-1],
-                bias=False,
             )
         )
 
