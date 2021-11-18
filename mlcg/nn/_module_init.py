@@ -13,4 +13,4 @@ def init_xavier_uniform(module: torch.nn.Module) -> None:
     if isinstance(module, torch.nn.Linear):
         torch.nn.init.xavier_uniform_(module.weight)
         if module.bias is not None:
-            module.bias.fill_(0)
+            torch.nn.init.constant_(module.bias, 0.)
