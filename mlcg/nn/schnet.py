@@ -12,6 +12,7 @@ from ..geometry.internal_coordinates import compute_distances
 from .mlp import MLP
 from ._module_init import init_xavier_uniform
 
+
 class SchNet(torch.nn.Module):
     r"""PyTorch Geometric implementation of SchNet
     Code adapted from `[PT_geom_schnet]_`  which is based on the architecture
@@ -403,7 +404,10 @@ class StandardSchNet(SchNet):
 
         interaction_blocks = []
         for _ in range(num_interactions):
-            filter_network = MLP(layer_widths=[rbf_layer.num_rbf, num_filters], activation_func=activation)
+            filter_network = MLP(
+                layer_widths=[rbf_layer.num_rbf, num_filters],
+                activation_func=activation,
+            )
 
             cfconv = CFConv(
                 filter_network,

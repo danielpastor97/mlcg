@@ -2,6 +2,7 @@ import torch
 from typing import List
 from ._module_init import init_xavier_uniform
 
+
 class MLP(torch.nn.Module):
     """
     Multilayer Perceptron for regression of scalars
@@ -31,7 +32,6 @@ class MLP(torch.nn.Module):
     def reset_parameters(self):
         for layer in self.layers:
             init_xavier_uniform(layer)
-
 
     def forward(self, x):
         """Forward pass"""
