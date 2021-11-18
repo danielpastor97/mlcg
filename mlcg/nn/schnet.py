@@ -10,7 +10,7 @@ from ..neighbor_list.neighbor_list import (
 from ..data.atomic_data import AtomicData, ENERGY_KEY
 from ..geometry.internal_coordinates import compute_distances
 from .mlp import MLP
-
+from ._module_init import init_xavier_uniform
 
 class SchNet(torch.nn.Module):
     r"""PyTorch Geometric implementation of SchNet
@@ -188,8 +188,7 @@ class InteractionBlock(torch.nn.Module):
 
     def reset_parameters(self):
         self.conv.reset_parameters()
-        torch.nn.init.xavier_uniform_(self.lin.weight)
-        self.lin.bias.data.fill_(0)
+        init_xavier_uniform(self.lin)
 
     def forward(
         self,
@@ -270,13 +269,9 @@ class CFConv(MessagePassing):
         are set to 0.
         """
 
-        torch.nn.init.xavier_uniform_(self.filter_network[0].weight)
-        self.filter_network[0].bias.data.fill_(0)
-        torch.nn.init.xavier_uniform_(self.filter_network[2].weight)
-        self.filter_network[2].bias.data.fill_(0)
-        torch.nn.init.xavier_uniform_(self.lin1.weight)
-        torch.nn.init.xavier_uniform_(self.lin2.weight)
-        self.lin2.bias.data.fill_(0)
+        self.filter_network.register_parameters()
+        init_xavier_uniform(self.lin1)
+        init_xavier_uniform(self.lin2)
 
     def forward(
         self,
@@ -408,11 +403,8 @@ class StandardSchNet(SchNet):
 
         interaction_blocks = []
         for _ in range(num_interactions):
-            filter_network = torch.nn.Sequential(
-                torch.nn.Linear(rbf_layer.num_rbf, num_filters),
-                activation,
-                torch.nn.Linear(num_filters, num_filters),
-            )
+            filter_network = MLP(layer_widths=[rbf_layer.num_rbf, num_filters], activation_func=activation)
+
             cfconv = CFConv(
                 filter_network,
                 cutoff=cutoff,
