@@ -270,7 +270,7 @@ class CFConv(MessagePassing):
         are set to 0.
         """
 
-        self.filter_network.register_parameters()
+        self.filter_network.reset_parameters()
         init_xavier_uniform(self.lin1)
         init_xavier_uniform(self.lin2)
 
