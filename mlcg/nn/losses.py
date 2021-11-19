@@ -63,6 +63,24 @@ class ForceRMSE(_Loss):
 
 
 class ForceMSE(_Loss):
+    r"""Force mean square error loss, as defined by:
+    .. math::
+        L\left(f,\hat{f}\right) = \frac{1}{Nd}\sum_{i}^{N} \left\Vert f_i - \hat{f}_i \right\Vert ^2
+    where :math:`f` are predicted forces, :math:`\hat{f}` are reference forces, :math:`N` is
+    the number of examples/structures, and :math:`d` is the real space dimensionality
+    (eg, :math:`d=3` for proteins)
+    Parameters
+    ----------
+    force_kwd:
+        string to specify the force key in an AtomicData instance
+    size_average:
+        If True, the loss is normalized by the batch size
+    reduce:
+        If True, the loss is reduced to a scalar
+    reduction:
+        Specifies the method of reduction. See
+        https://github.com/pytorch/pytorch/blob/acb035f5130fabe258ff27049c73a15ba3a52dbd/torch/nn/modules/loss.py#L69
+    """
     def __init__(
         self,
         force_kwd: str = FORCE_KEY,
