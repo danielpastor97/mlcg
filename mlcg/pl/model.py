@@ -5,6 +5,7 @@ from typing import Optional
 from copy import deepcopy
 
 from ..data import AtomicData
+from ..data._keys import N_ATOMS_KEY
 from ..nn import Loss, GradientsOut
 from ._fix_hparams_saving import yaml
 
@@ -89,7 +90,7 @@ class PLModel(pl.LightningModule):
             data = self.model(data)
         data.out.update(**data.out[self.model.name])
         loss = self.loss(data)
-
+        batch_size = data[N_ATOMS_KEY].shape[0]
         # Add sync_dist=True to sync logging across all GPU workers
         self.log(
             f"{stage}_loss",
@@ -98,6 +99,7 @@ class PLModel(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             prog_bar=True,
+            batch_size=batch_size,
         )
 
         return loss
