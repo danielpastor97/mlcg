@@ -119,7 +119,7 @@ class _Simulation(object):
         model : torch.nn.Module
             Trained model used to generate simulation data
         """
-        model.eval()
+        model = model.eval().to(device=self.device)
         self.model = model
 
     def attach_configurations(self, configurations: List[AtomicData]):
@@ -132,7 +132,7 @@ class _Simulation(object):
         parallel simulations.
         """
         self.validate_data_list(configurations)
-        self.initial_data = self.collate(configurations)
+        self.initial_data = self.collate(configurations).to(device=self.device)
         self.n_sims = len(configurations)
         self.n_atoms = len(configurations[0].atom_types)
         self.n_dims = configurations[0].pos.shape[1]

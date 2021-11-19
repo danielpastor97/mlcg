@@ -90,7 +90,7 @@ class PLModel(pl.LightningModule):
             data = self.model(data)
         data.out.update(**data.out[self.model.name])
         loss = self.loss(data)
-        batch_size=data[N_ATOMS_KEY].shape[0]
+        batch_size = data[N_ATOMS_KEY].shape[0]
         # Add sync_dist=True to sync logging across all GPU workers
         self.log(
             f"{stage}_loss",
