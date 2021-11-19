@@ -81,6 +81,7 @@ class ForceMSE(_Loss):
         Specifies the method of reduction. See
         https://github.com/pytorch/pytorch/blob/acb035f5130fabe258ff27049c73a15ba3a52dbd/torch/nn/modules/loss.py#L69
     """
+
     def __init__(
         self,
         force_kwd: str = FORCE_KEY,
