@@ -37,7 +37,7 @@ class _OneSidedCutoff(nn.Module):
 
 
 class IdentityCutoff(_Cutoff):
-    r"""Cutoff function that applies an identity transform, but retains
+    r"""Cutoff function that is one everywhere, but retains
     cutoff_lower and cutoff_upper attributes
 
     Parameters
@@ -56,7 +56,8 @@ class IdentityCutoff(_Cutoff):
         self.check_cutoff()
 
     def forward(self, distances: torch.Tensor) -> torch.Tensor:
-        r"""Applies identity transform to input distances
+        r"""Fowrad method that returns a cutoff enevlope where all values are
+        one
 
         Parameters
         ----------
@@ -65,9 +66,9 @@ class IdentityCutoff(_Cutoff):
 
         Returns
         -------
-            Identity-transformed output distances of shape (total_num_edges)
+            Cutoff envelope filled with ones, of shape (total_num_edges)
         """
-        return distances
+        return torch.ones_like(distances)
 
 
 class CosineCutoff(_Cutoff):

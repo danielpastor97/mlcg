@@ -148,6 +148,23 @@ def test_data_list_raises(
             simulation.attach_configurations(initial_data_list)
 
 
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="No CUDA devices available."
+)
+@pytest.mark.parametrize(
+    "seed, device", [(None, "cuda"), (None, "cpu"), (1, "cuda"), (1, "cpu")]
+)
+def test_simulation_device(seed, device):
+    """Test to meke sure generator devices are set correctly"""
+    simulation = _Simulation(random_seed=seed, device=device)
+    current_device = torch.device(device)
+    assert simulation.device == current_device
+    if seed == None:
+        assert simulation.rng == None
+    else:
+        assert simulation.rng.device == current_device
+
+
 @pytest.mark.parametrize(
     "ASE_prior_model, get_initial_data, add_masses, sim_class, sim_args, sim_kwargs",
     [

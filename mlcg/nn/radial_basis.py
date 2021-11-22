@@ -1,6 +1,7 @@
+from typing import Union
 import torch
 from torch import nn
-from .cutoff import CosineCutoff
+from .cutoff import _Cutoff, IdentityCutoff, CosineCutoff
 
 
 def visualize_basis(rbf_layer: nn.Module):
@@ -17,7 +18,9 @@ def visualize_basis(rbf_layer: nn.Module):
     import matplotlib.pyplot as plt
 
     distances = torch.linspace(
-        rbf_layer.cutoff_lower - 1, rbf_layer.cutoff_upper + 1, 1000
+        rbf_layer.cutoff.cutoff_lower - 1,
+        rbf_layer.cutoff.cutoff_upper + 1,
+        1000,
     )
     expanded_distances = rbf_layer(distances)
 
@@ -31,14 +34,13 @@ class _RadialBasis(nn.Module):
 
     def __init__(self):
         super(_RadialBasis, self).__init__()
-        self.cutoff_lower = None
-        self.cutoff_upper = None
+        self.cutoff = None
 
     def check_cutoff(self):
-        if self.cutoff_upper < self.cutoff_lower:
+        if self.cutoff.cutoff_upper < self.cutoff.cutoff_lower:
             raise ValueError(
                 "Upper cutoff {} is less than lower cutoff {}".format(
-                    self.cutoff_upper, self.cutoff_lower
+                    self.cutoff.cutoff_upper, self.cutoff.cutoff_lower
                 )
             )
 
@@ -56,12 +58,10 @@ class GaussianBasis(_RadialBasis):
 
     Parameters
     ----------
-    cutoff_lower:
-        Lower distance cutoff, corresponding to the center of the first gaussian
-        function in the basis.
-    cutoff_upper:
-        Upper distance cutoff, corresponding to the center of the last gaussian
-        function in the basis.
+    cutoff:
+        Defines the smooth cutoff function. If a float is provided, it will be interpreted as
+        an upper cutoff and an IdentityCutoff will be used between 0 and the provided float. Otherwise,
+        a chosen _Cutoff instance can be supplied.
     num_rbf:
         The number of gaussian functions in the basis set.
     trainable:
@@ -74,14 +74,21 @@ class GaussianBasis(_RadialBasis):
 
     def __init__(
         self,
-        cutoff_lower: float = 0.0,
-        cutoff_upper: float = 5.0,
+        cutoff: Union[int, float, _Cutoff],
         num_rbf: int = 50,
         trainable: bool = False,
     ):
         super(GaussianBasis, self).__init__()
-        self.cutoff_lower = cutoff_lower
-        self.cutoff_upper = cutoff_upper
+        if isinstance(cutoff, (float, int)):
+            self.cutoff = IdentityCutoff(0, cutoff)
+        elif isinstance(cutoff, _Cutoff):
+            self.cutoff = cutoff
+        else:
+            raise TypeError(
+                "Supplied cutoff {} is neither a number nor a _Cutoff instance.".format(
+                    cutoff
+                )
+            )
 
         self.check_cutoff()
 
@@ -104,7 +111,7 @@ class GaussianBasis(_RadialBasis):
         cutoffs.
         """
         offset = torch.linspace(
-            self.cutoff_lower, self.cutoff_upper, self.num_rbf
+            self.cutoff.cutoff_lower, self.cutoff.cutoff_upper, self.num_rbf
         )
         coeff = -0.5 / (offset[1] - offset[0]) ** 2
         return offset, coeff
@@ -131,7 +138,10 @@ class GaussianBasis(_RadialBasis):
         """
 
         dist = dist.unsqueeze(-1) - self.offset
-        return torch.exp(self.coeff * torch.pow(dist, 2))
+        expanded_distances = torch.exp(
+            self.coeff * torch.pow(dist, 2)
+        ) * self.cutoff(dist)
+        return expanded_distances
 
 
 class ExpNormalBasis(_RadialBasis):
@@ -150,20 +160,21 @@ class ExpNormalBasis(_RadialBasis):
 
         \alpha = 5.0/(r_{high} - r_{low})
 
-    is a distance rescaling factor, and
+    is a distance rescaling factor, and, by default
 
     .. math::
 
         f_{cut} ( r_{ij},r_{low},r_{high} ) =  \cos{\left( r_{ij} \times \pi / r_{high}\right)} + 1.0
 
+    represents a cosine cutoff function (though users can specify their own cutoff function
+    if they desire).
+
     Parameters
     ----------
-    cutoff_lower:
-        Lower distance cutoff, corresponding to the center of the first gaussian
-        function in the basis.
-    cutoff_upper:
-        Upper distance cutoff, corresponding to the zero point off the cutoff
-        envelope.
+    cutoff:
+        Defines the smooth cutoff function. If a float is provided, it will be interpreted as
+        an upper cutoff and a CosineCutoff will be used between 0 and the provided float. Otherwise,
+        a chosen _Cutoff instance can be supplied.
     num_rbf:
         The number of functions in the basis set.
     trainable:
@@ -175,22 +186,27 @@ class ExpNormalBasis(_RadialBasis):
 
     def __init__(
         self,
-        cutoff_lower: float = 0.0,
-        cutoff_upper: float = 5.0,
+        cutoff: Union[int, float, _Cutoff],
         num_rbf: int = 50,
         trainable: bool = True,
     ):
         super(ExpNormalBasis, self).__init__()
-        self.cutoff_lower = cutoff_lower
-        self.cutoff_upper = cutoff_upper
+        if isinstance(cutoff, (float, int)):
+            self.cutoff = CosineCutoff(0, cutoff)
+        elif isinstance(cutoff, _Cutoff):
+            self.cutoff = cutoff
+        else:
+            raise TypeError(
+                "Supplied cutoff {} is neither a number nor a _Cutoff instance.".format(
+                    cutoff
+                )
+            )
 
         self.check_cutoff()
 
         self.num_rbf = num_rbf
         self.trainable = trainable
-
-        self.cutoff = CosineCutoff(0, cutoff_upper)
-        self.alpha = 5.0 / (cutoff_upper - cutoff_lower)
+        self.alpha = 5.0 / (self.cutoff.cutoff_upper - self.cutoff.cutoff_lower)
 
         means, betas = self._initial_params()
         if trainable:
@@ -206,7 +222,9 @@ class ExpNormalBasis(_RadialBasis):
         """
 
         start_value = torch.exp(
-            torch.scalar_tensor(-self.cutoff_upper + self.cutoff_lower)
+            torch.scalar_tensor(
+                -self.cutoff.cutoff_upper + self.cutoff.cutoff_lower
+            )
         )
         means = torch.linspace(start_value, 1, self.num_rbf)
         betas = torch.tensor(
@@ -239,6 +257,9 @@ class ExpNormalBasis(_RadialBasis):
         dist = dist.unsqueeze(-1)
         return self.cutoff(dist) * torch.exp(
             -self.betas
-            * (torch.exp(self.alpha * (-dist + self.cutoff_lower)) - self.means)
+            * (
+                torch.exp(self.alpha * (-dist + self.cutoff.cutoff_lower))
+                - self.means
+            )
             ** 2
         )
