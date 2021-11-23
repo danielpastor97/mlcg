@@ -18,7 +18,7 @@ from mlcg.data._keys import ENERGY_KEY, FORCE_KEY
 from mlcg.data.atomic_data import AtomicData
 
 standard_cutoff = CosineCutoff(cutoff_lower=0, cutoff_upper=5)
-standard_basis = GaussianBasis(cutoff_lower=0, cutoff_upper=5)
+standard_basis = GaussianBasis(cutoff=standard_cutoff)
 
 schnet = StandardSchNet(standard_basis, standard_cutoff, [128])
 schnet_force_model = GradientsOut(schnet, targets=[FORCE_KEY]).double()

@@ -158,7 +158,6 @@ class SchNet(torch.nn.Module):
         }
 
 
-
 class InteractionBlock(torch.nn.Module):
     r"""Interaction blocks for SchNet. Consists of atomwise
     transformations of embedded features that are continuously
