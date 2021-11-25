@@ -92,8 +92,7 @@ class RIGTOBasis(_RadialBasis):
         return self.Rln(dist).view(-1, self.lmax + 1, self.nmax)
 
     def plot(self):
-        """Plot the set of radial basis function.
-        """
+        """Plot the set of radial basis function."""
         import matplotlib.pyplot as plt
 
         dist = torch.linspace(0, self.cutoff.cutoff_upper, 200)
@@ -138,53 +137,71 @@ def splined_radial_integrals(nmax, lmax, rc, sigma, cutoff, mesh_size=600):
     Rnl = NaturalCubicSpline(coeffs)
     return Rnl
 
-def sn(n,rcut,nmax):
-    return rcut*max(np.sqrt(n),1)/nmax
 
-def dn(n,rcut,nmax):
-    s_n = sn(n,rcut,nmax)
-    return 0.5/(s_n)**2
+def sn(n, rcut, nmax):
+    return rcut * max(np.sqrt(n), 1) / nmax
 
-def gto_norm(n,rcut,nmax):
-    s_n = sn(n,rcut,nmax)
-    norm2 = 0.5 / (np.power(s_n, 2*n+3)*float(gamma(n+1.5)))
+
+def dn(n, rcut, nmax):
+    s_n = sn(n, rcut, nmax)
+    return 0.5 / (s_n) ** 2
+
+
+def gto_norm(n, rcut, nmax):
+    s_n = sn(n, rcut, nmax)
+    norm2 = 0.5 / (np.power(s_n, 2 * n + 3) * float(gamma(n + 1.5)))
     return np.sqrt(norm2)
 
-def ortho_Snn(rcut,nmax):
-    Snn = np.zeros((nmax,nmax))
-    norms = np.array([gto_norm(n,rcut,nmax) for n in range(nmax)])
-    bn = np.array([dn(n,rcut,nmax) for n in range(nmax)])
-    for n,m in product(range(nmax),range(nmax)):
-        Snn[n,m] = norms[n]*norms[m]*0.5*np.power(bn[n]+bn[m], -0.5*(3+n+m)) * float(gamma(0.5*(3+m+n)))
+
+def ortho_Snn(rcut, nmax):
+    Snn = np.zeros((nmax, nmax))
+    norms = np.array([gto_norm(n, rcut, nmax) for n in range(nmax)])
+    bn = np.array([dn(n, rcut, nmax) for n in range(nmax)])
+    for n, m in product(range(nmax), range(nmax)):
+        Snn[n, m] = (
+            norms[n]
+            * norms[m]
+            * 0.5
+            * np.power(bn[n] + bn[m], -0.5 * (3 + n + m))
+            * float(gamma(0.5 * (3 + m + n)))
+        )
     eigenvalues, unitary = np.linalg.eigh(Snn)
     diagoverlap = np.diag(np.sqrt(eigenvalues))
     newoverlap = unitary @ diagoverlap @ unitary.T
     orthomatrix = np.linalg.inv(newoverlap)
     return orthomatrix, Snn
 
-def gto(rcut,nmax, r):
-    ds = np.array([dn(n,rcut,nmax) for n in range(nmax)])
-    ortho,Snn = ortho_Snn(rcut,nmax)
-    norms = np.array([gto_norm(n,rcut,nmax) for n in range(nmax)])
-    res = np.zeros((r.shape[0],nmax))
+
+def gto(rcut, nmax, r):
+    ds = np.array([dn(n, rcut, nmax) for n in range(nmax)])
+    ortho, Snn = ortho_Snn(rcut, nmax)
+    norms = np.array([gto_norm(n, rcut, nmax) for n in range(nmax)])
+    res = np.zeros((r.shape[0], nmax))
     for n in range(nmax):
-        res[:,n] = norms[n]*np.power(r,n+1)*np.exp(-ds[n]*r**2)
+        res[:, n] = norms[n] * np.power(r, n + 1) * np.exp(-ds[n] * r ** 2)
     res = res @ ortho
     return res
 
-def ri_gto(n,l,rij,c,d, norm):
-    res = exp(-c*rij**2)*(gamma(0.5*(l+n+3))/gamma(l+1.5)) * power(c*rij,l) * power(c+d,-0.5*(l+n+3))
-    res *= hyp1f1(0.5*(n+l+3),l+1.5,power(c*rij,2)/(c+d))
-    return norm*float(res)
 
-def o_ri_gto(rcut,nmax,lmax,rij,c):
-    ds = np.array([dn(n,rcut,nmax) for n in range(nmax)])
-    norms = np.array([gto_norm(n,rcut,nmax) for n in range(nmax)])
-    ortho,Snn = ortho_Snn(rcut,nmax)
-    res = np.zeros((rij.shape[0],lmax,nmax))
-    for ii,dist in enumerate(rij):
+def ri_gto(n, l, rij, c, d, norm):
+    res = (
+        exp(-c * rij ** 2)
+        * (gamma(0.5 * (l + n + 3)) / gamma(l + 1.5))
+        * power(c * rij, l)
+        * power(c + d, -0.5 * (l + n + 3))
+    )
+    res *= hyp1f1(0.5 * (n + l + 3), l + 1.5, power(c * rij, 2) / (c + d))
+    return norm * float(res)
+
+
+def o_ri_gto(rcut, nmax, lmax, rij, c):
+    ds = np.array([dn(n, rcut, nmax) for n in range(nmax)])
+    norms = np.array([gto_norm(n, rcut, nmax) for n in range(nmax)])
+    ortho, Snn = ortho_Snn(rcut, nmax)
+    res = np.zeros((rij.shape[0], lmax, nmax))
+    for ii, dist in enumerate(rij):
         for l in range(lmax):
             for n in range(nmax):
-                res[ii,l,n] = ri_gto(n,l,float(dist),c,ds[n],norms[n])
+                res[ii, l, n] = ri_gto(n, l, float(dist), c, ds[n], norms[n])
     res = res @ ortho
     return res
