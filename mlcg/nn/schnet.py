@@ -10,6 +10,7 @@ from ..neighbor_list.neighbor_list import (
 from ..data.atomic_data import AtomicData, ENERGY_KEY
 from ..geometry.internal_coordinates import compute_distances
 from .mlp import MLP
+from ._module_init import init_xavier_uniform
 
 
 class SchNet(torch.nn.Module):
@@ -77,20 +78,15 @@ class SchNet(torch.nn.Module):
             )
 
         self.output_network = output_network
+        self.reset_parameters()
 
     def reset_parameters(self):
         """Method for resetting linear layers in each SchNet component"""
-        for layer in self.embedding_layer:
-            if isinstance(layer, torch.nn.Linear):
-                torch.nn.init.xavier_uniform_(layer.weight)
-                layer.bias.fill_(0)
+        self.embedding_layer.reset_parameters()
         self.rbf_layer.reset_parameters()
         for block in self.interaction_blocks:
             block.reset_parameters()
-        for layer in self.output_network:
-            if isinstance(layer, torch.nn.Linear):
-                torch.nn.init.xavier_uniform_(layer.weight)
-                layer.bias.fill_(0)
+        self.output_network.reset_parameters()
 
     def forward(self, data: AtomicData) -> AtomicData:
         r"""Forward pass through the SchNet architecture.
@@ -193,8 +189,7 @@ class InteractionBlock(torch.nn.Module):
 
     def reset_parameters(self):
         self.conv.reset_parameters()
-        torch.nn.init.xavier_uniform_(self.lin.weight)
-        self.lin.bias.data.fill_(0)
+        init_xavier_uniform(self.lin)
 
     def forward(
         self,
@@ -270,13 +265,14 @@ class CFConv(MessagePassing):
 
     def reset_parameters(self):
         r"""Method for resetting the weights of the linear
-        layers according the the Xavier uniform strategy. Biases
+        layers and filter network according the the
+        Xavier uniform strategy. Biases
         are set to 0.
         """
 
-        torch.nn.init.xavier_uniform_(self.lin1.weight)
-        torch.nn.init.xavier_uniform_(self.lin2.weight)
-        self.lin2.bias.data.fill_(0)
+        self.filter_network.reset_parameters()
+        init_xavier_uniform(self.lin1)
+        init_xavier_uniform(self.lin2)
 
     def forward(
         self,
@@ -408,11 +404,11 @@ class StandardSchNet(SchNet):
 
         interaction_blocks = []
         for _ in range(num_interactions):
-            filter_network = torch.nn.Sequential(
-                torch.nn.Linear(rbf_layer.num_rbf, num_filters),
-                activation,
-                torch.nn.Linear(num_filters, num_filters),
+            filter_network = MLP(
+                layer_widths=[rbf_layer.num_rbf, num_filters],
+                activation_func=activation,
             )
+
             cfconv = CFConv(
                 filter_network,
                 cutoff=cutoff,
