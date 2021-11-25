@@ -32,7 +32,7 @@ class GaussianBasis(_RadialBasis):
 
     def __init__(
         self,
-        cutoff: Union[float, _Cutoff],
+        cutoff: Union[int, float, _Cutoff],
         num_rbf: int = 50,
         trainable: bool = False,
     ):
