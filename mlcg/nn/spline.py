@@ -3,13 +3,24 @@ import torch
 
 
 class NaturalCubicSpline(nn.Module):
-    """Calculates the natural cubic spline approximation to the batch of controls given. Also calculates its derivative."""
+    """Calculates the natural cubic spline approximation to a set of splined functions that are defined on the same points. Also calculates their derivatives.
+    The supporting grid, :obj:`t`, to train the splines is assumed to be equispaced.
 
-    def __init__(self, coeffs):
-        """
-        Arguments:
-            coeffs: As returned by `torchcubicspline.natural_cubic_spline_coeffs`.
-        """
+    The cubic spline is given by::
+
+        ((d*f + c)*f + b)*f + a
+
+    where :obj:`f` is the fractional part of the input w.r.t the grid.
+
+    Parameters
+    ----------
+    coeffs:
+        list of coefficients needed to do the interpolation in this order:
+        :obj:`[t, a, b, c, d]`
+    """
+
+    def __init__(self, coeffs: List[torch.Tensor]):
+
         super(NaturalCubicSpline, self).__init__()
         t, a, b, c, d = coeffs
 
