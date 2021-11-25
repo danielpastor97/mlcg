@@ -12,16 +12,23 @@ from ..cutoff import _Cutoff, ShiftedCosineCutoff
 
 
 class RIGTOBasis(_RadialBasis):
-    r"""This radial basis is the effective basis when expanding an atomic density smeared by Gaussains of width :math:`\sigma` on a set of :math:`n_{max}` orthonormal Gaussian Type Orbitals (GTOs) and :math:`l_{max}+1` Spherical Harmonics (SPHs) namely.
-    This radial basis set is interpolated using natural cubic splines for efficiency and the cutoff is included into the splined functions.
+    r"""This radial basis is the effective basis when expanding an atomic
+    density smeared by Gaussains of width :math:`\sigma` on a set of
+    :math:`n_{max}` orthonormal Gaussian Type Orbitals (GTOs) and
+    :math:`l_{max}+1` Spherical Harmonics (SPHs) namely.
+    This radial basis set is interpolated using natural cubic splines for
+    efficiency and the cutoff is included into the splined functions.
 
     The basis is defined as
 
     .. math::
         R_{nl}(r)= f_c(r) \mathcal{N}_n \frac{\Gamma(\frac{n+l+3}{2})}{\Gamma(l+\frac{3}{2})}c^l r^l(c+b_n)^{-\frac{(n+l+3)}{2}}  {}_1F_1\left(\frac{n+l+3}{2},l+\frac{3}{2};\frac{c^2 r^2}{c+b_n}\right),
 
-    where :math:`{}_1F_1` is the confluent hypergeometric function, :math:`\Gamma` is the gamma function, :math:`f_c` is a cutoff function, :math:`b_n=\frac{1}{2\sigma_n^2}`,
-    :math:`\sigma_n = r_\text{cut} \max(\sqrt{n},1)/n_{max}` and :math:`\mathcal{N}_n^2 = \frac{2}{\sigma_n^{2n + 3}\Gamma(n + 3/2)}`.
+    where :math:`{}_1F_1` is the confluent hypergeometric function,
+    :math:`\Gamma` is the gamma function, :math:`f_c` is a cutoff function,
+     :math:`b_n=\frac{1}{2\sigma_n^2}`,
+    :math:`\sigma_n = r_\text{cut} \max(\sqrt{n},1)/n_{max}` and
+    :math:`\mathcal{N}_n^2 = \frac{2}{\sigma_n^{2n + 3}\Gamma(n + 3/2)}`.
 
     For more details on the derivation, refer to `appendix A <https://doi.org/10.5075/epfl-thesis-7997>`_.
 
