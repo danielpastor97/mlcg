@@ -12,16 +12,33 @@ from ..cutoff import _Cutoff, ShiftedCosineCutoff
 
 
 class RIGTOBasis(_RadialBasis):
-    r"""
+    r"""This radial basis is the effective basis when expanding an atomic density smeared by Gaussains of width :math:`\sigma` on a set of :math:`n_{max}` orthonormal Gaussian Type Orbitals (GTOs) and :math:`l_{max}+1` Spherical Harmonics (SPHs) namely.
+    This radial basis set is interpolated using natural cubic splines for efficiency and the cutoff is included into the splined functions.
+
+    The basis is defined as
+
+    .. math::
+        R_{nl}(r)= f_c(r) \mathcal{N}_n \frac{\Gamma(\frac{n+l+3}{2})}{\Gamma(l+\frac{3}{2})}c^l r^l(c+b_n)^{-\frac{(n+l+3)}{2}}  {}_1F_1\left(\frac{n+l+3}{2},l+\frac{3}{2};\frac{c^2 r^2}{c+b_n}\right),
+
+    where :math:`{}_1F_1` is the confluent hypergeometric function, :math:`\Gamma` is the gamma function, :math:`f_c` is a cutoff function, :math:`b_n=\frac{1}{2\sigma_n^2}`,
+    :math:`\sigma_n = r_\text{cut} \max(\sqrt{n},1)/n_{max}` and :math:`\mathcal{N}_n^2 = \frac{2}{\sigma_n^{2n + 3}\Gamma(n + 3/2)}`.
+
+    For more details on the derivation, refer to `appendix A <https://doi.org/10.5075/epfl-thesis-7997>`_.
 
     Parameters
     ----------
+    nmax:
+        number of radial basis
+    lmax:
+        maximum spherical order (lmax included so there are lmax+1 orders)
+    sigma:
+        smearing of the atomic density
     cutoff:
         Defines the smooth cutoff function. If a float is provided, it will be interpreted as
         an upper cutoff and a CosineCutoff will be used between 0 and the provided float. Otherwise,
         a chosen _Cutoff instance can be supplied.
-    num_rbf:
-        The number of functions in the basis set.
+    mesh_size:
+        number of points used to interpolate with splines the radial basis
 
     """
 
@@ -69,12 +86,14 @@ class RIGTOBasis(_RadialBasis):
         Return
         ------
         expanded_distances: torch.Tensor
-            Distances expanded in the radial basis with shape (total_num_edges, num_rbf)
+            Distances expanded in the radial basis with shape (total_num_edges, lmax + 1, nmax)
         """
 
         return self.Rln(dist).view(-1, self.lmax + 1, self.nmax)
 
     def plot(self):
+        """Plot the set of radial basis function.
+        """
         import matplotlib.pyplot as plt
 
         dist = torch.linspace(0, self.cutoff.cutoff_upper, 200)
