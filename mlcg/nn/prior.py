@@ -305,58 +305,25 @@ class Dihedral(torch.nn.Module, _Prior):
 
         mask = torch.abs(dG_nz) > 1e-4 * torch.abs(integral)
         try:
-            # Determine best fit. Either 1,2,, or 3 parameters
-            popt1, _ = curve_fit(
-                Dihedral.compute1,
-                bin_centers_nz[mask],
-                dG_nz[mask],
-                p0=[
-                    3.1415 / 2,
-                    1,
-                ],
-            )
-            aic1 = (
-                2
-                * Dihedral.neg_log_likelihood(
-                    dG_nz[mask], Dihedral.compute1(bin_centers_nz[mask], *popt1)
-                )
-                - 2 * 2
-            )
-            popt2, _ = curve_fit(
-                Dihedral.compute2,
-                bin_centers_nz[mask],
-                dG_nz[mask],
-                p0=[
-                    3.1415 / 2,
-                    1,
-                    -3.1415 / 2,
-                    1,
-                ],
-            )
-            aic2 = (
-                2
-                * Dihedral.neg_log_likelihood(
-                    dG_nz[mask], Dihedral.compute2(bin_centers_nz[mask], *popt2)
-                )
-                - 2 * 3
-            )
-            popt3, _ = curve_fit(
-                Dihedral.compute3,
-                bin_centers_nz[mask],
-                dG_nz[mask],
-                p0=[3.1415 / 2, 1, 0, 1, -3.1415 / 2, 1],
-            )
-            aic3 = (
-                2
-                * Dihedral.neg_log_likelihood(
-                    dG_nz[mask], Dihedral.compute3(bin_centers_nz[mask], *popt3)
-                )
-                - 2 * 4
-            )
-            min_aic = min(aic1, aic2, aic3)
+            # Determine best fit. Either 1, 2, or 3 parameters
+            compute_dihedrals = [Dihedral.compute1,Dihedral.compute2,Dihedral.compute3]
+            free_parameters = [2,4,6]
+            p0s = [[3.1415/2,1],[3.1415/2,1,-3.1415/2,1]]
+            popts = []
+            aics = []
+            for i_cd,compute_dihedral in enumerate(compute_dihedrals):
+                popt, _ = curve_fit(compute_dihedral,bin_centers_nz[mask],dG_nz[mask],p0s[i_cd])
+                popts.append(popt)
+                aic = 2*Dihedral.neg_log_likelihood(
+                    dG_nz[mask], compute_dihedral(bin_centers_nz[mask], *popt)
+                    ) - 2*free_parameters[i_cd]
+                aics.append(aic)
 
-            if min_aic == aic1:
-                popt = popt1
+            min_aic = min(aics)
+            min_i_aic = aics.index(min_aic)
+
+            if min_i_aic == 0:
+                popt = popts[0]
                 stat = {
                     "theta_0": popt[0],
                     "k_0": popt[1],
@@ -366,8 +333,8 @@ class Dihedral(torch.nn.Module, _Prior):
                     "k_2": 0,
                 }
                 Dihedral.compute = Dihedral.compute1
-            elif min_aic == aic2:
-                popt = popt2
+            elif min_i_aic == 1:
+                popt = popts[1]
                 stat = {
                     "theta_0": popt[0],
                     "k_0": popt[1],
@@ -377,8 +344,8 @@ class Dihedral(torch.nn.Module, _Prior):
                     "k_2": 0,
                 }
                 Dihedral.compute = Dihedral.compute2
-            elif min_aic == aic3:
-                popt = popt3
+            elif min_i_aic == 2:
+                popt = popts[2]
                 stat = {
                     "theta_0": popt[0],
                     "k_0": popt[1],
