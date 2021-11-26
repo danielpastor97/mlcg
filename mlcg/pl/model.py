@@ -62,7 +62,11 @@ class PLModel(pl.LightningModule):
         optimizer = instantiate_class(
             self.model.parameters(), init=self.optimizer
         )
-        scheduler = instantiate_class(optimizer, self.lr_scheduler)
+        if self.lr_scheduler:
+            scheduler = instantiate_class(optimizer, self.lr_scheduler)
+        else:
+            scheduler = None
+
         if self.monitor is None:
             {"optimizer": optimizer, "lr_scheduler": scheduler}
         else:
