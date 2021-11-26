@@ -339,8 +339,6 @@ class Dihedral(torch.nn.Module, _Prior):
             if min_i_aic == 0:
                 popt = popts[0]
                 stat = {
-                    "theta_0": popt[0],
-                    "k_0": popt[1],
                     "theta_1": 0,
                     "k_1": 0,
                     "theta_2": 0,
@@ -350,8 +348,6 @@ class Dihedral(torch.nn.Module, _Prior):
             elif min_i_aic == 1:
                 popt = popts[1]
                 stat = {
-                    "theta_0": popt[0],
-                    "k_0": popt[1],
                     "theta_1": popt[2],
                     "k_1": popt[3],
                     "theta_2": 0,
@@ -361,14 +357,13 @@ class Dihedral(torch.nn.Module, _Prior):
             elif min_i_aic == 2:
                 popt = popts[2]
                 stat = {
-                    "theta_0": popt[0],
-                    "k_0": popt[1],
                     "theta_1": popt[2],
                     "k_1": popt[3],
                     "theta_2": popt[4],
                     "k_2": popt[5],
                 }
                 Dihedral.compute = Dihedral.compute3
+            stat = {"theta_0": popt[0], "k_0": popt[1]}
 
         except:
             print(f"failed to fit potential estimate for Dihedral")
