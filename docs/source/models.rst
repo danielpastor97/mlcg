@@ -17,7 +17,7 @@ may find the class `StandardSchNet` to be helpful in getting started quickly.
 Radial Basis Functions
 ----------------------
 
-These classes are used to expanded pairwsie distances into a basis of more general input features for filter generating networks in `SchNet`.
+Sets of radial basis functions are used to expand the distances between atoms on a fixed-sized vector. For instance, this is the main transformation of the distances in the `SchNet` model.
 
 .. autoclass:: mlcg.nn.radial_basis.GaussianBasis
 .. autoclass:: mlcg.nn.radial_basis.ExpNormalBasis
