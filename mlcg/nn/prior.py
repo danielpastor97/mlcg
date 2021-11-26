@@ -306,17 +306,31 @@ class Dihedral(torch.nn.Module, _Prior):
         mask = torch.abs(dG_nz) > 1e-4 * torch.abs(integral)
         try:
             # Determine best fit. Either 1, 2, or 3 parameters
-            compute_dihedrals = [Dihedral.compute1,Dihedral.compute2,Dihedral.compute3]
-            free_parameters = [2,4,6]
-            p0s = [[3.1415/2,1],[3.1415/2,1,-3.1415/2,1]]
+            compute_dihedrals = [
+                Dihedral.compute1,
+                Dihedral.compute2,
+                Dihedral.compute3,
+            ]
+            free_parameters = [2, 4, 6]
+            p0s = [[3.1415 / 2, 1], [3.1415 / 2, 1, -3.1415 / 2, 1]]
             popts = []
             aics = []
-            for i_cd,compute_dihedral in enumerate(compute_dihedrals):
-                popt, _ = curve_fit(compute_dihedral,bin_centers_nz[mask],dG_nz[mask],p0s[i_cd])
+            for i_cd, compute_dihedral in enumerate(compute_dihedrals):
+                popt, _ = curve_fit(
+                    compute_dihedral,
+                    bin_centers_nz[mask],
+                    dG_nz[mask],
+                    p0s[i_cd],
+                )
                 popts.append(popt)
-                aic = 2*Dihedral.neg_log_likelihood(
-                    dG_nz[mask], compute_dihedral(bin_centers_nz[mask], *popt)
-                    ) - 2*free_parameters[i_cd]
+                aic = (
+                    2
+                    * Dihedral.neg_log_likelihood(
+                        dG_nz[mask],
+                        compute_dihedral(bin_centers_nz[mask], *popt),
+                    )
+                    - 2 * free_parameters[i_cd]
+                )
                 aics.append(aic)
 
             min_aic = min(aics)
