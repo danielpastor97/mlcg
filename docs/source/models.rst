@@ -9,10 +9,10 @@ SchNet Utilities
 These classes are used to define a SchNet graph neural network. For "typical" SchNet models, users
 may find the class `StandardSchNet` to be helpful in getting started quickly.
 
+.. autoclass:: mlcg.nn.StandardSchNet
 .. autoclass:: mlcg.nn.schnet.SchNet
 .. autoclass:: mlcg.nn.schnet.InteractionBlock
 .. autoclass:: mlcg.nn.CFConv
-.. autoclass:: mlcg.nn.StandardSchNet
 
 Radial Basis Functions
 ----------------------
