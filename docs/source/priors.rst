@@ -1,7 +1,7 @@
 Priors
 ======
 
-`mlcg.nn` implements prior models that are important for imposing geometrical constraints on coarse grain systems for both training and simulation. These prior models can be supplied with a user defined set of interaction parameters, or they can alternatively be parametrized directly from data for multiple interacting atom types. 
+`mlcg.nn` implements prior models that are important physical baselines imposing geometrical constraints on coarse-grained systems. These prior models can be supplied with a user-defined set of interaction parameters, or they can alternatively be parametrized directly from data for multiple interacting atom types. 
 
 Prior Utilities
 ----------------
