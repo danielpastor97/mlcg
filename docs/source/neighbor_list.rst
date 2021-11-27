@@ -1,7 +1,8 @@
 Neighbor Lists
 ==============
 
-`mlcg.neighborlist` contains several functions that can be used to create neighbor lists directly from data for features of arbitrary interaction order. There are also tools to interface with `ASE` representaions.
+`mlcg.neighborlist` contains several functions that can be used to create neighbor lists using a finite cutoff with mixed periodic boundary conditions using pytorch. There are also tools to interface with `ASE` tools. 
+The neighbor lists are dictionaries containing meta-data (user defined `tag`, `body order`, `cutoff`, `self_interaction`) and the actual indices, `index_mapping`, and `cell_shifts`.
 
 Neighbor List Utilities
 -----------------------
