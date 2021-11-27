@@ -9,7 +9,7 @@ from ..geometry.topology import Topology, add_chain_bonds, add_chain_angles
 
 def build_cg_matrix(
     topology: Topology,
-    cg_mapping: Dict[Tuple[str, str], Tuple[str, int, int]] = CA_MAP,
+    cg_mapping: Dict[Tuple[str, str], Tuple[str, int, int]] = None,
     special_terminal: bool = True,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, OrderedDict]:
     r"""Function for producing coarse grain types, masses, and
@@ -59,6 +59,9 @@ def build_cg_matrix(
         and the CG atom mass
     """
 
+    if cg_mapping == None:
+        cg_mapping = CA_MAP
+
     cg_mapping_ = OrderedDict()
     n_atoms = topology.n_atoms
     for i_at, at in enumerate(topology.atoms):
@@ -91,7 +94,7 @@ def build_cg_matrix(
 
 def build_cg_topology(
     topology: Topology,
-    cg_mapping: Dict[Tuple[str, str], Tuple[str, int, int]] = CA_MAP,
+    cg_mapping: Dict[Tuple[str, str], Tuple[str, int, int]] = None,
     special_terminal: bool = True,
     bonds: Optional[Callable] = add_chain_bonds,
     angles: Optional[Callable] = add_chain_angles,
@@ -120,6 +123,8 @@ def build_cg_topology(
     cg_topo:
         Coarse grain topology
     """
+    if cg_mapping == None:
+        cg_mapping = CA_MAP
 
     cg_topo = Topology()
     for at in topology.atoms:
