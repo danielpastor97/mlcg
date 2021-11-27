@@ -267,7 +267,7 @@ class Topology(object):
 
             residue = topo.add_residue(self.resnames[i_at], chain)
             topo.add_atom(self.names[i_at], element, residue)
-        for idx in range(len(self.bonds)):
+        for idx in range(len(self.bonds[0])):
             idx1, idx2 = self.bonds[0][idx], self.bonds[1][idx]
             a1, a2 = topo.atom(idx1), topo.atom(idx2)
             topo.add_bond(a1, a2)
@@ -549,3 +549,4 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.Tensor:
         final_paths = torch.unique(final_paths, dim=1)
 
     return final_paths
+
