@@ -549,4 +549,3 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.Tensor:
         final_paths = torch.unique(final_paths, dim=1)
 
     return final_paths
-
