@@ -201,7 +201,7 @@ class Dihedral(torch.nn.Module, _Prior):
     TO DO: better guess for p0 under fit_from_potential_estimates
     """
 
-    _name : Final[str] = "dihedral"
+    name: Final[str] = "dihedral"
     _order = 4
     _neighbor_list_name = "dihedrals"
 
@@ -210,7 +210,7 @@ class Dihedral(torch.nn.Module, _Prior):
         keys = torch.tensor(list(statistics.keys()), dtype=torch.long)
         self.allowed_interaction_keys = list(statistics.keys())
         self.order = self._order
-        self.name = self._name
+        self.name = self.name
         unique_types = torch.unique(keys.flatten())
         assert unique_types.min() >= 0
         max_type = unique_types.max()
