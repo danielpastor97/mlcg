@@ -7,7 +7,9 @@ data = torch.randn(100, 3)
 linear_data = torch.linspace(0, 10, 100)
 
 
-@pytest.mark.parametrize("basis_type", [GaussianBasis, ExpNormalBasis, RIGTOBasis])
+@pytest.mark.parametrize(
+    "basis_type", [GaussianBasis, ExpNormalBasis, RIGTOBasis]
+)
 def test_cutoff_error_raise(basis_type):
     """Test to make sure that RBFs enforce sensible cutoffs"""
     with pytest.raises(ValueError):
@@ -16,7 +18,11 @@ def test_cutoff_error_raise(basis_type):
 
 @pytest.mark.parametrize(
     "basis_type, default_cutoff",
-    [(GaussianBasis, IdentityCutoff), (ExpNormalBasis, CosineCutoff), (RIGTOBasis, ShiftedCosineCutoff)],
+    [
+        (GaussianBasis, IdentityCutoff),
+        (ExpNormalBasis, CosineCutoff),
+        (RIGTOBasis, ShiftedCosineCutoff),
+    ],
 )
 def test_cutoff_defaults(basis_type, default_cutoff):
     cutoff_upper = 10
