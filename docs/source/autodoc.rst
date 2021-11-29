@@ -37,9 +37,14 @@ Neural network models for coarse grain property predictions
 
 Radial basis functions
 
-.. automodule:: mlcg.nn.radial_basis
+.. automodule:: mlcg.nn.radial_basis.radial_integral_gto
    :members:
 
+.. automodule:: mlcg.nn.radial_basis.exp_normal
+   :members:
+
+.. automodule:: mlcg.nn.radial_basis.gaussian
+   :members:
 
 Cutoff functions
 
