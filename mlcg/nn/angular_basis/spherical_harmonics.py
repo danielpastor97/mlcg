@@ -82,7 +82,7 @@ class SphericalHarmonics(torch.nn.Module):
     def __init__(
         self,
         lmax: int,
-        normalize: bool,
+        normalize: bool = False,
         normalization: str = "integral",
         irreps_in: Any = None,
     ):
