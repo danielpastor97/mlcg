@@ -67,8 +67,9 @@ class SphericalHarmonics(torch.nn.Module):
 
     Returns
     -------
-    `list(torch.Tensor)`
-        a list of tensors of shapes ``(1, 3, ..., 2l+1), ...``
+
+    List[torch.Tensor]
+        a list of tensors of shapes ``[lmax][n_neighbor, m]`` where :math:`m<=l`
 
         .. math:: Y^l(x)
 
