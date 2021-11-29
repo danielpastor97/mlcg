@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 from typing import List
 
+
 class NaturalCubicSpline(nn.Module):
     """Calculates the natural cubic spline approximation for a set of functions that are defined on the same points. Also calculates their derivatives.
     The supporting grid, :obj:`t`, to train the splines is assumed to be equispaced.
