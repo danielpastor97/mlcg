@@ -1,5 +1,6 @@
 r"""Spherical Harmonics as polynomials of x, y, z
 taken from the e3nn repo changing the layout of the output sph
+(https://github.com/e3nn/e3nn/tree/34ebae91b094392a9f26dfa153f9350d0e24d185)
 """
 from typing import Union, List, Any
 
