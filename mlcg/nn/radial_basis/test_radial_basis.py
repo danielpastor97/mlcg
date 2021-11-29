@@ -1,10 +1,12 @@
 import torch
 import pytest
-from mlcg.nn.radial_basis import GaussianBasis, ExpNormalBasis
-from mlcg.nn.cutoff import IdentityCutoff, CosineCutoff
+from mlcg.nn.radial_basis import GaussianBasis, ExpNormalBasis, RIGTOBasis
+from mlcg.nn.cutoff import IdentityCutoff, CosineCutoff, ShiftedCosineCutoff
 
 
-@pytest.mark.parametrize("basis_type", [GaussianBasis, ExpNormalBasis])
+@pytest.mark.parametrize(
+    "basis_type", [GaussianBasis, ExpNormalBasis, RIGTOBasis]
+)
 def test_cutoff_error_raise(basis_type):
     """Test to make sure that RBFs enforce sensible cutoffs"""
     with pytest.raises(ValueError):
@@ -13,7 +15,11 @@ def test_cutoff_error_raise(basis_type):
 
 @pytest.mark.parametrize(
     "basis_type, default_cutoff",
-    [(GaussianBasis, IdentityCutoff), (ExpNormalBasis, CosineCutoff)],
+    [
+        (GaussianBasis, IdentityCutoff),
+        (ExpNormalBasis, CosineCutoff),
+        (RIGTOBasis, ShiftedCosineCutoff),
+    ],
 )
 def test_cutoff_defaults(basis_type, default_cutoff):
     cutoff_upper = 10
