@@ -201,7 +201,7 @@ class Dihedral(torch.nn.Module, _Prior):
     TO DO: better guess for p0 under fit_from_potential_estimates
     """
 
-    _name = "dihedral"
+    _name : Final[str] = "dihedral"
     _order = 4
     _neighbor_list_name = "dihedrals"
 
