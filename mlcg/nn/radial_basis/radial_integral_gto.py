@@ -22,11 +22,13 @@ class RIGTOBasis(_RadialBasis):
     The basis is defined as
 
     .. math::
-        R_{nl}(r)= f_c(r) \mathcal{N}_n \frac{\Gamma(\frac{n+l+3}{2})}{\Gamma(l+\frac{3}{2})}c^l r^l(c+b_n)^{-\frac{(n+l+3)}{2}}  {}_1F_1\left(\frac{n+l+3}{2},l+\frac{3}{2};\frac{c^2 r^2}{c+b_n}\right),
+        R_{nl}(r) = f_c(r) \mathcal{N}_n \frac{\Gamma(\frac{n+l+3}{2})}{\Gamma(l+\frac{3}{2})}
+        c^l r^l(c+b_n)^{-\frac{(n+l+3)}{2}}
+        {}_1F_1\left(\frac{n+l+3}{2},l+\frac{3}{2};\frac{c^2 r^2}{c+b_n}\right),
 
     where :math:`{}_1F_1` is the confluent hypergeometric function,
     :math:`\Gamma` is the gamma function, :math:`f_c` is a cutoff function,
-     :math:`b_n=\frac{1}{2\sigma_n^2}`,
+     :math:`b_n=\frac{1}{2\sigma_n^2}`, :math:`c= 1 / (2\sigma^2`,
     :math:`\sigma_n = r_\text{cut} \max(\sqrt{n},1)/n_{max}` and
     :math:`\mathcal{N}_n^2 = \frac{2}{\sigma_n^{2n + 3}\Gamma(n + 3/2)}`.
 
@@ -41,11 +43,12 @@ class RIGTOBasis(_RadialBasis):
     sigma:
         smearing of the atomic density
     cutoff:
-        Defines the smooth cutoff function. If a float is provided, it will be interpreted as
-        an upper cutoff and a CosineCutoff will be used between 0 and the provided float. Otherwise,
-        a chosen _Cutoff instance can be supplied.
+        Defines the smooth cutoff function. If a float is provided, it will be
+        interpreted as an upper cutoff and a CosineCutoff will be used between
+        0 and the provided float. Otherwise, a chosen _Cutoff instance can be
+        supplied.
     mesh_size:
-        number of points used to interpolate with splines the radial basis
+        number of points used to interpolate with splines the radial basis spanning uniformly the range difined by the cutoff :math:`[0, r_c]`.
 
     """
 
