@@ -201,7 +201,7 @@ class Dihedral(torch.nn.Module, _Prior):
     TO DO: better guess for p0 under fit_from_potential_estimates
     """
 
-    _name = "dihedral"
+    name: Final[str] = "dihedrals"
     _order = 4
     _neighbor_list_name = "dihedrals"
 
@@ -210,7 +210,7 @@ class Dihedral(torch.nn.Module, _Prior):
         keys = torch.tensor(list(statistics.keys()), dtype=torch.long)
         self.allowed_interaction_keys = list(statistics.keys())
         self.order = self._order
-        self.name = self._name
+        self.name = self.name
         unique_types = torch.unique(keys.flatten())
         assert unique_types.min() >= 0
         max_type = unique_types.max()
@@ -266,13 +266,13 @@ class Dihedral(torch.nn.Module, _Prior):
         return compute_dihedrals(pos, mapping)
 
     @staticmethod
-    def compute1(theta, theta_0, k_0):
+    def compute1(theta, theta_0, k_0, theta_1, k_1, theta_2, k_2):
         V = 0
         V += k_0 * (1 - torch.cos(1 * theta - theta_0))
         return V
 
     @staticmethod
-    def compute2(theta, theta_0, k_0, theta_1, k_1):
+    def compute2(theta, theta_0, k_0, theta_1, k_1, theta_2, k_2):
         V = 0
         V += k_0 * (1 - torch.cos(1 * theta - theta_0))
         V += k_1 * (1 - torch.cos(2 * theta - theta_1))
@@ -376,6 +376,7 @@ class Dihedral(torch.nn.Module, _Prior):
                 "theta_2": torch.tensor(float("nan")),
                 "k_2": torch.tensor(float("nan")),
             }
+            Dihedral.compute = Dihedral.compute1
         return stat
 
     def from_user(*args):
