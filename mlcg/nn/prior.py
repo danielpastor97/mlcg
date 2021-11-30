@@ -201,7 +201,7 @@ class Dihedral(torch.nn.Module, _Prior):
     TO DO: better guess for p0 under fit_from_potential_estimates
     """
 
-    name: Final[str] = "dihedral"
+    _name = "dihedral"
     _order = 4
     _neighbor_list_name = "dihedrals"
 
@@ -210,7 +210,7 @@ class Dihedral(torch.nn.Module, _Prior):
         keys = torch.tensor(list(statistics.keys()), dtype=torch.long)
         self.allowed_interaction_keys = list(statistics.keys())
         self.order = self._order
-        self.name = self.name
+        self.name = self._name
         unique_types = torch.unique(keys.flatten())
         assert unique_types.min() >= 0
         max_type = unique_types.max()
@@ -363,7 +363,8 @@ class Dihedral(torch.nn.Module, _Prior):
                     "k_2": popt[5],
                 }
                 Dihedral.compute = Dihedral.compute3
-            stat = {"theta_0": popt[0], "k_0": popt[1]}
+            stat["theta_0"] = popt[0]
+            stat["k_0"] = popt[1]
 
         except:
             print(f"failed to fit potential estimate for Dihedral")

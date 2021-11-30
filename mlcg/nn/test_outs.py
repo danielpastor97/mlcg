@@ -6,6 +6,7 @@ from torch_geometric.data.collate import collate
 
 from ase.build import molecule
 from mlcg.geometry import Topology
+from mlcg.geometry.topology import get_connectivity_matrix, get_n_paths
 from mlcg.geometry.statistics import fit_baseline_models
 from mlcg.neighbor_list.neighbor_list import make_neighbor_list
 from mlcg.nn.prior import HarmonicBonds, HarmonicAngles, Dihedral
@@ -48,8 +49,16 @@ def ASE_prior_model():
         beta = 1 / (temperature * kB)
 
         # Here we make a simple prior-only model of aluminum-fluoride
-        mol = molecule("AlF3")
+        # mol = molecule("AlF3")
+        # Implement molecule with dihedrals
+        mol = molecule("CH3CH2NH2")
         test_topo = Topology.from_ase(mol)
+
+        # Add in molecule with deiheral and compute edges
+        conn_mat = get_connectivity_matrix(test_topo)
+        dihedral_paths = get_n_paths(conn_mat, n=4)
+        test_topo.dihedrals_from_edge_index(dihedral_paths)
+
         n_atoms = len(test_topo.types)
         initial_coords = np.array(mol.get_positions())
 
