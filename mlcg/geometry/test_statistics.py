@@ -3,6 +3,7 @@ import pytest
 import numpy as np
 
 from mlcg.geometry.topology import Topology
+from mlcg.geometry.topology import get_connectivity_matrix, get_n_paths
 from mlcg.geometry.statistics import compute_statistics
 from mlcg.geometry.statistics import _symmetrise_map
 from mlcg.nn.prior import HarmonicBonds, HarmonicAngles, Repulsion, Dihedral
@@ -33,6 +34,9 @@ mock_data_frames = torch.stack(mock_data_frames, dim=0)
 
 # Topology object for the above molecule
 test_topo = Topology.from_ase(mol)
+conn_mat = get_connectivity_matrix(test_topo)
+dihedral_paths = get_n_paths(conn_mat, n=4)
+test_topo.dihedrals_from_edge_index(dihedral_paths)
 
 # unique bond/angle species
 

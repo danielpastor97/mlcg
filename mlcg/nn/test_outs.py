@@ -54,7 +54,7 @@ def ASE_prior_model():
         mol = molecule("CH3CH2NH2")
         test_topo = Topology.from_ase(mol)
 
-        # Add in molecule with deiheral and compute edges
+        # Add in molecule with dihedral and compute edges
         conn_mat = get_connectivity_matrix(test_topo)
         dihedral_paths = get_n_paths(conn_mat, n=4)
         test_topo.dihedrals_from_edge_index(dihedral_paths)

@@ -47,14 +47,10 @@ def _symmetrise_dihedral_interaction(
     Hence the need for only considering interactions (a,b,c,d) with a < d.
     """
     mask = unique_interaction_types[0] > unique_interaction_types[3]
-    ee0 = unique_interaction_types[0, mask]
-    ee1 = unique_interaction_types[1, mask]
-    ee2 = unique_interaction_types[2, mask]
-    ee3 = unique_interaction_types[3, mask]
-    unique_interaction_types[0, mask] = ee3
-    unique_interaction_types[1, mask] = ee2
-    unique_interaction_types[2, mask] = ee1
-    unique_interaction_types[3, mask] = ee0
+    for id0,id1 in [0,3], [1,2]:
+        ee = unique_interaction_types[id0, mask]
+        unique_interaction_types[id0, mask] = unique_interaction_types[id1, mask]
+        unique_interaction_types[id1, mask] = ee
     return unique_interaction_types
 
 
