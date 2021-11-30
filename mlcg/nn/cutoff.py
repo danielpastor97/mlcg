@@ -24,7 +24,7 @@ class _Cutoff(nn.Module):
         raise NotImplementedError
 
 
-class _OneSidedCutoff(nn.Module):
+class _OneSidedCutoff(_Cutoff):
     r"""Abstract classs for cutoff functions with a fuxed lower cutoff of 0"""
 
     def __init__(self):
@@ -37,7 +37,7 @@ class _OneSidedCutoff(nn.Module):
 
 
 class IdentityCutoff(_Cutoff):
-    r"""Cutoff function that applies an identity transform, but retains
+    r"""Cutoff function that is one everywhere, but retains
     cutoff_lower and cutoff_upper attributes
 
     Parameters
@@ -56,7 +56,8 @@ class IdentityCutoff(_Cutoff):
         self.check_cutoff()
 
     def forward(self, distances: torch.Tensor) -> torch.Tensor:
-        r"""Applies identity transform to input distances
+        r"""Fowrad method that returns a cutoff enevlope where all values are
+        one
 
         Parameters
         ----------
@@ -65,9 +66,9 @@ class IdentityCutoff(_Cutoff):
 
         Returns
         -------
-            Identity-transformed output distances of shape (total_num_edges)
+            Cutoff envelope filled with ones, of shape (total_num_edges)
         """
-        return distances
+        return torch.ones_like(distances)
 
 
 class CosineCutoff(_Cutoff):
@@ -135,3 +136,45 @@ class CosineCutoff(_Cutoff):
             # remove contributions beyond the cutoff radius
             cutoffs = cutoffs * (distances < self.cutoff_upper).float()
             return cutoffs
+
+
+class ShiftedCosineCutoff(_OneSidedCutoff):
+    r"""Class of Behler cosine cutoff.
+
+    .. math::
+        sdf
+
+    Args:
+        cutoff (float, optional): cutoff radius.
+
+    """
+
+    def __init__(self, cutoff=5.0, smooth_width=0.5):
+        super(ShiftedCosineCutoff, self).__init__()
+        self.cutoff_upper = cutoff
+        self.smooth_width = smooth_width
+        # del self.cutoff_upper
+        # self.register_buffer("cutoff_upper", torch.Tensor([cutoff]))
+        # self.register_buffer("smooth_width", torch.Tensor([smooth_width]))
+
+    def forward(self, distances):
+        """Compute cutoff function.
+
+        Args:
+            distances (torch.Tensor): values of interatomic distances.
+
+        Returns:
+            torch.Tensor: values of cutoff function.
+
+        """
+        # Compute values of cutoff function
+        cutoffs = torch.ones_like(distances)
+        mask = distances > self.cutoff_upper - self.smooth_width
+        cutoffs[mask] = 0.5 + 0.5 * torch.cos(
+            math.pi
+            * (distances[mask] - self.cutoff_upper + self.smooth_width)
+            / self.smooth_width
+        )
+        cutoffs[distances > self.cutoff_upper] = 0.0
+
+        return cutoffs.view(-1)

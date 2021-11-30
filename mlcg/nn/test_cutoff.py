@@ -2,7 +2,7 @@ import torch
 import pytest
 import numpy as np
 
-from mlcg.nn.cutoff import IdentityCutoff, CosineCutoff
+from mlcg.nn.cutoff import IdentityCutoff, CosineCutoff, ShiftedCosineCutoff
 
 data = torch.randn(100, 3)
 linear_data = torch.linspace(0, 10, 100)
@@ -19,7 +19,9 @@ def test_identity_cutoff():
     """Test to make sure that IdentityCutoff performs an identity transform"""
     cutoff = IdentityCutoff()
     data_out = cutoff(data)
-    np.testing.assert_array_equal(data.numpy(), data_out.numpy())
+    np.testing.assert_array_equal(
+        torch.ones_like(data).numpy(), data_out.numpy()
+    )
 
 
 @pytest.mark.parametrize(
@@ -37,4 +39,19 @@ def test_cosine_cutoff(
     print(cutoff_data[0])
     print(cutoff_data[1])
     assert cutoff_data[0] == expected_lower_value
+    assert cutoff_data[-1] == expected_upper_value
+
+
+@pytest.mark.parametrize(
+    "cutoff_upper, expected_upper_value",
+    [(5, 0), (10, 0)],
+)
+def test_shifted_cosine_cutoff(cutoff_upper, expected_upper_value):
+    """Test to make sure that CosineCutoff produces the correct cutoff values at the endpoints
+    for lower cutoffs of zero and greater than zero
+    """
+    cutoff = ShiftedCosineCutoff(cutoff=cutoff_upper)
+    cutoff_data = cutoff(linear_data).numpy()
+    print(cutoff_data)
+    assert cutoff_data[0] == 1
     assert cutoff_data[-1] == expected_upper_value

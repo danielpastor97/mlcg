@@ -180,7 +180,6 @@ class ChignolinDataset(InMemoryDataset):
                 sub_data_list,
                 baseline_models,
             )
-
         print("collating data_list")
         datas, slices = self.collate(data_list)
 

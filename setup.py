@@ -28,5 +28,5 @@ setup(
     license="MIT",
     author="Fe" + "\u0301" + "lix Musil, Nick Charron",
     install_requires=install_requires,
-    scripts=["scripts/mlcg-train.py"],
+    scripts=["scripts/mlcg-train.py", "scripts/mlcg-nvt_langevin.py"],
 )

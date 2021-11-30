@@ -103,9 +103,11 @@ class _Simulation(object):
         self.input_option_checks()
 
         if random_seed is None:
-            self.rng = torch.default_generator
+            self.rng = None
         else:
-            self.rng = torch.Generator().manual_seed(random_seed)
+            self.rng = torch.Generator(device=self.device).manual_seed(
+                random_seed
+            )
         self.random_seed = random_seed
         self._simulated = False
 
@@ -117,7 +119,7 @@ class _Simulation(object):
         model : torch.nn.Module
             Trained model used to generate simulation data
         """
-        model.eval()
+        model = model.eval().to(device=self.device)
         self.model = model
 
     def attach_configurations(self, configurations: List[AtomicData]):
@@ -130,7 +132,7 @@ class _Simulation(object):
         parallel simulations.
         """
         self.validate_data_list(configurations)
-        self.initial_data = self.collate(configurations)
+        self.initial_data = self.collate(configurations).to(device=self.device)
         self.n_sims = len(configurations)
         self.n_atoms = len(configurations[0].atom_types)
         self.n_dims = configurations[0].pos.shape[1]
@@ -152,6 +154,7 @@ class _Simulation(object):
         """
         self._set_up_simulation(overwrite)
         data = deepcopy(self.initial_data)
+        data.to(self.device)
         _, forces = self.calculate_potential_and_forces(data)
         for t in tqdm(range(self.n_timesteps), desc="Simulation timestep"):
             # step forward in time
