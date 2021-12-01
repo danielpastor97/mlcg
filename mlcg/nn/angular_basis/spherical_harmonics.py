@@ -43,7 +43,7 @@ class SphericalHarmonics(torch.nn.Module):
 
     .. note::
 
-        This function match with this table of standard real spherical harmonics from Wikipedia_
+        This function matches with the following table of standard real spherical harmonics from Wikipedia_
         when ``normalize=True``, ``normalization='integral'`` and is called with the argument in the order ``y,z,x`` (instead of ``x,y,z``).
 
     .. _Wikipedia: https://en.wikipedia.org/wiki/Table_of_spherical_harmonics#Real_spherical_harmonics
@@ -57,7 +57,7 @@ class SphericalHarmonics(torch.nn.Module):
         tensor :math:`x` of shape ``(..., 3)``.
 
     normalize : bool
-        whether to normalize the ``x`` to unit vectors that lie on the sphere before projecting onto the spherical harmonics
+        whether to normalize the ``x`` to vectors that lie on the unit sphere before projecting onto the spherical harmonics
 
     normalization : {'integral', 'component', 'norm'}
         normalization of the output tensors --- note that this option is independent of ``normalize``, which controls the processing of the *input*, rather than the output.
