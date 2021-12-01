@@ -56,7 +56,7 @@ class SphericalHarmonics(torch.nn.Module):
         tensor :math:`x` of shape ``(..., 3)``.
 
     normalize : bool
-        whether to normalize the ``x`` to unit vectors that lie on the sphere before projecting onto the spherical harmonics
+        whether to normalize the ``x`` to vectors that lie on the unit sphere before projecting onto the spherical harmonics
 
     normalization : {'integral', 'component', 'norm'}
         normalization of the output tensors --- note that this option is independent of ``normalize``, which controls the processing of the *input*, rather than the output.
