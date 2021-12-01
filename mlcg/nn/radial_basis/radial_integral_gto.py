@@ -58,7 +58,7 @@ class RIGTOBasis(_RadialBasis):
         nmax: int = 5,
         lmax: int = 5,
         sigma: float = 0.4,
-        mesh_size: int = 600,
+        mesh_size: int = 300,
     ):
         super(RIGTOBasis, self).__init__()
         if isinstance(cutoff, (float, int)):
