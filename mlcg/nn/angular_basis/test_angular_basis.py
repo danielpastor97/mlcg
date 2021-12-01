@@ -4,10 +4,11 @@ import torch
 
 
 def test_sph_equivariance():
-    TOLERANCE = 1e-6
+    TOLERANCE = 5e-6
     sph = SphericalHarmonics(lmax=4)
 
     def adapt(x):
+        # change the layout of out so that it fits into assert_equivariant
         out = sph(x)
         return torch.hstack(out)
 

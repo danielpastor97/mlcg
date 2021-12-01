@@ -13,10 +13,11 @@ import torch
 from e3nn import o3
 from e3nn.util.jit import compile_mode
 
+from ...geometry.internal_coordinates import safe_norm, safe_normalization
 
 @compile_mode("script")
 class SphericalHarmonics(torch.nn.Module):
-    r"""JITable module version of Spherical harmonics
+    r"""JITable module version of real Spherical harmonics
 
     .. image:: https://user-images.githubusercontent.com/333780/79220728-dbe82c00-7e54-11ea-82c7-b3acbd9b2246.gif
 
@@ -136,9 +137,8 @@ class SphericalHarmonics(torch.nn.Module):
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         if self.normalize:
-            x = torch.nn.functional.normalize(
-                x, dim=-1
-            )  # forward 0's instead of nan for zero-radius
+            norms = safe_norm(x, dim=-1)
+            x = safe_normalization(x, norms)
 
         sh = _spherical_harmonics(self._lmax, x[..., 0], x[..., 1], x[..., 2])
 
