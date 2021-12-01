@@ -38,7 +38,7 @@ class PLModel(pl.LightningModule):
         loss: Loss,
         optimizer: Optional[dict] = None,
         lr_scheduler: Optional[dict] = None,
-        monitor: str = "validation_loss",
+        monitor: Optional[str] = None,
         step_frequency: int = 1,
     ) -> None:
         """ """
@@ -64,13 +64,16 @@ class PLModel(pl.LightningModule):
         )
         optim_config = {"optimizer": optimizer}
 
-        if self.lr_scheduler:
+        if self.lr_scheduler is not None:
             scheduler = instantiate_class(optimizer, self.lr_scheduler)
             optim_config.update(
                 lr_scheduler=scheduler,
-                monitor=self.monitor,
-                frequency=self.step_frequency,
             )
+            if self.monitor is not None:
+                optim_config.update(
+                    monitor=self.monitor,
+                    frequency=self.step_frequency,
+                )
 
         return optim_config
 
