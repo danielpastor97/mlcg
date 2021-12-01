@@ -217,10 +217,10 @@ class Dihedral(torch.nn.Module, _Prior):
         sizes = tuple([max_type + 1 for _ in range(self.order)])
         # In principle we could extend this to include even more wells if needed.
         self.n_degs = 3
-        theta = self.n_degs*[torch.zeros(sizes)]
-        self.theta_names = ["theta_"+str(ii) for ii in range(self.n_degs)]
-        k = self.n_degs*[torch.zeros(sizes)]
-        self.k_names = ["k_"+str(ii) for ii in range(self.n_degs)]
+        theta = self.n_degs * [torch.zeros(sizes)]
+        self.theta_names = ["theta_" + str(ii) for ii in range(self.n_degs)]
+        k = self.n_degs * [torch.zeros(sizes)]
+        self.k_names = ["k_" + str(ii) for ii in range(self.n_degs)]
 
         for key in statistics.keys():
             for ii in range(self.n_degs):
@@ -250,8 +250,8 @@ class Dihedral(torch.nn.Module, _Prior):
         for ii in range(self.n_degs):
             theta_name = self.theta_names[ii]
             k_name = self.k_names[ii]
-            thetas.append(getattr(self,theta_name)[interaction_types])
-            ks.append(getattr(self,k_name)[interaction_types])
+            thetas.append(getattr(self, theta_name)[interaction_types])
+            ks.append(getattr(self, k_name)[interaction_types])
         y = Dihedral.compute(
             features,
             thetas,
@@ -267,17 +267,17 @@ class Dihedral(torch.nn.Module, _Prior):
 
     @staticmethod
     def wrapper_fit_func(theta, deg, *args):
-        theta0s,ks = list(args[0]), list(args[1])
-        theta0s[deg:] = torch.zeros(len(args[0])-(deg+1))
-        ks[deg:] = torch.zeros(len(args[0])-(deg+1))
+        theta0s, ks = list(args[0]), list(args[1])
+        theta0s[deg:] = torch.zeros(len(args[0]) - (deg + 1))
+        ks[deg:] = torch.zeros(len(args[0]) - (deg + 1))
         return Dihedral.compute(theta, theta0s, ks)
 
     @staticmethod
-    def compute(theta,theta0s,ks):
-            V = torch.zeros_like(theta)
-            for ii,(theta0, k) in enumerate(zip(theta0s, ks)):
-                V += k * (1 - torch.cos((ii+1)*theta - theta0))
-            return V
+    def compute(theta, theta0s, ks):
+        V = torch.zeros_like(theta)
+        for ii, (theta0, k) in enumerate(zip(theta0s, ks)):
+            V += k * (1 - torch.cos((ii + 1) * theta - theta0))
+        return V
 
     @staticmethod
     def neg_log_likelihood(y, yhat):
@@ -293,8 +293,8 @@ class Dihedral(torch.nn.Module, _Prior):
     @staticmethod
     def fit_from_potential_estimates(bin_centers_nz, dG_nz):
         stat = {
-            "thetas":{},
-            "ks":{},
+            "thetas": {},
+            "ks": {},
         }
         integral = torch.tensor(
             float(trapezoid(dG_nz.cpu().numpy(), bin_centers_nz.cpu().numpy()))
@@ -302,25 +302,27 @@ class Dihedral(torch.nn.Module, _Prior):
 
         mask = torch.abs(dG_nz) > 1e-4 * torch.abs(integral)
         n_degs = 3
-        theta_names = ["theta_"+str(ii) for ii in range(n_degs)]
-        k_names = ["k_"+str(ii) for ii in range(n_degs)]
+        theta_names = ["theta_" + str(ii) for ii in range(n_degs)]
+        k_names = ["k_" + str(ii) for ii in range(n_degs)]
         try:
-            # Determine best fit for unknown # of parameters 
-            p0s = lambda m: [3.14*(1-m+2*i)/(2*m) for i in range(m)]
+            # Determine best fit for unknown # of parameters
+            p0s = lambda m: [3.14 * (1 - m + 2 * i) / (2 * m) for i in range(m)]
             popts = []
             aics = []
-            for deg in range(1,n_degs+1):
+            for deg in range(1, n_degs + 1):
                 p0 = p0s(deg)
-                for ip in range(1,n_degs+1):
+                for ip in range(1, n_degs + 1):
                     if ip > deg:
                         p0.append(0)
                     else:
                         p0.append(1)
-                
-                free_parameters = 2*(deg+1)
+
+                free_parameters = 2 * (deg + 1)
 
                 popt, _ = curve_fit(
-                    lambda theta, *p0: Dihedral.wrapper_fit_func(theta, deg, p0),
+                    lambda theta, *p0: Dihedral.wrapper_fit_func(
+                        theta, deg, p0
+                    ),
                     bin_centers_nz[mask],
                     dG_nz[mask],
                     p0,
@@ -330,7 +332,9 @@ class Dihedral(torch.nn.Module, _Prior):
                     2
                     * Dihedral.neg_log_likelihood(
                         dG_nz[mask],
-                        lambda theta, *popt: Dihedral.wrapper_fit_func(bin_centers_nz[mask], deg, *popt),
+                        lambda theta, *popt: Dihedral.wrapper_fit_func(
+                            bin_centers_nz[mask], deg, *popt
+                        ),
                     )
                     - 2 * free_parameters
                 )
@@ -343,7 +347,7 @@ class Dihedral(torch.nn.Module, _Prior):
                 theta_name = theta_names[ii]
                 k_name = k_names[ii]
                 stat["thetas"][theta_name] = popt[ii]
-                stat["ks"][k_name] = popt[n_degs+ii] 
+                stat["ks"][k_name] = popt[n_degs + ii]
 
         except:
             print(f"failed to fit potential estimate for Dihedral")
