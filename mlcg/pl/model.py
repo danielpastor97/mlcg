@@ -62,16 +62,15 @@ class PLModel(pl.LightningModule):
         optimizer = instantiate_class(
             self.model.parameters(), init=self.optimizer
         )
+        optim_config = {"optimizer": optimizer}
+
         if self.lr_scheduler:
             scheduler = instantiate_class(optimizer, self.lr_scheduler)
-            optim_config = {
-                "optimizer": optimizer,
-                "lr_scheduler": scheduler,
-                "monitor": self.monitor,
-                "frequency": self.step_frequency,
-            }
-        else:
-            optim_config = {"optimizer": optimizer}
+            optim_config.update(
+                lr_scheduler=scheduler,
+                monitor=self.monitor,
+                frequency=self.step_frequency,
+            )
 
         return optim_config
 
