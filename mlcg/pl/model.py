@@ -38,7 +38,7 @@ class PLModel(pl.LightningModule):
         loss: Loss,
         optimizer: Optional[dict] = None,
         lr_scheduler: Optional[dict] = None,
-        monitor: Optional[str] = "validation_loss",
+        monitor: str = "validation_loss",
         step_frequency: int = 1,
     ) -> None:
         """ """
