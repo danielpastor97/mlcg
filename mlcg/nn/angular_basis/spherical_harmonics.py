@@ -15,6 +15,7 @@ from e3nn.util.jit import compile_mode
 
 from ...geometry.internal_coordinates import safe_norm, safe_normalization
 
+
 @compile_mode("script")
 class SphericalHarmonics(torch.nn.Module):
     r"""JITable module version of real Spherical harmonics
