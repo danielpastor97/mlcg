@@ -1,10 +1,18 @@
 from e3nn.util.test import assert_equivariant
 from mlcg.nn.angular_basis import SphericalHarmonics
 import torch
+import numpy as np
+import random
 
+def set_random_seeds(seed):
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
 
 def test_sph_equivariance():
-    TOLERANCE = 5e-6
+    set_random_seeds(104524)
+
+    TOLERANCE = 1e-6
     sph = SphericalHarmonics(lmax=4)
 
     def adapt(x):
