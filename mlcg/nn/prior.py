@@ -216,19 +216,23 @@ class Dihedral(torch.nn.Module, _Prior):
         max_type = unique_types.max()
         sizes = tuple([max_type + 1 for _ in range(self.order)])
         # In principle we could extend this to include even more wells if needed.
-        theta = 3*[torch.zeros(sizes)]
-        self.theta_names = ["theta_"+str(ii) for ii in range(len(theta))]
-        k = 3*[torch.zeros(sizes)]
-        self.k_names = ["k_"+str(ii) for ii in range(len(k))]
+        self.n_degs = 3
+        theta = self.n_degs*[torch.zeros(sizes)]
+        self.theta_names = ["theta_"+str(ii) for ii in range(self.n_degs)]
+        k = self.n_degs*[torch.zeros(sizes)]
+        self.k_names = ["k_"+str(ii) for ii in range(self.n_degs)]
 
         for key in statistics.keys():
-            for ii in range(len(theta)):
+            for ii in range(self.n_degs):
                 theta_name = self.theta_names[ii]
                 k_name = self.k_names[ii]
-                theta[ii][key] = statistics[key][theta_name]
-                k[ii][key] = statistics[key][k_name]
-        self.register_buffer("thetas", theta)
-        self.register_buffer("ks", k)
+                theta[ii][key] = statistics[key]["thetas"][theta_name]
+                k[ii][key] = statistics[key]["ks"][k_name]
+        for ii in range(self.n_degs):
+            theta_name = self.theta_names[ii]
+            k_name = self.k_names[ii]
+            self.register_buffer(theta_name, theta[ii])
+            self.register_buffer(k_name, k[ii])
 
     def data2features(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
@@ -241,10 +245,17 @@ class Dihedral(torch.nn.Module, _Prior):
             data.atom_types[mapping[ii]] for ii in range(self.order)
         ]
         features = self.data2features(data).flatten()
+        thetas = []
+        ks = []
+        for ii in range(self.n_degs):
+            theta_name = self.theta_names[ii]
+            k_name = self.k_names[ii]
+            thetas.append(getattr(self,theta_name)[interaction_types])
+            ks.append(getattr(self,k_name)[interaction_types])
         y = Dihedral.compute(
             features,
-            self.thetas[interaction_types],
-            self.ks[interaction_types],
+            thetas,
+            ks,
         )
         y = scatter(y, mapping_batch, dim=0, reduce="sum")
         data.out[self.name] = {"energy": y}
@@ -254,17 +265,18 @@ class Dihedral(torch.nn.Module, _Prior):
     def compute_features(pos, mapping):
         return compute_dihedrals(pos, mapping)
 
+    @staticmethod
+    def wrapper_fit_func(theta, deg, *args):
+        theta0s,ks = list(args[0]), list(args[1])
+        theta0s[deg:] = torch.zeros(len(args[0])-(deg+1))
+        ks[deg:] = torch.zeros(len(args[0])-(deg+1))
+        return Dihedral.compute(theta, theta0s, ks)
 
-    class ComputeClass:
-        def __init__(self):
-            pass
-        def compute(self,theta,theta0s,ks,deg):
+    @staticmethod
+    def compute(theta,theta0s,ks):
             V = torch.zeros_like(theta)
-            theta0s[:(deg+1)] = 0
-            ks[:(deg+1)] = 0
             for ii,(theta0, k) in enumerate(zip(theta0s, ks)):
-                ii = torch.Tensor(ii+1)
-                V += k * (1 - torch.cos(ii*theta - theta0))
+                V += k * (1 - torch.cos((ii+1)*theta - theta0))
             return V
 
     @staticmethod
@@ -280,33 +292,35 @@ class Dihedral(torch.nn.Module, _Prior):
 
     @staticmethod
     def fit_from_potential_estimates(bin_centers_nz, dG_nz):
-        stat = {}
+        stat = {
+            "thetas":{},
+            "ks":{},
+        }
         integral = torch.tensor(
             float(trapezoid(dG_nz.cpu().numpy(), bin_centers_nz.cpu().numpy()))
         )
 
         mask = torch.abs(dG_nz) > 1e-4 * torch.abs(integral)
-        n_degs = len(self.theta_names)
+        n_degs = 3
+        theta_names = ["theta_"+str(ii) for ii in range(n_degs)]
+        k_names = ["k_"+str(ii) for ii in range(n_degs)]
         try:
             # Determine best fit for unknown # of parameters 
             p0s = lambda m: [3.14*(1-m+2*i)/(2*m) for i in range(m)]
             popts = []
             aics = []
-            for i_cd in range(n_degs):
-                p0 = []
-                for ip in range(n_degs):
-                    if ip > i_cd:
-                        p0.append(0)
+            for deg in range(1,n_degs+1):
+                p0 = p0s(deg)
+                for ip in range(1,n_degs+1):
+                    if ip > deg:
                         p0.append(0)
                     else:
-                        p0.append(p0s[i_cd][ip])
                         p0.append(1)
-                dihedral_compute = Dihedral().ComputeClass()
-                dihedral_compute.deg = i_cd
-                free_parameters = 2*(i_cd+1)
+                
+                free_parameters = 2*(deg+1)
 
                 popt, _ = curve_fit(
-                    dihedral_compute.compute,
+                    lambda theta, *p0: Dihedral.wrapper_fit_func(theta, deg, p0),
                     bin_centers_nz[mask],
                     dG_nz[mask],
                     p0,
@@ -316,7 +330,7 @@ class Dihedral(torch.nn.Module, _Prior):
                     2
                     * Dihedral.neg_log_likelihood(
                         dG_nz[mask],
-                        dihedral_compute.compute(bin_centers_nz[mask], *popt),
+                        lambda theta, *popt: Dihedral.wrapper_fit_func(bin_centers_nz[mask], deg, *popt),
                     )
                     - 2 * free_parameters
                 )
@@ -324,19 +338,20 @@ class Dihedral(torch.nn.Module, _Prior):
 
             min_aic = min(aics)
             min_i_aic = aics.index(min_aic)
-
             popt = popts[min_i_aic]
             for ii in range(n_degs):
-                stat["theta"][ii] = popt[2*ii]
-                stat["k"][ii] = popt[2*ii+1] 
-            dihedral_compute.deg = min_i_aic
-            Dihedral.compute = dihedral_compute.compute 
+                theta_name = theta_names[ii]
+                k_name = k_names[ii]
+                stat["thetas"][theta_name] = popt[ii]
+                stat["ks"][k_name] = popt[n_degs+ii] 
 
         except:
             print(f"failed to fit potential estimate for Dihedral")
             for ii in range(n_degs):
-                stat["theta"][ii] = torch.tensor(float("nan"))
-                stat["k"][ii] = torch.tensor(float("nan"))
+                theta_name = theta_names[ii]
+                k_name = k_names[ii]
+                stat["thetas"][theta_name] = torch.tensor(float("nan"))
+                stat["ks"][k_name] = torch.tensor(float("nan"))
         return stat
 
     def from_user(*args):
