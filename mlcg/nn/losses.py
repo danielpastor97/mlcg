@@ -137,6 +137,7 @@ class ForceMSE(_Loss):
     where :math:`f` are predicted forces, :math:`\hat{f}` are reference forces, :math:`N` is
     the number of examples/structures, and :math:`d` is the real space dimensionality
     (eg, :math:`d=3` for proteins)
+
     Parameters
     ----------
     force_kwd:
