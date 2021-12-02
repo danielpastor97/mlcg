@@ -133,7 +133,7 @@ class Harmonic(torch.nn.Module, _Prior):
     def fit_from_potential_estimates(
         bin_centers_nz: torch.Tensor, dG_nz: torch.Tensor
     ) -> Dict:
-        """Method for fitting interaction parameters from data
+        r"""Method for fitting interaction parameters from data
 
         Parameters
         ----------
@@ -248,11 +248,11 @@ class HarmonicAngles(Harmonic):
 
 
 class Repulsion(torch.nn.Module, _Prior):
-    """1-D power law repulsion prior for feature :math:`x` of the form:
+    r"""1-D power law repulsion prior for feature :math:`x` of the form:
 
     .. math::
 
-        U_{\textnormal{Repulsion}}(x) = (\sigma/x)^6
+        U_{ \textnormal{Repulsion}}(x) = (\sigma/x)^6
 
     where :math:`\sigma` is the excluded volume.
 
