@@ -59,7 +59,7 @@ class Harmonic(torch.nn.Module, _Prior):
         "angles": compute_angles,
     }
 
-    def __init__(self, statistics, name) -> None:
+    def __init__(self, statistics: Dict, name: str) -> None:
         super(Harmonic, self).__init__()
         keys = torch.tensor(list(statistics.keys()), dtype=torch.long)
         self.allowed_interaction_keys = list(statistics.keys())
