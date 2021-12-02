@@ -15,7 +15,7 @@ from ._module_init import init_xavier_uniform
 
 class SchNet(torch.nn.Module):
     r"""PyTorch Geometric implementation of SchNet
-    Code adapted from `[PT_geom_schnet]_`  which is based on the architecture
+    Code adapted from [PT_geom_schnet]_  which is based on the architecture
     described in [Schnet]_ .
 
     https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/models/schnet.html

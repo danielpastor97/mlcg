@@ -23,22 +23,24 @@ class LangevinSimulation(_Simulation):
     .. math::
         [B]\;& V_{t+1/2} = V_t + \frac{\Delta t}{2m}  F(X_t) \\
         [A]\;& X_{t+1/2} = X_t + \frac{\Delta t}{2}V_{t+1/2}  \\
-        [O]\;& \tilde{V}_{t+1/2} = V_{t+1/2} \text{vscale} + dW_t  \text{noisescale} \\
+        [O]\;& \tilde{V}_{t+1/2} = \epsilon V_{t+1/2} + \alpha dW_t \\
         [A]\;& X_{t+1} = X_{t+1/2} + \frac{\Delta t}{2} \tilde{V}_{t+1/2}  \\
         [B]\;& V_{t+1} = \tilde{V}_{t+1/2} + \frac{\Delta t}{2m}  F(X_{t+1})
 
-    Where, :math:`dW_t` is a noise drawn from :math:`\mathcal{N}(0,1)`, and:
+    Where, :math:`dW_t` is a noise drawn from :math:`\mathcal{N}(0,1)`,
+    :math:`\eta` is the friction, :math:`\epsilon` is the velocity scale,
+    :math:`\alpha` is the noise scale, and:
 
     .. math::
         F(X_t) =& - \nabla  U(X_t)  \\
-        \text{vscale} =& \exp[-\text{friction} \; \Delta t] \\
-        \text{noisecale} =& \sqrt{1 - \text{vscale}^2}
+        \epsilon =& \exp(-\eta \; \Delta t) \\
+        \alpha =& \sqrt{1 - \epsilon^2}
 
     A diffusion constant :math:`D` can be back-calculated using
     the Einstein relation:
 
     .. math::
-        D = 1 / (\beta  \text{friction})
+        D = 1 / (\beta  \eta)
 
     Initial velocities are set to zero if not provided.
 
@@ -214,7 +216,7 @@ class OverdampedSimulation(_Simulation):
 
     .. math::
 
-        dX_t = - \nabla U( X_t )   D  \Delta t + \sqrt( 2  D *\Delta t / \beta ) * dW_t
+        dX_t = - \nabla U( X_t )   D  \Delta t + \sqrt{( 2  D *\Delta t / \beta )} dW_t
 
     for coordinates :math:`X_t` at time :math:`t`, potential energy :math:`U`,
     diffusion :math:`D`, thermodynamic inverse temperature :math:`\beta`,

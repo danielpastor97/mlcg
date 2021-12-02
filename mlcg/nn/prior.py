@@ -229,7 +229,7 @@ class Repulsion(torch.nn.Module, _Prior):
 
     .. math::
 
-        U_(x) = \left( \frac{\sigma}{x} \right)^6
+        U_(x) = (\sigma/x)^6
 
     where :math:`\sigma` is the excluded volume.
     """

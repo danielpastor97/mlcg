@@ -6,6 +6,7 @@ Priors
 
 These classes define several common molecular interactions. Because each prior subclasses `torch.nn.Module`, they can be treated as normal property predictors.
 
+.. autoclass:: mlcg.nn.prior.Harmonic
 .. autoclass:: mlcg.nn.prior.HarmonicBonds
 .. autoclass:: mlcg.nn.prior.HarmonicAngles
 .. autoclass:: mlcg.nn.prior.Repulsion

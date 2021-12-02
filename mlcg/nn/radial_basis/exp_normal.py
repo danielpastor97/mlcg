@@ -36,7 +36,7 @@ class ExpNormalBasis(_RadialBasis):
     cutoff:
         Defines the smooth cutoff function. If a float is provided, it will be interpreted as
         an upper cutoff and a CosineCutoff will be used between 0 and the provided float. Otherwise,
-        a chosen _Cutoff instance can be supplied.
+        a chosen `_Cutoff` instance can be supplied.
     num_rbf:
         The number of functions in the basis set.
     trainable:
