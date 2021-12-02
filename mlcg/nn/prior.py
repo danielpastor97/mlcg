@@ -25,6 +25,29 @@ class Harmonic(torch.nn.Module, _Prior):
 
     where :math:`k` is a harmonic/spring constant describing the interaction
     strength and :math:`x_0` is the equilibrium value of the feature :math:`x`.
+
+    Parameters
+    ----------
+    statistics:
+        Dictionary of interaction parameters for each type of atom pair/triple,
+        where the keys are tuples of interacting bead types and the
+        corresponding values define the interaction parameters. These
+        Can be hand-designed or taken from the output of
+        `mlcg.geometry.statistics.compute_statistics`, but must minimally
+        contain the following information for each key:
+
+        .. code-block:: python
+
+            tuple(*specific_types) : {
+                "k" : torch.Tensor scalar that describes the strength of the
+                    harmonic interaction.
+                "x_0" : torch.Tensor scalar that describes the mean feature
+                    value.
+                ...
+
+                }
+
+        The keys can be tuples of 2 or 3 atom type integers.
     """
 
     _order_map = {
@@ -229,15 +252,35 @@ class Repulsion(torch.nn.Module, _Prior):
 
     .. math::
 
-        U_(x) = (\sigma/x)^6
+        U_{\textnormal{Repulsion}}(x) = (\sigma/x)^6
 
     where :math:`\sigma` is the excluded volume.
+
+    Parameters
+    ----------
+    statistics:
+        Dictionary of interaction parameters for each type of atom pair,
+        where the keys are tuples of interacting bead types and the
+        corresponding values define the interaction parameters. These
+        Can be hand-designed or taken from the output of
+        `mlcg.geometry.statistics.compute_statistics`, but must minimally
+        contain the following information for each key:
+
+        .. code-block:: python
+
+            tuple(*specific_types) : {
+                "sigma" : torch.Tensor scalar that describes the excluded
+                    volume of the two interacting atoms.
+                ...
+
+                }
+        The keys can be tuples of 2 integer atom types.
     """
 
     name: Final[str] = "repulsion"
     _neighbor_list_name = "fully connected"
 
-    def __init__(self, statistics) -> None:
+    def __init__(self, statistics: Dict) -> None:
         super(Repulsion, self).__init__()
         keys = torch.tensor(list(statistics.keys()), dtype=torch.long)
         self.allowed_interaction_keys = list(statistics.keys())

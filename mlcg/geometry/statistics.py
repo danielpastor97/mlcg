@@ -123,6 +123,9 @@ def compute_statistics(
         .. code-block:: python
 
             (*specific_types) : {
+
+                ...
+
                 "p" : torch.tensor of shape [n_bins], containing the normalized bin counts
                     of the of the 1-D feature corresponding to the atom_type group
                     (*specific_types) = (specific_types[0], specific_types[1], ...)
@@ -133,9 +136,10 @@ def compute_statistics(
                 "V_bin" : torch_tensor of shape [n_bins], containing the bin center values
             }
 
-        Other sub-key/value pairs apart from those enumerated above, may appear depending
-        on the chosen `TargetPrior`. For example, if `TargetPrior` is `HarmonicBonds`, there
-        will also be keys/values associated with estimated bond constants and means.
+        where `...` indicates other sub-key/value pairs apart from those enumerated above,
+        which may appear depending on the chosen `TargetPrior`. For example,
+        if `TargetPrior` is `HarmonicBonds`, there will also be keys/values associated with 
+        estimated bond constants and means.
 
     Example
     -------
@@ -169,7 +173,7 @@ def compute_statistics(
             ptr=[20801]
         )
 
-        angle_stats = bond_stats = compute_statistics(my_data,
+        bond_stats = compute_statistics(my_data,
              'bonds', beta=beta,
              TargetPrior=HarmonicBonds
         )
