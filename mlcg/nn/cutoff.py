@@ -139,17 +139,25 @@ class CosineCutoff(_Cutoff):
 
 
 class ShiftedCosineCutoff(_OneSidedCutoff):
-    r"""Class of Behler cosine cutoff.
+    r"""Class of Behler cosine cutoff with an additional smoothing parameter.
 
     .. math::
-        sdf
 
-    Args:
-        cutoff (float, optional): cutoff radius.
+        0.5 + 0.5 \times \left( \cos{ \left( \pi \left( \frac{r_{ij} - r_{high} +
+        \sigma}{\sigma}\right)\right)} \right)
+
+    where :math:`\sigma` is the smoothing width.
+
+    Parameters
+    ----------
+    cutoff:
+        cutoff radius
+    smooth_width:
+        parameter that controls the extent of smoothing in the cutoff envelope.
 
     """
 
-    def __init__(self, cutoff=5.0, smooth_width=0.5):
+    def __init__(self, cutoff: Union[int,float]=5.0, smooth_width: Union[int,float]=0.5):
         super(ShiftedCosineCutoff, self).__init__()
         self.cutoff_upper = cutoff
         self.smooth_width = smooth_width
