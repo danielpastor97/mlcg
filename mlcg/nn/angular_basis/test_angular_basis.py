@@ -4,10 +4,12 @@ import torch
 import numpy as np
 import random
 
+
 def set_random_seeds(seed):
     torch.manual_seed(seed)
     random.seed(seed)
     np.random.seed(seed)
+
 
 def test_sph_equivariance():
     set_random_seeds(104524)
