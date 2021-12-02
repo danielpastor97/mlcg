@@ -21,6 +21,7 @@ Sets of radial basis functions are used to expand the distances between atoms on
 
 .. autoclass:: mlcg.nn.radial_basis.GaussianBasis
 .. autoclass:: mlcg.nn.radial_basis.ExpNormalBasis
+.. autoclass:: mlcg.nn.radial_basis.RIGTOBasis
 
 Cutoff Functions
 ----------------
@@ -29,6 +30,7 @@ Cutoff functions are used to enforce the smoothness of the models w.r.t. neighbo
 
 .. autoclass:: mlcg.nn.cutoff.IdentityCutoff
 .. autoclass:: mlcg.nn.cutoff.CosineCutoff
+.. autoclass:: mlcg.nn.cutoff.ShiftedCosineCutoff
 
 Model Building Utilities
 ------------------------

@@ -28,7 +28,7 @@ class RIGTOBasis(_RadialBasis):
 
     where :math:`{}_1F_1` is the confluent hypergeometric function,
     :math:`\Gamma` is the gamma function, :math:`f_c` is a cutoff function,
-     :math:`b_n=\frac{1}{2\sigma_n^2}`, :math:`c= 1 / (2\sigma^2`,
+    :math:`b_n=\frac{1}{2\sigma_n^2}`, :math:`c= 1 / (2\sigma^2`,
     :math:`\sigma_n = r_\text{cut} \max(\sqrt{n},1)/n_{max}` and
     :math:`\mathcal{N}_n^2 = \frac{2}{\sigma_n^{2n + 3}\Gamma(n + 3/2)}`.
 

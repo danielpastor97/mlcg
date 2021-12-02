@@ -362,8 +362,8 @@ class StandardSchNet(SchNet):
         :obj:`max_num_neighbors`, returned neighbors are picked randomly.
     aggr:
         Aggregation scheme for continuous filter output. For all options,
-        see
-         `aggr <https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class>`_
+        see `here <https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class>`_
+        for more options.
 
     """
 
