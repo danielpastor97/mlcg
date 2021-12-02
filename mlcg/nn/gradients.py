@@ -13,6 +13,34 @@ class SumOut(torch.nn.Module):
         Dictionary of predictors models keyed by their name attribute
     targets:
         List of prediction targets that will be pooled
+
+    Example
+    -------
+    To combine SchNet force predictions with prior interactions:
+
+    .. code-block:: python
+
+        import torch
+        from mlcg.nn import (StandardSchNet, HarmonicBonds, HarmonicAngles,
+                             GradientsOut, SumOut, CosineCutoff,
+                             GaussianBasis)
+        from mlcg.data._keys import FORCE_KEY, ENERGY_KEY
+
+        bond_terms = GradientsOut(HarmonicBonds(bond_stats), FORCE_KEY)
+        angle_terms = GradientsOut(HarmonicAngles(angle_stats), FORCE_KEY)
+        cutoff = CosineCutoff()
+        rbf = GaussianBasis(cutoff)
+        energy_network = StandardSchNet(cutoff, rbf, [128])
+        force_network = GradientsOut(energy_model, FORCE_KEY)
+
+        models = torch.nn.ModuleDict{
+                     "bonds": bond_terms,
+                     "angles": angle_terms,
+                     "SchNet": force_network
+                 }
+        full_model = SumOut(models, targets=[ENERGY_KEY, FORCE_KEY])
+
+
     """
 
     def __init__(

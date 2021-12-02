@@ -244,7 +244,7 @@ class CFConv(MessagePassing):
         Number of filters
     aggr:
         Aggregation scheme for continuous filter output. For all options,
-        see https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class
+        see `here <https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class>`.
     """
 
     def __init__(
