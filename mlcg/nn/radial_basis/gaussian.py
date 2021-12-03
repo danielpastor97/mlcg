@@ -80,19 +80,6 @@ class GaussianBasis(_RadialBasis):
         self.offset.data.copy_(offset)
         self.coeff.data.copy_(coeff)
 
-    def plot(self):
-        """Plot the set of radial basis functions."""
-        import matplotlib.pyplot as plt
-
-        dist = torch.linspace(0, self.cutoff.cutoff_upper, 200)
-        y = self.forward(dist).numpy()
-        for l in range(self.lmax + 1):
-            for n in range(self.nmax):
-                plt.plot(dist.numpy(), y[:, l, n], label=f"n={n}")
-            plt.title(f"l={l}")
-            plt.legend()
-            plt.show()
-
     def forward(self, dist: torch.Tensor) -> torch.Tensor:
         r"""Expansion of distances through the radial basis function set.
 
