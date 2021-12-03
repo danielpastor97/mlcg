@@ -32,7 +32,9 @@ class _RadialBasis(torch.nn.Module):
         expanded_distances = self(distances)
 
         for i in range(expanded_distances.shape[-1]):
-            plt.plot(distances.numpy(), expanded_distances[:, i].detach().numpy())
+            plt.plot(
+                distances.numpy(), expanded_distances[:, i].detach().numpy()
+            )
         plt.show()
 
     def forward(self):
