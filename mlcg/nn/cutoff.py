@@ -158,7 +158,11 @@ class ShiftedCosineCutoff(_OneSidedCutoff):
 
     """
 
-    def __init__(self, cutoff: Union[int,float]=5.0, smooth_width: Union[int,float]=0.5):
+    def __init__(
+        self,
+        cutoff: Union[int, float] = 5.0,
+        smooth_width: Union[int, float] = 0.5,
+    ):
         super(ShiftedCosineCutoff, self).__init__()
         self.cutoff_upper = cutoff
         self.smooth_width = smooth_width

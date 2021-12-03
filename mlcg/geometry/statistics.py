@@ -138,7 +138,7 @@ def compute_statistics(
 
         where `...` indicates other sub-key/value pairs apart from those enumerated above,
         which may appear depending on the chosen `TargetPrior`. For example,
-        if `TargetPrior` is `HarmonicBonds`, there will also be keys/values associated with 
+        if `TargetPrior` is `HarmonicBonds`, there will also be keys/values associated with
         estimated bond constants and means.
 
     Example
