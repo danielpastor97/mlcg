@@ -405,7 +405,7 @@ class StandardSchNet(SchNet):
         interaction_blocks = []
         for _ in range(num_interactions):
             filter_network = MLP(
-                layer_widths=[rbf_layer.num_rbf, num_filters],
+                layer_widths=[rbf_layer.num_rbf, num_filters, num_filters],
                 activation_func=activation,
             )
 
