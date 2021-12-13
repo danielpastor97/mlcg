@@ -193,7 +193,7 @@ class ChignolinDataset(InMemoryDataset):
         torch.save((datas, slices), self.processed_paths[0])
 
 
-class ChignolinDatasetWithNewPriors(ChignolinDataset):
+class ChignolinDatasetWithDihedralPriors(ChignolinDataset):
     """
     Inherit from Chignolin Dataset and redefine priors to compute
     Modify _prior_cls to include priors to compute
@@ -207,6 +207,6 @@ class ChignolinDatasetWithNewPriors(ChignolinDataset):
         self, root, transform=None, pre_transform=None, pre_filter=None
     ):
         self.priors_cls = self._priors_cls
-        super(ChignolinDatasetWithNewPriors, self).__init__(
+        super(ChignolinDatasetWithDihedralPriors, self).__init__(
             root, transform, pre_transform, pre_filter
         )
