@@ -266,10 +266,11 @@ class Dihedral(torch.nn.Module, _Prior):
         return compute_dihedrals(pos, mapping)
 
     @staticmethod
-    def wrapper_fit_func(theta, deg, *args):
-        theta0s, ks = list(args[0]), list(args[1])
-        theta0s[deg:] = torch.zeros(len(args[0]) - (deg + 1))
-        ks[deg:] = torch.zeros(len(args[0]) - (deg + 1))
+    def wrapper_fit_func(theta,*args):
+        n_theta = int(len(args[0])/2)
+        theta0s, ks = list(args[0][:n_theta]), list(args[0][n_theta:])
+        theta0s = torch.tensor(theta0s)
+        ks = torch.tensor(ks)
         return Dihedral.compute(theta, theta0s, ks)
 
     @staticmethod
@@ -296,32 +297,41 @@ class Dihedral(torch.nn.Module, _Prior):
             "thetas": {},
             "ks": {},
         }
-        integral = torch.tensor(
-            float(trapezoid(dG_nz.cpu().numpy(), bin_centers_nz.cpu().numpy()))
-        )
-
-        mask = torch.abs(dG_nz) > 1e-4 * torch.abs(integral)
         n_degs = 3
         theta_names = ["theta_" + str(ii) for ii in range(n_degs)]
         k_names = ["k_" + str(ii) for ii in range(n_degs)]
+        for ii in range(n_degs):
+            theta_name = theta_names[ii]
+            k_name = k_names[ii]
+            stat["thetas"][theta_name] = {}
+            stat["ks"][theta_name] = {}
+
+        integral = torch.tensor(
+            float(trapezoid(dG_nz.cpu().numpy(), bin_centers_nz.cpu().numpy()))
+        )
+        
+        mask = torch.abs(dG_nz) > 1e-4 * torch.abs(integral)
+        
         try:
             # Determine best fit for unknown # of parameters
-            p0s = lambda m: [3.14 * (1 - m + 2 * i) / (2 * m) for i in range(m)]
+            theta0s = lambda m: [3.14 * (1 - m + 2 * i) / (2 * m) for i in range(m)]
             popts = []
             aics = []
+            
             for deg in range(1, n_degs + 1):
-                p0 = p0s(deg)
-                for ip in range(1, n_degs + 1):
-                    if ip > deg:
-                        p0.append(0)
-                    else:
-                        p0.append(1)
-
+                p0 = []
+                theta0 = theta0s(deg)
+                k0 = []
+                for i_deg in range(1,deg+1):
+                    if deg >= i_deg:
+                        k0.append(1)
+                p0.append(theta0)
+                p0.append(k0)
                 free_parameters = 2 * (deg + 1)
 
                 popt, _ = curve_fit(
                     lambda theta, *p0: Dihedral.wrapper_fit_func(
-                        theta, deg, p0
+                        theta, p0
                     ),
                     bin_centers_nz[mask],
                     dG_nz[mask],
@@ -332,22 +342,27 @@ class Dihedral(torch.nn.Module, _Prior):
                     2
                     * Dihedral.neg_log_likelihood(
                         dG_nz[mask],
-                        lambda theta, *popt: Dihedral.wrapper_fit_func(
-                            bin_centers_nz[mask], deg, *popt
+                        Dihedral.wrapper_fit_func(
+                            bin_centers_nz[mask], *[popt]
                         ),
                     )
                     - 2 * free_parameters
                 )
                 aics.append(aic)
-
             min_aic = min(aics)
             min_i_aic = aics.index(min_aic)
             popt = popts[min_i_aic]
             for ii in range(n_degs):
                 theta_name = theta_names[ii]
                 k_name = k_names[ii]
-                stat["thetas"][theta_name] = popt[ii]
-                stat["ks"][k_name] = popt[n_degs + ii]
+                stat["thetas"][theta_name] = {}
+                stat["ks"][k_name] = {}
+                if len(popt) > 2*ii:
+                    stat["thetas"][theta_name] = popt[2*ii]
+                    stat["ks"][k_name] = popt[2*ii+1]
+                else:
+                    stat["thetas"][theta_name] = 0
+                    stat["ks"][k_name] = 0
 
         except:
             print(f"failed to fit potential estimate for Dihedral")
@@ -363,14 +378,6 @@ class Dihedral(torch.nn.Module, _Prior):
         Direct input of parameters from user. Leave empty for now
         """
         stat = {}
-        # stat = {
-        #     "theta_0": args[0],
-        #     "k_0": args[1],
-        #     "theta_1": args[2],
-        #     "k_1": args[3],
-        #     "theta_2": args[4],
-        #     "k_2": args[5],
-        # }
         return stat
 
     @staticmethod
