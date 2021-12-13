@@ -360,6 +360,85 @@ class Topology(object):
             ]
 
         nx.draw(graph, **drawing_kwargs)
+        
+    @staticmethod
+    def remove_bond(bonds, index1, index2):
+        """Method to remove bond given bond list and indices of bonding atoms
+        
+        Parameters
+        ----------
+        bonds : list
+            List of bonds with shape [2, n_bonds]
+        index1 : int
+            Index of first atom involved in bonding.
+        index2 : int
+            Index of second atom involved in bonding.
+
+        Returns
+        -------
+        bonds_new : list
+            List of bonds with shape [2, n_bonds_new], where n_bonds_new is the number of bonds after deletion of bond.
+            If there is no bond between index1 and index2, original bond list is returned
+
+        Notes
+        -----
+        - Note that this does not edit the bond_list in place. Instead, the method explicitly returns a
+          new bond list with the desired bond removed
+        - The order of bonding matters (index1 is the atom in the first list, index2 is the atom in the second list)
+        """
+        from copy import deepcopy
+        bonds_new = deepcopy(bonds)
+        
+        mask_1 = np.array(bonds_new[0]) == index1
+        mask_2 = np.array(bonds_new[1]) == index2
+
+        mask = np.array(mask_1) * np.array(mask_2)
+        
+        if True in mask:
+            to_pop = np.where(mask)[0][0]    
+            bonds_new[0].pop(to_pop), bonds_new[1].pop(to_pop)
+        return bonds_new
+    
+    @staticmethod
+    def remove_angle(angles, index1, index2, index3):
+        """Method to remove bond given bond list and indices of bonding atoms
+        
+        Parameters
+        ----------
+        bonds : list
+            List of bonds with shape [3, n_angles]
+        index1 : int
+            Index of first atom involved in angle.
+        index2 : int
+            Index of second atom involved in angle.
+        index3 : int
+            Index of third atom involved in angle.
+
+        Returns
+        -------
+        angles_new : list
+            List of angles with shape [3, n_angles_new], where n_angles_new is the number of angles after deletion of angle.
+            If there is no angle between index1-index2-index3, original angle list is returned
+
+        Notes
+        -----
+        - Note that this does not edit the angle_list in place. Instead, the method explicitly returns a
+          new angle list with the desired bond removed
+        - The order of angle formation matters (index{i} is the atom in the i-th list)
+        """
+        from copy import deepcopy
+        angles_new = deepcopy(angles)
+        
+        mask_1 = np.array(angles_new[0]) == index1
+        mask_2 = np.array(angles_new[1]) == index2
+        mask_3 = np.array(angles_new[2]) == index3
+
+        mask = np.array(mask_1) * np.array(mask_2) * np.array(mask_3)
+        
+        if True in mask:
+            to_pop = np.where(mask)[0][0]    
+            angles_new[0].pop(to_pop), angles_new[1].pop(to_pop), angles_new[2].pop(to_pop)
+        return angles_new
 
 
 def get_connectivity_matrix(
