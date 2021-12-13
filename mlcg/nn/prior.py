@@ -266,8 +266,8 @@ class Dihedral(torch.nn.Module, _Prior):
         return compute_dihedrals(pos, mapping)
 
     @staticmethod
-    def wrapper_fit_func(theta,*args):
-        n_theta = int(len(args[0])/2)
+    def wrapper_fit_func(theta, *args):
+        n_theta = int(len(args[0]) / 2)
         theta0s, ks = list(args[0][:n_theta]), list(args[0][n_theta:])
         theta0s = torch.tensor(theta0s)
         ks = torch.tensor(ks)
@@ -309,20 +309,22 @@ class Dihedral(torch.nn.Module, _Prior):
         integral = torch.tensor(
             float(trapezoid(dG_nz.cpu().numpy(), bin_centers_nz.cpu().numpy()))
         )
-        
+
         mask = torch.abs(dG_nz) > 1e-4 * torch.abs(integral)
-        
+
         try:
             # Determine best fit for unknown # of parameters
-            theta0s = lambda m: [3.14 * (1 - m + 2 * i) / (2 * m) for i in range(m)]
+            theta0s = lambda m: [
+                3.14 * (1 - m + 2 * i) / (2 * m) for i in range(m)
+            ]
             popts = []
             aics = []
-            
+
             for deg in range(1, n_degs + 1):
                 p0 = []
                 theta0 = theta0s(deg)
                 k0 = []
-                for i_deg in range(1,deg+1):
+                for i_deg in range(1, deg + 1):
                     if deg >= i_deg:
                         k0.append(1)
                 p0.append(theta0)
@@ -330,9 +332,7 @@ class Dihedral(torch.nn.Module, _Prior):
                 free_parameters = 2 * (deg + 1)
 
                 popt, _ = curve_fit(
-                    lambda theta, *p0: Dihedral.wrapper_fit_func(
-                        theta, p0
-                    ),
+                    lambda theta, *p0: Dihedral.wrapper_fit_func(theta, p0),
                     bin_centers_nz[mask],
                     dG_nz[mask],
                     p0,
@@ -357,9 +357,9 @@ class Dihedral(torch.nn.Module, _Prior):
                 k_name = k_names[ii]
                 stat["thetas"][theta_name] = {}
                 stat["ks"][k_name] = {}
-                if len(popt) > 2*ii:
-                    stat["thetas"][theta_name] = popt[2*ii]
-                    stat["ks"][k_name] = popt[2*ii+1]
+                if len(popt) > 2 * ii:
+                    stat["thetas"][theta_name] = popt[2 * ii]
+                    stat["ks"][k_name] = popt[2 * ii + 1]
                 else:
                     stat["thetas"][theta_name] = 0
                     stat["ks"][k_name] = 0
