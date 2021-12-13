@@ -45,6 +45,9 @@ class PLModel(pl.LightningModule):
 
         super(PLModel, self).__init__()
 
+        if lr_scheduler != None and monitor == None:
+            raise RuntimeError("'monitor' kwarg must be specified if"
+                               " 'lr_scheduler' kwarg is specified.")
         self.save_hyperparameters()
         self.model = model
         self.loss = loss
