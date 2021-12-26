@@ -3,6 +3,7 @@ from torch_scatter import scatter
 from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit
 from typing import Final
+from math import pi
 
 from ..geometry.topology import Topology
 from ..geometry.internal_coordinates import (
@@ -293,6 +294,9 @@ class Dihedral(torch.nn.Module, _Prior):
 
     @staticmethod
     def fit_from_potential_estimates(bin_centers_nz, dG_nz):
+        """
+        Loop over three basins and use aic criterion to select best fit
+        """
         stat = {
             "thetas": {},
             "ks": {},
@@ -315,7 +319,7 @@ class Dihedral(torch.nn.Module, _Prior):
         try:
             # Determine best fit for unknown # of parameters
             theta0s = lambda m: [
-                3.14 * (1 - m + 2 * i) / (2 * m) for i in range(m)
+                pi * (1 - m + 2 * i) / (2 * m) for i in range(m)
             ]
             popts = []
             aics = []
@@ -377,8 +381,7 @@ class Dihedral(torch.nn.Module, _Prior):
         """
         Direct input of parameters from user. Leave empty for now
         """
-        stat = {}
-        return stat
+        raise NotImplementedError()
 
     @staticmethod
     def neighbor_list(topology) -> None:
