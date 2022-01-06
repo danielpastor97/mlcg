@@ -17,7 +17,7 @@ from mlcg.data.atomic_data import AtomicData
 
 @pytest.fixture
 def ASE_prior_model():
-    def _model_builder(mol: str = "AlF3") -> Dict:
+    def _model_builder(mol: str = "CH3CH2NH2") -> Dict:
         """Fixture that returns a simple prior-only model of
         an ASE molecule with HarmonicBonds and HarmonicAngles
         priors whose parameters are estimated from coordinates
@@ -51,7 +51,7 @@ def ASE_prior_model():
         # Here we make a simple prior-only model of aluminum-fluoride
         # mol = molecule("AlF3")
         # Implement molecule with dihedrals
-        mol = molecule("CH3CH2NH2")
+        mol = molecule(mol)
         test_topo = Topology.from_ase(mol)
 
         # Add in molecule with dihedral and compute edges
