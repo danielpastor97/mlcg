@@ -110,7 +110,9 @@ class GradientsOut(torch.nn.Module):
 
     _targets = [FORCE_KEY, ENERGY_KEY]
 
-    def __init__(self, model: torch.nn.Module, targets: Union[List[str], str] = FORCE_KEY):
+    def __init__(
+        self, model: torch.nn.Module, targets: Union[List[str], str] = FORCE_KEY
+    ):
         super(GradientsOut, self).__init__()
         self.model = model
         self.name = self.model.name
