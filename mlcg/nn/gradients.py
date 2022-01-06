@@ -87,7 +87,7 @@ class SumOut(torch.nn.Module):
     def neighbor_list(self, **kwargs):
         nl = {}
         for _, model in self.models.items():
-            nl.updat(**model.neighbor_list(**kwargs))
+            nl.update(**model.neighbor_list(**kwargs))
         return nl
 
 
