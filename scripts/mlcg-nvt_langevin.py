@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 from time import ctime
 import os.path as osp
 import torch

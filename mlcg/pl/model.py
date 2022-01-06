@@ -38,7 +38,7 @@ class PLModel(pl.LightningModule):
         loss: Loss,
         optimizer: Optional[dict] = None,
         lr_scheduler: Optional[dict] = None,
-        monitor: str = "validation_loss",
+        monitor: Optional[str] = None,
         step_frequency: int = 1,
     ) -> None:
         """ """
@@ -62,16 +62,20 @@ class PLModel(pl.LightningModule):
         optimizer = instantiate_class(
             self.model.parameters(), init=self.optimizer
         )
-        scheduler = instantiate_class(optimizer, self.lr_scheduler)
-        if self.monitor is None:
-            {"optimizer": optimizer, "lr_scheduler": scheduler}
-        else:
-            return {
-                "optimizer": optimizer,
-                "lr_scheduler": scheduler,
-                "monitor": self.monitor,
-                "frequency": self.step_frequency,
-            }
+        optim_config = {"optimizer": optimizer}
+
+        if self.lr_scheduler is not None:
+            scheduler = instantiate_class(optimizer, self.lr_scheduler)
+            optim_config.update(
+                lr_scheduler=scheduler,
+            )
+            if self.monitor is not None:
+                optim_config.update(
+                    monitor=self.monitor,
+                    frequency=self.step_frequency,
+                )
+
+        return optim_config
 
     def training_step(self, data: AtomicData, batch_idx: int) -> torch.Tensor:
         loss = self.step(data, "training")
