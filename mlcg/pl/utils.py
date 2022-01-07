@@ -47,9 +47,9 @@ def merge_priors_and_checkpoint(
         ml_model = extract_model_from_checkpoint(checkpoint, hparams_file)
     else:
         ml_model = checkpoint
-    
+
     # merged_model should be a ModuleDict
-    merged_model = torch.nn.ModuleDict()    
+    merged_model = torch.nn.ModuleDict()
     merged_model[ml_model.name] = ml_model
 
     if isinstance(priors, str):
