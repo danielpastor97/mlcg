@@ -6,9 +6,10 @@ from torch_geometric.data.collate import collate
 
 from ase.build import molecule
 from mlcg.geometry import Topology
+from mlcg.geometry.topology import get_connectivity_matrix, get_n_paths
 from mlcg.geometry.statistics import fit_baseline_models
 from mlcg.neighbor_list.neighbor_list import make_neighbor_list
-from mlcg.nn.prior import HarmonicBonds, HarmonicAngles
+from mlcg.nn.prior import HarmonicBonds, HarmonicAngles, Dihedral
 from mlcg.nn.gradients import SumOut, GradientsOut
 from mlcg.data._keys import ENERGY_KEY, FORCE_KEY
 from mlcg.data.atomic_data import AtomicData
@@ -16,7 +17,7 @@ from mlcg.data.atomic_data import AtomicData
 
 @pytest.fixture
 def ASE_prior_model():
-    def _model_builder(mol: str = "AlF3") -> Dict:
+    def _model_builder(mol: str = "CH3CH2NH2") -> Dict:
         """Fixture that returns a simple prior-only model of
         an ASE molecule with HarmonicBonds and HarmonicAngles
         priors whose parameters are estimated from coordinates
@@ -48,8 +49,16 @@ def ASE_prior_model():
         beta = 1 / (temperature * kB)
 
         # Here we make a simple prior-only model of aluminum-fluoride
-        mol = molecule("AlF3")
+        # mol = molecule("AlF3")
+        # Implement molecule with dihedrals
+        mol = molecule(mol)
         test_topo = Topology.from_ase(mol)
+
+        # Add in molecule with dihedral and compute edges
+        conn_mat = get_connectivity_matrix(test_topo)
+        dihedral_paths = get_n_paths(conn_mat, n=4)
+        test_topo.dihedrals_from_edge_index(dihedral_paths)
+
         n_atoms = len(test_topo.types)
         initial_coords = np.array(mol.get_positions())
 
@@ -64,11 +73,12 @@ def ASE_prior_model():
         # Set up some data with bond/angle neighborlists:
         bond_edges = test_topo.bonds2torch()
         angle_edges = test_topo.angles2torch()
+        dihedral_edges = test_topo.dihedrals2torch()
 
         # Generete some noisy data for the priors
-        nls_tags = ["bonds", "angles"]
-        nls_orders = [2, 3]
-        nls_edges = [bond_edges, angle_edges]
+        nls_tags = ["bonds", "angles", "dihedrals"]
+        nls_orders = [2, 3, 4]
+        nls_edges = [bond_edges, angle_edges, dihedral_edges]
 
         neighbor_lists = {
             tag: make_neighbor_list(tag, order, edge_list)
@@ -93,7 +103,7 @@ def ASE_prior_model():
             add_batch=True,
         )
         # Fit the priors
-        prior_cls = [HarmonicBonds, HarmonicAngles]
+        prior_cls = [HarmonicBonds, HarmonicAngles, Dihedral]
         priors, stats = fit_baseline_models(
             collated_prior_data, beta, prior_cls
         )

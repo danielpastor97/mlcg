@@ -4,7 +4,7 @@ import torch
 from scipy.integrate import trapezoid
 
 from ..data import AtomicData
-from ..nn.prior import Harmonic, _Prior
+from ..nn.prior import Dihedral, Harmonic, _Prior
 from ..utils import tensor2tuple
 from ._symmetrize import _symmetrise_map, _flip_map
 
@@ -172,6 +172,12 @@ def compute_statistics(
          'bonds', beta=beta,
          TargetPrior=HarmonicBonds
     )
+    dihedral_stats = compute_statistics(my_data,
+                                        'dihedrals',
+                                        beta=beta,
+                                        TargetPrior=Dihedral
+    )
+
     ```
 
     """
