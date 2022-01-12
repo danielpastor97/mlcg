@@ -417,6 +417,15 @@ def add_chain_angles(topology: Topology) -> None:
         topology.add_angle(i, i + 1, i + 2)
 
 
+def add_chain_dihedrals(topology: Topology) -> None:
+    """Add dihedrals to the topology assuming a chain-like pattern, i.e. dihedrals are
+    defined following the insertion order of the atoms in the topology.
+    A four atoms chain `1-2-3-4` will find the dihedral: `1-2-3-4`.
+    """
+    for i in range(topology.n_atoms - 3):
+        topology.add_dihedral(i, i + 1, i + 2, i + 3)
+
+
 def get_n_pairs(
     connectivity_matrix: torch.Tensor, n: int = 3, unique: bool = True
 ) -> torch.tensor:
@@ -477,7 +486,7 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
         Path index tensor of shape (n, n_pairs)
     """
 
-    if n not in [2, 3] and unique == True:
+    if n not in [2, 3, 4] and unique == True:
         raise NotImplementedError("Unique currently only works for n=2,3")
 
     graph = nx.Graph(connectivity_matrix.numpy())
@@ -492,7 +501,7 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
                 # print(sub_atom)
                 final_paths[k].append(sub_atom)
     final_paths = torch.tensor(final_paths)
-    if unique and n in [2, 3]:
+    if unique and n in [2, 3, 4]:
         final_paths = _symmetrise_map[n](final_paths)
         final_paths = torch.unique(final_paths, dim=1)
 
