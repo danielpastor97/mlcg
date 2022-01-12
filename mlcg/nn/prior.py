@@ -10,6 +10,7 @@ from ..geometry.internal_coordinates import (
     compute_distances,
     compute_angles,
     compute_dihedrals,
+    compute_impropers,
 )
 
 
@@ -22,10 +23,12 @@ class Harmonic(torch.nn.Module, _Prior):
     _order_map = {
         "bonds": 2,
         "angles": 3,
+        "impropers": 4,
     }
     _compute_map = {
         "bonds": compute_distances,
         "angles": compute_angles,
+        "impropers": compute_impropers,
     }
 
     def __init__(self, statistics, name) -> None:
@@ -137,6 +140,24 @@ class HarmonicAngles(Harmonic):
         return Harmonic.compute_features(pos, mapping, HarmonicAngles.name)
 
 
+class HarmonicImpropers(Harmonic):
+    name: Final[str] = "impropers"
+    _order = 2
+
+    def __init__(self, statistics) -> None:
+        super(HarmonicImpropers, self).__init__(
+            statistics, HarmonicImpropers.name
+        )
+
+    @staticmethod
+    def neighbor_list(topology: Topology) -> dict:
+        return Harmonic.neighbor_list(topology, HarmonicImpropers.name)
+
+    @staticmethod
+    def compute_features(pos, mapping):
+        return Harmonic.compute_features(pos, mapping, HarmonicImpropers.name)
+
+
 class Repulsion(torch.nn.Module, _Prior):
     name: Final[str] = "repulsion"
     _neighbor_list_name = "fully connected"
@@ -198,9 +219,7 @@ class Repulsion(torch.nn.Module, _Prior):
 
 
 class Dihedral(torch.nn.Module, _Prior):
-    """
-    TO DO: better guess for p0 under fit_from_potential_estimates
-    """
+    """ """
 
     name: Final[str] = "dihedrals"
     _order = 4
@@ -216,13 +235,13 @@ class Dihedral(torch.nn.Module, _Prior):
         assert unique_types.min() >= 0
         max_type = unique_types.max()
         sizes = tuple([max_type + 1 for _ in range(self.order)])
-        # In principle we could extend this to include even more wells if needed.
+        # In principle this can be extended to include more wells if needed.
         self.n_degs = 6
         theta = self.n_degs * [torch.zeros(sizes)]
         self.theta_names = ["theta_" + str(ii) for ii in range(self.n_degs)]
         k = self.n_degs * [torch.zeros(sizes)]
         self.k_names = ["k_" + str(ii) for ii in range(self.n_degs)]
-        
+
         for key in statistics.keys():
             for ii in range(self.n_degs):
                 theta_name = self.theta_names[ii]
@@ -293,7 +312,7 @@ class Dihedral(torch.nn.Module, _Prior):
         return -L
 
     @staticmethod
-    def fit_from_potential_estimates(bin_centers_nz, dG_nz, n_degs = 10):
+    def fit_from_potential_estimates(bin_centers_nz, dG_nz, n_degs=10):
         """
         Loop over three basins and use aic criterion to select best fit
         """

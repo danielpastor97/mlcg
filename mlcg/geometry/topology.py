@@ -533,7 +533,7 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
     return final_paths
 
 
-def get_improper_paths(connectivity_matrix, n=4, unique=True) -> torch.tensor:
+def get_improper_paths(connectivity_matrix, unique=True) -> torch.tensor:
     """This function use networkx to grab all connected paths defined
     by n connecting edges. Paths are found using Dijkstra's algorithm.
 
@@ -541,8 +541,6 @@ def get_improper_paths(connectivity_matrix, n=4, unique=True) -> torch.tensor:
     ----------
     connectivity_matrix:
         Connectivity/adjacency matrix of the molecular graph of shape (n_atoms, n_atoms)
-    n:
-        Number of atoms to count away from the starting atom, with the starting atom counting as n=1
     unique:
         If True, the returned pairs will be unique and symmetrised such that the lower bead index precedes
         the higher bead index in each pair.
@@ -553,18 +551,15 @@ def get_improper_paths(connectivity_matrix, n=4, unique=True) -> torch.tensor:
         Path index tensor of shape (n, n_pairs)
     """
 
-    if n not in [4]:
-        raise NotImplementedError("Unique currently only works for n=2")
-
     n = 4
-    neigh_counts = np.sum(connectivity_matrix.numpy(),axis=0)
+    neigh_counts = np.sum(connectivity_matrix.numpy(), axis=0)
     final_paths = [[] for i in range(n)]
-    for i_nc,neigh_count in enumerate(neigh_counts):
+    for i_nc, neigh_count in enumerate(neigh_counts):
         if neigh_count >= 3:
-            neigh_list = np.where(connectivity_matrix.numpy()[i_nc]==1)[0]
-            for combo in combinations(neigh_list,3):
+            neigh_list = np.where(connectivity_matrix.numpy()[i_nc] == 1)[0]
+            for combo in combinations(neigh_list, 3):
                 final_paths[-1].append(i_nc)
-                for ic,ind in enumerate(combo):
+                for ic, ind in enumerate(combo):
                     final_paths[ic].append(ind)
 
     final_paths = torch.tensor(final_paths)
