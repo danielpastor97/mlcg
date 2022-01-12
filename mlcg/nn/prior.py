@@ -217,12 +217,12 @@ class Dihedral(torch.nn.Module, _Prior):
         max_type = unique_types.max()
         sizes = tuple([max_type + 1 for _ in range(self.order)])
         # In principle we could extend this to include even more wells if needed.
-        self.n_degs = 3
+        self.n_degs = 6
         theta = self.n_degs * [torch.zeros(sizes)]
         self.theta_names = ["theta_" + str(ii) for ii in range(self.n_degs)]
         k = self.n_degs * [torch.zeros(sizes)]
         self.k_names = ["k_" + str(ii) for ii in range(self.n_degs)]
-
+        
         for key in statistics.keys():
             for ii in range(self.n_degs):
                 theta_name = self.theta_names[ii]
@@ -293,7 +293,7 @@ class Dihedral(torch.nn.Module, _Prior):
         return -L
 
     @staticmethod
-    def fit_from_potential_estimates(bin_centers_nz, dG_nz):
+    def fit_from_potential_estimates(bin_centers_nz, dG_nz, n_degs = 10):
         """
         Loop over three basins and use aic criterion to select best fit
         """
@@ -301,7 +301,8 @@ class Dihedral(torch.nn.Module, _Prior):
             "thetas": {},
             "ks": {},
         }
-        n_degs = 3
+        tmp_class = Dihedral()
+        n_degs = tmp_class.n_degs
         theta_names = ["theta_" + str(ii) for ii in range(n_degs)]
         k_names = ["k_" + str(ii) for ii in range(n_degs)]
         for ii in range(n_degs):
