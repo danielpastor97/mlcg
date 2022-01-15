@@ -308,7 +308,7 @@ class Dihedral(torch.nn.Module, _Prior):
         predicted and actual
         """
         L = torch.sum(
-            torch.exp(-y) * torch.log(torch.exp(-y) / torch.exp(-yhat))
+            torch.exp(-y) * torch.log(torch.exp(-yhat))
         )
         return -L
 
@@ -348,7 +348,6 @@ class Dihedral(torch.nn.Module, _Prior):
                 k2s_0 = k2s_0_func(deg)
                 p0.append(k1s_0)
                 p0.append(k2s_0)
-                print(p0)
                 free_parameters = 2 * (deg + 1)
 
                 popt, _ = curve_fit(
