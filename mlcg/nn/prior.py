@@ -227,7 +227,7 @@ class Dihedral(torch.nn.Module, _Prior):
     _order = 4
     _neighbor_list_name = "dihedrals"
 
-    def __init__(self, statistics, n_degs=5) -> None:
+    def __init__(self, statistics, n_degs=6) -> None:
         super(Dihedral, self).__init__()
         keys = torch.tensor(list(statistics.keys()), dtype=torch.long)
         self.allowed_interaction_keys = list(statistics.keys())
@@ -239,10 +239,10 @@ class Dihedral(torch.nn.Module, _Prior):
         sizes = tuple([max_type + 1 for _ in range(self.order)])
         # In principle we could extend this to include even more wells if needed.
         self.n_degs = n_degs
-        theta = self.n_degs * [torch.zeros(sizes)]
         self.k1s_names = ["k1s_" + str(ii) for ii in range(self.n_degs)]
-        k = self.n_degs * [torch.zeros(sizes)]
         self.k2s_names = ["k2s_" + str(ii) for ii in range(self.n_degs)]
+        k1 = self.n_degs * [torch.zeros(sizes)]
+        k2 = self.n_degs * [torch.zeros(sizes)]
 
         for key in statistics.keys():
             for ii in range(self.n_degs):
@@ -312,9 +312,9 @@ class Dihedral(torch.nn.Module, _Prior):
         return -L
 
     @staticmethod
-    def fit_from_potential_estimates(bin_centers_nz, dG_nz, n_degs=5):
+    def fit_from_potential_estimates(bin_centers_nz, dG_nz, n_degs=6):
         """
-        Loop over three basins and use aic criterion to select best fit
+        Loop over n_degs basins and use aic criterion to select best fit
         """
         stat = {
             "k1s": {},
@@ -341,7 +341,7 @@ class Dihedral(torch.nn.Module, _Prior):
             popts = []
             aics = []
 
-            for deg in [n_degs]:
+            for deg in range(1, n_degs + 1):
                 p0 = []
                 k1s_0 = k1s_0_func(deg)
                 k2s_0 = k2s_0_func(deg)
@@ -351,16 +351,18 @@ class Dihedral(torch.nn.Module, _Prior):
 
                 popt, _ = curve_fit(
                     lambda theta, *p0: Dihedral.wrapper_fit_func(theta, p0),
-                    bin_centers_nz,
-                    dG_nz,
-                    p0,
+                    bin_centers_nz[mask],
+                    dG_nz[mask],
+                    p0=p0,
                 )
                 popts.append(popt)
                 aic = (
                     2
                     * Dihedral.neg_log_likelihood(
-                        dG_nz,
-                        Dihedral.wrapper_fit_func(bin_centers_nz, *[popt]),
+                        dG_nz[mask],
+                        Dihedral.wrapper_fit_func(
+                            bin_centers_nz[mask], *[popt]
+                        ),
                     )
                     + 2 * free_parameters
                 )
@@ -378,8 +380,8 @@ class Dihedral(torch.nn.Module, _Prior):
                     stat["k1s"][k1_name] = popt[ii]
                     stat["k2s"][k2_name] = popt[num_k1s + ii]
                 else:
-                    stat["k1s"][k1_name] = popt[0]
-                    stat["k2s"][k2_name] = popt[1]
+                    stat["k1s"][k1_name] = 0
+                    stat["k2s"][k2_name] = 0
 
         except:
             print(f"failed to fit potential estimate for Dihedral")
