@@ -217,6 +217,7 @@ class Repulsion(torch.nn.Module, _Prior):
             )
         }
 
+
 class Dihedral(torch.nn.Module, _Prior):
     """
     TO DO: better guess for p0 under fit_from_potential_estimates
@@ -298,7 +299,7 @@ class Dihedral(torch.nn.Module, _Prior):
     def compute(theta, k1s, k2s):
         V = 0.00
         for ii, (k1, k2) in enumerate(zip(k1s, k2s)):
-            V += k1 * torch.sin(ii*theta) + k2 * torch.cos(ii*theta)
+            V += k1 * torch.sin(ii * theta) + k2 * torch.cos(ii * theta)
         return V
 
     @staticmethod
@@ -307,9 +308,7 @@ class Dihedral(torch.nn.Module, _Prior):
         Convert dG to probability and use KL divergence to get difference between
         predicted and actual
         """
-        L = torch.sum(
-            torch.exp(-y) * torch.log(torch.exp(-yhat))
-        )
+        L = torch.sum(torch.exp(-y) * torch.log(torch.exp(-yhat)))
         return -L
 
     @staticmethod
@@ -361,9 +360,7 @@ class Dihedral(torch.nn.Module, _Prior):
                     2
                     * Dihedral.neg_log_likelihood(
                         dG_nz,
-                        Dihedral.wrapper_fit_func(
-                            bin_centers_nz, *[popt]
-                        ),
+                        Dihedral.wrapper_fit_func(bin_centers_nz, *[popt]),
                     )
                     + 2 * free_parameters
                 )
@@ -371,7 +368,7 @@ class Dihedral(torch.nn.Module, _Prior):
             min_aic = min(aics)
             min_i_aic = aics.index(min_aic)
             popt = popts[min_i_aic]
-            num_k1s = int(len(popt)/2)
+            num_k1s = int(len(popt) / 2)
             for ii in range(n_degs):
                 k1_name = k1_names[ii]
                 k2_name = k2_names[ii]

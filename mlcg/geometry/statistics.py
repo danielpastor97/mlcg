@@ -233,7 +233,9 @@ def compute_statistics(
 
         ncounts_nz = hist[mask]
         dG_nz = -torch.log(ncounts_nz) / beta
-        params = TargetPrior.fit_from_potential_estimates(bin_centers_nz, dG_nz, **target_fit_kwargs)
+        params = TargetPrior.fit_from_potential_estimates(
+            bin_centers_nz, dG_nz, **target_fit_kwargs
+        )
         kk = tensor2tuple(unique_key)
         statistics[kk] = params
 
