@@ -239,8 +239,8 @@ class Dihedral(torch.nn.Module, _Prior):
         sizes = tuple([max_type + 1 for _ in range(self.order)])
         # In principle we could extend this to include even more wells if needed.
         self.n_degs = n_degs
-        self.k1_names = ["k1_" + str(ii) for ii in range(self.n_degs)]
-        self.k2_names = ["k2_" + str(ii) for ii in range(self.n_degs)]
+        self.k1_names = ["k1_" + str(ii) for ii in range(1, self.n_degs)]
+        self.k2_names = ["k2_" + str(ii) for ii in range(1, self.n_degs)]
         k1 = self.n_degs * [torch.zeros(sizes)]
         k2 = self.n_degs * [torch.zeros(sizes)]
 
@@ -340,7 +340,7 @@ class Dihedral(torch.nn.Module, _Prior):
     @staticmethod
     def _make_parameter_dict(stat, popt, n_degs):
         """Helper method for constructing a fitted parameter dictionary"""
-        num_k1s = len(popt) / 2
+        num_k1s = int(len(popt) / 2)
         k1_names = sorted(list(stat["k1s"].keys()))
         k2_names = sorted(list(stat["k2s"].keys()))
         for ii in range(n_degs):
@@ -408,8 +408,8 @@ class Dihedral(torch.nn.Module, _Prior):
 
         if constrain_deg != None:
             assert isinstance(constrain_deg, int)
-            stat = Dihedral._make_parameter_dict(constrain_deg)
-            p0 = Dihedral._parameter_init(constrain_deg)
+            stat = Dihedral._init_parameter_dict(constrain_deg)
+            p0 = Dihedral._init_parameters(constrain_deg)
             popt, _ = curve_fit(
                 lambda theta, *p0: Dihedral.wrapper_fit_func(theta, p0),
                 bin_centers_nz[mask],
@@ -428,7 +428,7 @@ class Dihedral(torch.nn.Module, _Prior):
                 aics = []
 
                 for deg in range(1, n_degs + 1):
-                    p0 = self._init_parameters(deg)
+                    p0 = Dihedral._init_parameters(deg)
                     free_parameters = 2 * (deg + 1)
 
                     popt, _ = curve_fit(
@@ -445,8 +445,7 @@ class Dihedral(torch.nn.Module, _Prior):
                 min_aic = min(aics)
                 min_i_aic = aics.index(min_aic)
                 popt = popts[min_i_aic]
-                stat = Dihedral._make_stat_dict(stat, popt, n_degs)
-
+                stat = Dihedral._make_parameter_dict(stat, popt, n_degs)
             except:
                 print(f"failed to fit potential estimate for Dihedral")
                 stat = Dihedral._init_parameter_dict(n_degs)
