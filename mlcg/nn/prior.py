@@ -2,7 +2,7 @@ import torch
 from torch_scatter import scatter
 from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit
-from typing import Final
+from typing import Final, Optional
 from math import pi
 
 from ..geometry.topology import Topology
@@ -239,8 +239,8 @@ class Dihedral(torch.nn.Module, _Prior):
         sizes = tuple([max_type + 1 for _ in range(self.order)])
         # In principle we could extend this to include even more wells if needed.
         self.n_degs = n_degs
-        self.k1s_names = ["k1s_" + str(ii) for ii in range(self.n_degs)]
-        self.k2s_names = ["k2s_" + str(ii) for ii in range(self.n_degs)]
+        self.k1_names = ["k1_" + str(ii) for ii in range(self.n_degs)]
+        self.k2_names = ["k2_" + str(ii) for ii in range(self.n_degs)]
         k1 = self.n_degs * [torch.zeros(sizes)]
         k2 = self.n_degs * [torch.zeros(sizes)]
 
@@ -312,10 +312,18 @@ class Dihedral(torch.nn.Module, _Prior):
         return -L
 
     @staticmethod
-    def fit_from_potential_estimates(bin_centers_nz, dG_nz, n_degs=6):
-        """
-        Loop over n_degs basins and use aic criterion to select best fit
-        """
+    def _init_parameters(n_degs):
+        """Helper method for guessing initial parameter values"""
+        p0 = []
+        k1s_0 = [1 for _ in range(n_degs)]
+        k2s_0 = [1 for _ in range(n_degs)]
+        p0.append(k1s_0)
+        p0.append(k2s_0)
+        return p0
+
+    @staticmethod
+    def _init_parameter_dict(n_degs):
+        """Helper method for initializing the parameter dictionary"""
         stat = {
             "k1s": {},
             "k2s": {},
@@ -327,6 +335,70 @@ class Dihedral(torch.nn.Module, _Prior):
             k2_name = k2_names[ii]
             stat["k1s"][k1_name] = {}
             stat["k2s"][k2_name] = {}
+        return stat
+
+    @staticmethod
+    def _make_parameter_dict(stat, popt, n_degs):
+        """Helper method for constructing a fitted parameter dictionary"""
+        num_k1s = len(popt) / 2
+        k1_names = sorted(list(stat["k1s"].keys()))
+        k2_names = sorted(list(stat["k2s"].keys()))
+        for ii in range(n_degs):
+            k1_name = k1_names[ii]
+            k2_name = k2_names[ii]
+            stat["k1s"][k1_name] = {}
+            stat["k2s"][k2_name] = {}
+            if len(popt) > 2 * ii:
+                stat["k1s"][k1_name] = popt[ii]
+                stat["k2s"][k2_name] = popt[num_k1s + ii]
+            else:
+                stat["k1s"][k1_name] = 0
+                stat["k2s"][k2_name] = 0
+        return stat
+
+    @staticmethod
+    def _compute_aic(bin_centers_nz, dG_nz, mask, popt, free_parameters):
+        """Method for computing the AIC"""
+        aic = (
+            2
+            * Dihedral.neg_log_likelihood(
+                dG_nz[mask],
+                Dihedral.wrapper_fit_func(bin_centers_nz[mask], *[popt]),
+            )
+            + 2 * free_parameters
+        )
+        return aic
+
+    @staticmethod
+    def fit_from_potential_estimates(
+        bin_centers_nz: torch.Tensor,
+        dG_nz: torch.Tensor,
+        n_degs: int = 6,
+        constrain_deg: Optional[int] = None,
+    ):
+        """
+        Loop over n_degs basins and use either the AIC criterion
+        or a prechosen degree to select best fit. Parameter fitting
+        occurs over unmaksed regions of the free energy only.
+
+        Parameters
+        ----------
+        bin_centers_nz:
+            Bin centers over which the fit is carried out
+        dG_nz:
+            The emperical free energy correspinding to the bin centers
+        n_degs:
+            The maximum number of degrees to attempt to fit if using the AIC
+            criterion for prior model selection
+        constrain_deg:
+            If not None, a single fit is produced for the specified integer
+            degree instead of using the AIC criterion for fit selection between
+            multiple degrees
+
+        Returns
+        -------
+            Statistics dictionary with fitted interaction parameters
+        """
 
         integral = torch.tensor(
             float(trapezoid(dG_nz.cpu().numpy(), bin_centers_nz.cpu().numpy()))
@@ -334,62 +406,57 @@ class Dihedral(torch.nn.Module, _Prior):
 
         mask = torch.abs(dG_nz) > 1e-4 * torch.abs(integral)
 
-        try:
-            # Determine best fit for unknown # of parameters
-            k1s_0_func = lambda m: [1 for _ in range(m)]
-            k2s_0_func = lambda m: [1 for _ in range(m)]
-            popts = []
-            aics = []
+        if constrain_deg != None:
+            assert isinstance(constrain_deg, int)
+            stat = Dihedral._make_parameter_dict(constrain_deg)
+            p0 = Dihedral._parameter_init(constrain_deg)
+            popt, _ = curve_fit(
+                lambda theta, *p0: Dihedral.wrapper_fit_func(theta, p0),
+                bin_centers_nz[mask],
+                dG_nz[mask],
+                p0=p0,
+            )
+            stat = Dihedral._make_parameter_dict(
+                stat, popt, constrain_deg
+            )
 
-            for deg in range(1, n_degs + 1):
-                p0 = []
-                k1s_0 = k1s_0_func(deg)
-                k2s_0 = k2s_0_func(deg)
-                p0.append(k1s_0)
-                p0.append(k2s_0)
-                free_parameters = 2 * (deg + 1)
+        else:
+            try:
+                # Determine best fit for unknown # of parameters
+                stat = Dihedral._init_parameter_dict(n_degs)
+                popts = []
+                aics = []
 
-                popt, _ = curve_fit(
-                    lambda theta, *p0: Dihedral.wrapper_fit_func(theta, p0),
-                    bin_centers_nz[mask],
-                    dG_nz[mask],
-                    p0=p0,
-                )
-                popts.append(popt)
-                aic = (
-                    2
-                    * Dihedral.neg_log_likelihood(
+                for deg in range(1, n_degs + 1):
+                    p0 = self._init_parameters(deg)
+                    free_parameters = 2 * (deg + 1)
+
+                    popt, _ = curve_fit(
+                        lambda theta, *p0: Dihedral.wrapper_fit_func(theta, p0),
+                        bin_centers_nz[mask],
                         dG_nz[mask],
-                        Dihedral.wrapper_fit_func(
-                            bin_centers_nz[mask], *[popt]
-                        ),
+                        p0=p0,
                     )
-                    + 2 * free_parameters
-                )
-                aics.append(aic)
-            min_aic = min(aics)
-            min_i_aic = aics.index(min_aic)
-            popt = popts[min_i_aic]
-            num_k1s = int(len(popt) / 2)
-            for ii in range(n_degs):
-                k1_name = k1_names[ii]
-                k2_name = k2_names[ii]
-                stat["k1s"][k1_name] = {}
-                stat["k2s"][k2_name] = {}
-                if len(popt) > 2 * ii:
-                    stat["k1s"][k1_name] = popt[ii]
-                    stat["k2s"][k2_name] = popt[num_k1s + ii]
-                else:
-                    stat["k1s"][k1_name] = 0
-                    stat["k2s"][k2_name] = 0
+                    aic = Dihedral._compute_aic(
+                        bin_centers_nz, dG_nz, mask, popt, free_parameters
+                    )
+                    popts.append(popt)
+                    aics.append(aic)
+                min_aic = min(aics)
+                min_i_aic = aics.index(min_aic)
+                popt = popts[min_i_aic]
+                stat = Dihedral._make_stat_dict(stat, popt, n_degs)
 
-        except:
-            print(f"failed to fit potential estimate for Dihedral")
-            for ii in range(n_degs):
-                k1_name = k1_names[ii]
-                k2_name = k2_names[ii]
-                stat["k1s"][k1_name] = torch.tensor(float("nan"))
-                stat["k2s"][k2_name] = torch.tensor(float("nan"))
+            except:
+                print(f"failed to fit potential estimate for Dihedral")
+                stat = Dihedral._init_parameter_dict(n_degs)
+                k1_names = sorted(list(stat["k1s"].keys()))
+                k2_names = sorted(list(stat["k2s"].keys()))
+                for ii in range(n_degs):
+                    k1_name = k1_names[ii]
+                    k2_name = k2_names[ii]
+                    stat["k1s"][k1_name] = torch.tensor(float("nan"))
+                    stat["k2s"][k2_name] = torch.tensor(float("nan"))
         return stat
 
     def from_user(*args):
