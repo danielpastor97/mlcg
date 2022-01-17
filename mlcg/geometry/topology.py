@@ -109,7 +109,7 @@ class Topology(object):
         device:
             device upon which the neighborlist is returned
         """
-        allowed_types = ["bonds", "angles", "impropers", "fully connected"]
+        allowed_types = ["bonds", "angles", "dihedrals", "impropers", "fully connected"]
         assert type in allowed_types, f"type should be any of {allowed_types}"
         if type == "bonds":
             mapping = self.bonds2torch(device)
