@@ -109,7 +109,13 @@ class Topology(object):
         device:
             device upon which the neighborlist is returned
         """
-        allowed_types = ["bonds", "angles", "dihedrals", "impropers", "fully connected"]
+        allowed_types = [
+            "bonds",
+            "angles",
+            "dihedrals",
+            "impropers",
+            "fully connected",
+        ]
         assert type in allowed_types, f"type should be any of {allowed_types}"
         if type == "bonds":
             mapping = self.bonds2torch(device)
@@ -533,7 +539,9 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
     return final_paths
 
 
-def get_improper_paths(connectivity_matrix: torch.Tensor, unique: bool=True) -> torch.tensor:
+def get_improper_paths(
+    connectivity_matrix: torch.Tensor, unique: bool = True
+) -> torch.tensor:
     """This function returns all paths defining an improper dihedral
 
             k
