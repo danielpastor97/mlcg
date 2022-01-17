@@ -142,7 +142,7 @@ class HarmonicAngles(Harmonic):
 
 class HarmonicImpropers(Harmonic):
     name: Final[str] = "impropers"
-    _order = 2
+    _order = 4
 
     def __init__(self, statistics) -> None:
         super(HarmonicImpropers, self).__init__(
