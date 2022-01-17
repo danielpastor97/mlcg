@@ -165,7 +165,7 @@ def compute_dihedrals(pos: torch.Tensor, mapping: torch.Tensor):
     m1 = torch.cross(n1, dr2, dim=1)
     y = torch.sum(m1 * n2, dim=-1)
     x = torch.sum(n1 * n2, dim=-1)
-    theta = -torch.atan2(y, x)
+    theta = torch.atan2(y, x)
 
     return theta
 
