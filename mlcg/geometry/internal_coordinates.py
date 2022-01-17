@@ -181,7 +181,7 @@ def compute_impropers(pos: torch.Tensor, mapping: torch.Tensor):
       /
      i
     Convention is to assign mapping so l is always the central atom. 
-    Finds the angle between planes ikl and ikj
+    Computes the angle between planes ikl and ikj
     """
     assert mapping.dim() == 2
     assert mapping.shape[0] == 4
