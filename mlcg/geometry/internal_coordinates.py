@@ -198,7 +198,7 @@ def compute_impropers(pos: torch.Tensor, mapping: torch.Tensor):
     planeikl = torch.cross(il, kl, dim=1)
     planeikj = torch.cross(ij, kj, dim=1)
     # Dot product of each row
-    costheta = torch.sum(planeikl * planeikj, dim=1)
+    costheta = planeikl @ planeikj.t()
     normalize = torch.norm(planeikl, p=2, dim=1) * torch.norm(
         planeikj, p=2, dim=1
     )
