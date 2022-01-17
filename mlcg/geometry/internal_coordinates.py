@@ -182,10 +182,6 @@ def compute_impropers(pos: torch.Tensor, mapping: torch.Tensor):
      i
     Convention is to assign mapping so l is always the central atom. 
     Finds the angle between planes ikl and ikj
-
-    In the case of periodic boundary conditions, :obj:`cell_shifts` must be
-    provided so that :math:`\mathbf{r}_j` can be outside of the original unit
-    cell.
     """
     assert mapping.dim() == 2
     assert mapping.shape[0] == 4
