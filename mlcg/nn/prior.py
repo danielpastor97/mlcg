@@ -239,8 +239,8 @@ class Dihedral(torch.nn.Module, _Prior):
         sizes = tuple([max_type + 1 for _ in range(self.order)])
         # In principle we could extend this to include even more wells if needed.
         self.n_degs = n_degs
-        self.k1_names = ["k1_" + str(ii) for ii in range(1, self.n_degs)]
-        self.k2_names = ["k2_" + str(ii) for ii in range(1, self.n_degs)]
+        self.k1_names = ["k1_" + str(ii + 1) for ii in range(0, self.n_degs)]
+        self.k2_names = ["k2_" + str(ii + 1) for ii in range(0, self.n_degs)]
         k1 = self.n_degs * [torch.zeros(sizes)]
         k2 = self.n_degs * [torch.zeros(sizes)]
 
