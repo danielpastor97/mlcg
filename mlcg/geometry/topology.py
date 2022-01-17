@@ -533,22 +533,27 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
     return final_paths
 
 
-def get_improper_paths(connectivity_matrix, unique=True) -> torch.tensor:
-    """This function use networkx to grab all connected paths defined
-    by n connecting edges. Paths are found using Dijkstra's algorithm.
+def get_improper_paths(connectivity_matrix: torch.Tensor, unique: bool=True) -> torch.tensor:
+    """This function returns all paths defining an improper dihedral
+
+            k
+            |
+        i - j - l
+
+    where the order of connected nodes is given as [i,k,l,j] - i.e., the
+    central node is reported last.
 
     Parameters
     ----------
     connectivity_matrix:
         Connectivity/adjacency matrix of the molecular graph of shape (n_atoms, n_atoms)
     unique:
-        If True, the returned pairs will be unique and symmetrised such that the lower bead index precedes
-        the higher bead index in each pair.
+        If True, the returned paths will be unique
 
     Returns
     -------
     final_paths:
-        Path index tensor of shape (n, n_pairs)
+        Path index tensor of shape (4, n_impropers)
     """
 
     n = 4
