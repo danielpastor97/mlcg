@@ -31,7 +31,8 @@ class Atom(NamedTuple):
     name: Optional[str] = None
     #: name of the residue containing the atom
     resname: Optional[str] = None
-
+    #: number of the resid containing the atom
+    resid: Optional[int] = None
 
 class Topology(object):
     """Define the topology of an isolated protein."""
@@ -42,6 +43,8 @@ class Topology(object):
     names: List[str]
     #: name of the residue containing the atoms
     resnames: List[str]
+    #: number of the resid containing the atoms
+    resids: List[int]
     #: list of bonds between the atoms. Defines the bonded topology.
     bonds: Tuple[List[int], List[int]]
     #: list of angles formed by triplets of atoms
@@ -54,19 +57,21 @@ class Topology(object):
         self.types = []
         self.names = []
         self.resnames = []
+        self.resids = []
         self.bonds = ([], [])
         self.angles = ([], [], [])
         self.dihedrals = ([], [], [], [])
 
-    def add_atom(self, type: int, name: str, resname: Optional[str] = None):
+    def add_atom(self, type: int, name: str, resname: Optional[str] = None, resid: Optional[int] = None):
         self.types.append(type)
         self.names.append(name)
         self.resnames.append(resname)
+        self.resids.append(resid)
 
     @property
     def atoms(self):
-        for type, name, resname in zip(self.types, self.names, self.resnames):
-            yield Atom(type=type, name=name, resname=resname)
+        for type, name, resname,resid in zip(self.types, self.names, self.resnames, self.resid):
+            yield Atom(type=type, name=name, resname=resname, resid=resid)
 
     @property
     def n_atoms(self) -> int:
@@ -256,7 +261,7 @@ class Topology(object):
         ), f"Does not support multiple chains but {topology.n_chains}"
         topo = Topology()
         for at in topology.atoms:
-            topo.add_atom(at.element.atomic_number, at.name, at.residue.name)
+            topo.add_atom(at.element.atomic_number, at.name, at.residue.name, at.residue.index)
         for at1, at2 in topology.bonds:
             topo.add_bond(at1.index, at2.index)
         return topo
