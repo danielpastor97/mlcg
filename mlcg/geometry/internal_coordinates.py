@@ -198,13 +198,13 @@ def compute_impropers(pos: torch.Tensor, mapping: torch.Tensor):
     planeikl = torch.cross(il, kl, dim=1)
     planeikj = torch.cross(ij, kj, dim=1)
     # Dot product of each row
-    costheta = planeikl @ planeikj.t()
+    costheta = torch.sum(planeikl * planeikj, dim=1)
     normalize = torch.norm(planeikl, p=2, dim=1) * torch.norm(
         planeikj, p=2, dim=1
     )
     costheta = costheta / normalize
     # If on same plane get error so set equal to 0
-    mask = costheta > 0.999
+    mask = torch.abs(costheta) > 1
     theta = torch.acos(costheta)
     theta[mask] = 0
     return theta
