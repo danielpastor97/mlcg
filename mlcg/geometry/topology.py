@@ -580,3 +580,75 @@ def get_improper_paths(
         final_paths = torch.unique(final_paths, dim=1)
 
     return final_paths
+
+def _grab_improper_atom_groups(self, top: mdtraj.Topology, group=['CA','O','N','C'], 
+    normal_idx=[0,3,4,2], gly_local_idx=[0,2,3,1]) -> List[Tuple]:
+    '''
+        Helper method to create neighborlist of atoms involved in gamma 2
+            (C_{alpha}, O, N, C). Central atom comes last based on convention in internal_coordaintes
+    '''
+    group_list = []                                                               
+
+    atom_list = [atom.name for atom in top.atoms]
+    residues_list = [atom.residue.name for atom in top.atoms]
+    for idx in range(len(atom_list) - 4):
+        starting_res = residues_list[normal_idx[0] + idx]
+        # Glycine handled separately since no CB
+        if starting_res != "GLY":
+            local_idx = normal_idx 
+        else:
+            local_idx = gly_local_idx 
+        at1 = atom_list[idx + local_idx[0]]
+        at2 = atom_list[idx + local_idx[1]]
+        at3 = atom_list[idx + local_idx[2]]
+        at4 = atom_list[idx + local_idx[3]]
+        query_names = [at1, at2, at3, at4]
+        if np.array_equal(query_names, group):
+            group_list.append((idx + local_idx[0], idx+local_idx[1], idx+local_idx[2], idx+local_idx[3]))
+    return group_list
+
+def _grab_dihedral_atom_groups(self, top: mdtraj.Topology, phi=True, psi=True, omega=True):
+    '''
+        Helper function to select atoms involved in protein dihehdral backbone
+        phi = [(C-1),N,CA,C]
+        psi = [N,CA,C,(N+1)]
+        omega = [(CA-1),(C-1),N,CA]
+    '''
+    dihedrals = []
+    PHI_ATOMS = ["-C", "N", "CA", "C"]
+    PSI_ATOMS = ["N", "CA", "C", "+N"]
+    OMEGA_ATOMS = ["CA", "C", "+N", "+CA"]
+    if phi: 
+        phi_atoms = mdtraj.geometry.dihedral._atom_sequence(top,PHI_ATOMS)[1]        
+    else: phi_atoms = None
+    dihedrals.append(phi_atoms)
+
+    if psi:
+        psi_atoms = mdtraj.geometry.dihedral._atom_sequence(top,PSI_ATOMS)[1]        
+    else: psi_atoms = None
+    dihedrals.append(psi_atoms)
+
+    if omega: 
+        omega_atoms = mdtraj.geometry.dihedral._atom_sequence(top,OMEGA_ATOMS)[1]        
+    else: omega_atoms = None
+    dihedrals.append(omega_atoms)
+
+    return dihedrals
+
+
+def _dihedral_mapping_dictionary(self,dihedral_atoms, top) -> Dict:
+    '''
+        Helper function to assign each dihedral to a Amino Acid type
+    '''
+    from ..cg import CA_MAP
+    dihedral_dictionary = {key[0]: [] for key in CA_MAP.keys()}
+    resids = np.array([atom.residue.name for atom in top.atoms])
+    for i in range(len(dihedral_atoms)):
+        group = dihedral_atoms[i]
+        res_group = resids[group]
+        unique_res, counts = np.unique(res_group, return_counts=True)
+        current_res = unique_res[np.argmax(counts)]
+        dihedral_dictionary[current_res].append(group)
+    for k,v in dihedral_dictionary.items():
+        dihedral_dictionary[k] = np.array(v)
+    return dihedral_dictionary
