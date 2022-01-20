@@ -622,7 +622,7 @@ def _grab_improper_atom_groups(
 
 def _grab_dihedral_atom_groups(
     top: mdtraj.Topology, phi=True, psi=True, omega=True
-) -> List[Array]:
+) -> List[np.ndarray]:
     """
     Helper function to select atoms involved in protein dihehdral backbone
     phi = [(C-1),N,CA,C]
