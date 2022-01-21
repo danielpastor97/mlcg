@@ -582,94 +582,69 @@ def get_improper_paths(
     return final_paths
 
 
-def _grab_improper_atom_groups(
-    top: mdtraj.Topology,
-    group=["CA", "O", "N", "C"],
-    normal_idx=[0, 3, 4, 2],
-    gly_local_idx=[0, 2, 3, 1],
-) -> List[Tuple]:
-    """
-    Helper method to create neighborlist of atoms involved in gamma 2
-        (C_{alpha}, O, N, C). Central atom comes last based on convention in internal_coordaintes
-    """
-    group_list = []
-
-    atom_list = [atom.name for atom in top.atoms]
-    residues_list = [atom.residue.name for atom in top.atoms]
-    for idx in range(len(atom_list) - 4):
-        starting_res = residues_list[normal_idx[0] + idx]
-        # Glycine handled separately since no CB
-        if starting_res != "GLY":
-            local_idx = normal_idx
-        else:
-            local_idx = gly_local_idx
-        at1 = atom_list[idx + local_idx[0]]
-        at2 = atom_list[idx + local_idx[1]]
-        at3 = atom_list[idx + local_idx[2]]
-        at4 = atom_list[idx + local_idx[3]]
-        query_names = [at1, at2, at3, at4]
-        if np.array_equal(query_names, group):
-            group_list.append(
-                (
-                    idx + local_idx[0],
-                    idx + local_idx[1],
-                    idx + local_idx[2],
-                    idx + local_idx[3],
-                )
-            )
-    return group_list
-
-
-def _grab_dihedral_atom_groups(
-    top: mdtraj.Topology, phi=True, psi=True, omega=True
+def _grab_atom_index_by_name(
+    top: mdtraj.Topology, atom_selection=None
 ) -> List[np.ndarray]:
     """
-    Helper function to select atoms involved in protein dihehdral backbone
-    phi = [(C-1),N,CA,C]
-    psi = [N,CA,C,(N+1)]
-    omega = [(CA-1),(C-1),N,CA]
+    Helper function to select atoms indices based on atom names according to mdtraj scheme
+        Some useful examples
+            GAMMA1_ATOMS = ["N", "CB", "C", "CA"]
+            GAMMA2_ATOMS = ["CA", "O", "+N", "C"]
+            PHI_ATOMS = ["-C", "N", "CA", "C"]
+            PSI_ATOMS = ["N", "CA", "C", "+N"]
+            OMEGA_ATOMS = ["CA", "C", "+N", "+CA"]
     """
-    dihedrals = []
-    PHI_ATOMS = ["-C", "N", "CA", "C"]
-    PSI_ATOMS = ["N", "CA", "C", "+N"]
-    OMEGA_ATOMS = ["CA", "C", "+N", "+CA"]
-    if phi:
-        phi_atoms = mdtraj.geometry.dihedral._atom_sequence(top, PHI_ATOMS)[1]
+
+    if hasattr(top, "topology"):
+        warnings.warn(
+            "Passing a Trajectory object. Please pass a Topology object",
+            DeprecationWarning,
+        )
+        top = top.topology
+
+    if atom_selection is not None:
+        improper_atoms = mdtraj.geometry.dihedral._atom_sequence(
+            top, atom_selection
+        )[1]
     else:
-        phi_atoms = None
-    dihedrals.append(phi_atoms)
-
-    if psi:
-        psi_atoms = mdtraj.geometry.dihedral._atom_sequence(top, PSI_ATOMS)[1]
-    else:
-        psi_atoms = None
-    dihedrals.append(psi_atoms)
-
-    if omega:
-        omega_atoms = mdtraj.geometry.dihedral._atom_sequence(top, OMEGA_ATOMS)[
-            1
-        ]
-    else:
-        omega_atoms = None
-    dihedrals.append(omega_atoms)
-
-    return dihedrals
+        improper_atoms = None
+    return improper_atoms
 
 
-def _dihedral_mapping_dictionary(dihedral_atoms, top) -> Dict:
+def _residue_mapping_dictionary(
+    top: mdtraj.Topology, atom_indices=None
+) -> Dict:
     """
-    Helper function to assign each dihedral to a Amino Acid type
-    """
-    from ..cg import CA_MAP
+    Helper function to assign each set of atom_indices to a specific residue type
+    Inputs:
+        top:
+            mdtraj topology object
+        atom_indices:
+            np.ndarray (n_instances,n_atoms).
+            A row is a specific interaction and where each column are the atoms involved in it.
 
-    dihedral_dictionary = {key[0]: [] for key in CA_MAP.keys()}
+    Outputs:
+        residue_dictionary:
+            dict. k,v = residue, atom_indices
+    """
+    from collections import defaultdict
+
+    if hasattr(top, "topology"):
+        warnings.warn(
+            "Passing a Trajectory object. Please pass a Topology object",
+            DeprecationWarning,
+        )
+        top = top.topology
+
+    residue_dictionary = defaultdict(list)
     resids = np.array([atom.residue.name for atom in top.atoms])
-    for i in range(len(dihedral_atoms)):
-        group = dihedral_atoms[i]
+    for i in range(atom_indices.shape[0]):
+        group = atom_indices[i]
         res_group = resids[group]
         unique_res, counts = np.unique(res_group, return_counts=True)
         current_res = unique_res[np.argmax(counts)]
-        dihedral_dictionary[current_res].append(group)
-    for k, v in dihedral_dictionary.items():
-        dihedral_dictionary[k] = np.array(v)
-    return dihedral_dictionary
+        residue_dictionary[current_res].append(group)
+
+    for k, v in residue_dictionary.items():
+        residue_dictionary[k] = np.array(v)
+    return residue_dictionary
