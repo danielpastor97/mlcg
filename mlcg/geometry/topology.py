@@ -587,7 +587,7 @@ def _grab_atom_index_by_name(
 ) -> np.ndarray:
     """
     Helper function to select atoms indices based on atom names according to mdtraj scheme
-        Some useful examples
+        Some useful examples of possible :obj:`atom_selection` for (improper) dihedrals:
             Impropers: (Central atom must go last)
                 GAMMA1_ATOMS = ["N", "CB", "C", "CA"]
                 GAMMA2_ATOMS = ["CA", "O", "+N", "C"]
