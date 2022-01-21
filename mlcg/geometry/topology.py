@@ -584,15 +584,18 @@ def get_improper_paths(
 
 def _grab_atom_index_by_name(
     top: mdtraj.Topology, atom_selection=None
-) -> List[np.ndarray]:
+) -> np.ndarray:
     """
     Helper function to select atoms indices based on atom names according to mdtraj scheme
         Some useful examples
-            GAMMA1_ATOMS = ["N", "CB", "C", "CA"]
-            GAMMA2_ATOMS = ["CA", "O", "+N", "C"]
-            PHI_ATOMS = ["-C", "N", "CA", "C"]
-            PSI_ATOMS = ["N", "CA", "C", "+N"]
-            OMEGA_ATOMS = ["CA", "C", "+N", "+CA"]
+            Impropers: (Central atom must go last)
+                GAMMA1_ATOMS = ["N", "CB", "C", "CA"]
+                GAMMA2_ATOMS = ["CA", "O", "+N", "C"]
+            Dihedrals: (Previous and next residue indicated by (-) and (+) sign)
+                PHI_ATOMS = ["-C", "N", "CA", "C"]
+                PSI_ATOMS = ["N", "CA", "C", "+N"]
+                OMEGA_ATOMS = ["CA", "C", "+N", "+CA"]
+
     """
 
     if hasattr(top, "topology"):
