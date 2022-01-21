@@ -178,7 +178,7 @@ class InteractionBlock(torch.nn.Module):
         self,
         cfconv_layer: torch.nn.Module,
         hidden_channels: int = 128,
-        activation: type = torch.nn.Tanh,
+        activation: torch.nn.Module = torch.nn.Tanh(),
     ):
         super(InteractionBlock, self).__init__()
         self.conv = cfconv_layer
