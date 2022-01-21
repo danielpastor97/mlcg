@@ -416,7 +416,7 @@ class Dihedral(torch.nn.Module, _Prior):
                 dG_nz[mask],
                 p0=p0,
             )
-            stat = Dihedral._make_parameter_dict(stat, popt, constrain_deg)
+            stat = Dihedral._make_parameter_dict(stat, popt, n_degs)
 
         else:
             try:
