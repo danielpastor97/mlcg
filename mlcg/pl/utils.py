@@ -20,6 +20,7 @@ def merge_priors_and_checkpoint(
     checkpoint: Union[str, torch.nn.Module],
     priors: Union[str, torch.nn.ModuleDict],
     hparams_file: Optional[str] = None,
+    use_only_priors: bool = False,
 ) -> torch.nn.Module:
     """load prior models and trained model from a checkpoint and merge them
     into a :ref:`mlcg.nn.SumOut` module.
@@ -35,22 +36,29 @@ def merge_priors_and_checkpoint(
     hparams_file :
         full path to the hyper parameter file associated with the checkpoint file.
         It is typically not necessary to provide it.
+    use_only_priors : (bool) (default: False)
+        Flag to merge only priors into a model 
 
     Returns
     -------
-        model :ref:`mlcg.nn.SumOut` module containing the trained model with
-        the priors
+        model :ref:`mlcg.nn.SumOut` module containing :
+            - trained model with the priors (if use_only_priors is False)
+            - model with only priors (if use_only_priors is True)
     """
-
-    # if checkpoint is a path specifying checkpoint file, load model; else make use as model
-    if isinstance(checkpoint, str):
-        ml_model = extract_model_from_checkpoint(checkpoint, hparams_file)
-    else:
-        ml_model = checkpoint
-
     # merged_model should be a ModuleDict
     merged_model = torch.nn.ModuleDict()
-    merged_model[ml_model.name] = ml_model
+
+    # if use_only_priors is not True, then load model from checkpoint file or use loaded model
+    if use_only_priors:
+        print('*** Building model with only priors, check use_only_priors flag ***')
+    if not use_only_priors:
+        # if checkpoint is a path specifying checkpoint file, load model; else make use as model
+        if isinstance(checkpoint, str):
+            ml_model = extract_model_from_checkpoint(checkpoint, hparams_file)
+        else:
+            ml_model = checkpoint
+
+        merged_model[ml_model.name] = ml_model
 
     if isinstance(priors, str):
         prior_model = torch.load(priors)
