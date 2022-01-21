@@ -12,6 +12,7 @@ from typing import NamedTuple, List, Optional, Tuple, Dict, Callable
 import torch
 import numpy as np
 import networkx as nx
+from itertools import combinations
 
 from .utils import ase_z2name
 from ..neighbor_list.neighbor_list import make_neighbor_list
@@ -48,6 +49,8 @@ class Topology(object):
     angles: Tuple[List[int], List[int], List[int]]
     #: list of dihedrals formed by quadruplets of atoms
     dihedrals: Tuple[List[int], List[int], List[int], List[int]]
+    #: list of impropers formed by quadruplets of atoms
+    impropers: Tuple[List[int], List[int], List[int], List[int]]
 
     def __init__(self) -> None:
         super(Topology, self).__init__()
@@ -57,6 +60,7 @@ class Topology(object):
         self.bonds = ([], [])
         self.angles = ([], [], [])
         self.dihedrals = ([], [], [], [])
+        self.impropers = ([], [], [], [])
 
     def add_atom(self, type: int, name: str, resname: Optional[str] = None):
         self.types.append(type)
@@ -85,6 +89,9 @@ class Topology(object):
     def dihedrals2torch(self, device: str = "cpu"):
         return torch.tensor(self.dihedrals, dtype=torch.long, device=device)
 
+    def impropers2torch(self, device: str = "cpu"):
+        return torch.tensor(self.impropers, dtype=torch.long, device=device)
+
     def fully_connected2torch(self, device: str = "cpu"):
         ids = torch.arange(self.n_atoms)
         mapping = torch.cartesian_prod(ids, ids).t()
@@ -102,7 +109,13 @@ class Topology(object):
         device:
             device upon which the neighborlist is returned
         """
-        allowed_types = ["bonds", "angles", "dihedrals", "fully connected"]
+        allowed_types = [
+            "bonds",
+            "angles",
+            "dihedrals",
+            "impropers",
+            "fully connected",
+        ]
         assert type in allowed_types, f"type should be any of {allowed_types}"
         if type == "bonds":
             mapping = self.bonds2torch(device)
@@ -110,6 +123,8 @@ class Topology(object):
             mapping = self.angles2torch(device)
         elif type == "dihedrals":
             mapping = self.dihedrals2torch(device)
+        elif type == "impropers":
+            mapping = self.impropers2torch(device)
         elif type == "fully connected":
             mapping = self.fully_connected2torch(device)
 
@@ -204,6 +219,22 @@ class Topology(object):
             )
 
         self.dihedrals = tuple(edge_index.numpy().tolist())
+
+    def impropers_from_edge_index(self, edge_index: torch.tensor):
+        """Overwrites the internal improper list with the improper
+        defined in the supplied improper edge_index
+
+        Parameters
+        ----------
+        edge_index:
+            Edge index tensor of shape (4, n_impropers)
+        """
+        if edge_index.shape[0] != 4:
+            raise ValueError(
+                "improper edge index must have shape (4, n_impropers)"
+            )
+
+        self.impropers = tuple(edge_index.numpy().tolist())
 
     def to_mdtraj(self) -> mdtraj.Topology:
         """Convert to mdtraj format
@@ -506,3 +537,117 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
         final_paths = torch.unique(final_paths, dim=1)
 
     return final_paths
+
+
+def get_improper_paths(
+    connectivity_matrix: torch.Tensor, unique: bool = True
+) -> torch.tensor:
+    """This function returns all paths defining an improper dihedral
+
+            k
+            |
+        i - j - l
+
+    where the order of connected nodes is given as [i,k,l,j] - i.e., the
+    central node is reported last.
+
+    Parameters
+    ----------
+    connectivity_matrix:
+        Connectivity/adjacency matrix of the molecular graph of shape (n_atoms, n_atoms)
+    unique:
+        If True, the returned paths will be unique
+
+    Returns
+    -------
+    final_paths:
+        Path index tensor of shape (4, n_impropers)
+    """
+
+    n = 4
+    neigh_counts = np.sum(connectivity_matrix.numpy(), axis=0)
+    final_paths = [[] for i in range(n)]
+    for i_nc, neigh_count in enumerate(neigh_counts):
+        if neigh_count >= 3:
+            neigh_list = np.where(connectivity_matrix.numpy()[i_nc] == 1)[0]
+            for combo in combinations(neigh_list, 3):
+                final_paths[-1].append(i_nc)
+                for ic, ind in enumerate(combo):
+                    final_paths[ic].append(ind)
+
+    final_paths = torch.tensor(final_paths)
+    if unique:
+        final_paths = torch.unique(final_paths, dim=1)
+
+    return final_paths
+
+
+def _grab_atom_index_by_name(
+    top: mdtraj.Topology, atom_selection=None
+) -> np.ndarray:
+    """
+    Helper function to select atoms indices based on atom names according to mdtraj scheme
+        Some useful examples of possible :obj:`atom_selection` for (improper) dihedrals:
+            Impropers: (Central atom must go last)
+                GAMMA1_ATOMS = ["N", "CB", "C", "CA"]
+                GAMMA2_ATOMS = ["CA", "O", "+N", "C"]
+            Dihedrals: (Previous and next residue indicated by (-) and (+) sign)
+                PHI_ATOMS = ["-C", "N", "CA", "C"]
+                PSI_ATOMS = ["N", "CA", "C", "+N"]
+                OMEGA_ATOMS = ["CA", "C", "+N", "+CA"]
+
+    """
+
+    if hasattr(top, "topology"):
+        warnings.warn(
+            "Passing a Trajectory object. Please pass a Topology object",
+            DeprecationWarning,
+        )
+        top = top.topology
+
+    if atom_selection is not None:
+        improper_atoms = mdtraj.geometry.dihedral._atom_sequence(
+            top, atom_selection
+        )[1]
+    else:
+        improper_atoms = None
+    return improper_atoms
+
+
+def _residue_mapping_dictionary(
+    top: mdtraj.Topology, atom_indices=None
+) -> Dict:
+    """
+    Helper function to assign each set of atom_indices to a specific residue type
+    Inputs:
+        top:
+            mdtraj topology object
+        atom_indices:
+            np.ndarray (n_instances,n_atoms).
+            A row is a specific interaction and where each column are the atoms involved in it.
+
+    Outputs:
+        residue_dictionary:
+            dict. k,v = residue, atom_indices
+    """
+    from collections import defaultdict
+
+    if hasattr(top, "topology"):
+        warnings.warn(
+            "Passing a Trajectory object. Please pass a Topology object",
+            DeprecationWarning,
+        )
+        top = top.topology
+
+    residue_dictionary = defaultdict(list)
+    resids = np.array([atom.residue.name for atom in top.atoms])
+    for i in range(atom_indices.shape[0]):
+        group = atom_indices[i]
+        res_group = resids[group]
+        unique_res, counts = np.unique(res_group, return_counts=True)
+        current_res = unique_res[np.argmax(counts)]
+        residue_dictionary[current_res].append(group)
+
+    for k, v in residue_dictionary.items():
+        residue_dictionary[k] = np.array(v)
+    return residue_dictionary
