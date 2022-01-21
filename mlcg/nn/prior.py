@@ -219,8 +219,14 @@ class Repulsion(torch.nn.Module, _Prior):
 
 
 class Dihedral(torch.nn.Module, _Prior):
-    """
-    TO DO: better guess for p0 under fit_from_potential_estimates
+    r"""
+    Prior that constrains dihedral planar angles using
+    the following energy ansatz:
+
+    .. math:
+
+        V(\theta) = \sum_n^{n_deg} k1_n \sin{(n\theta)} + k2_n\cos{(n\theta)}
+
     """
 
     name: Final[str] = "dihedrals"
