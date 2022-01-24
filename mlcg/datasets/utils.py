@@ -235,7 +235,7 @@ def _format_83(f):
     )
 
 
-def write_PSF(dataset, topology, frame=0, fout="cg.psf", charges=None):
+def write_PSF(dataset, fout="cg.psf", charges=None):
     """
     Write out charmm format psf file from AtomicData object
     """
