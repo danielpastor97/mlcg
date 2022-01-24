@@ -3,6 +3,7 @@ from torch_geometric.loader import DataLoader
 from typing import Dict, List, Sequence
 from mlcg.data.atomic_data import AtomicData
 import mdtraj as md
+import numpy as np
 
 from ..data._keys import FORCE_KEY
 
@@ -42,15 +43,18 @@ def remove_baseline_forces(
 
     return data_list
 
-def write_PDB(dataset,frame=0,fout='cg.pdb'):
+def write_PDB(dataset,topology,frame=0,fout='cg.pdb'):
     '''
         Given a mlcg Atomic Data object write out trajectory in PDB for a particular frame
         More or less a copy of mdtraj PDBReporter but explicit writing of bond connection
     '''
-    topology = dataset.topologies.to_mdtraj()
+    # topology = dataset.topologies.to_mdtraj()
     n_atoms = topology.n_atoms
+    # cg_traj = md.Trajectory(
+    #     dataset.data.pos[int(frame*n_atoms):int((frame+1)*n_atoms)].numpy(), topology
+    # )  
     cg_traj = md.Trajectory(
-        dataset.data.pos[int(frame*n_atoms):int((frame+1)*n_atoms)].numpy(), topology
+        dataset.pos[int(frame*n_atoms):int((frame+1)*n_atoms)].numpy(), topology
     )  
     chains = [chain for chain in topology.chains]
     bfactors = ['{0:5.2f}'.format(0.0)] * cg_traj.xyz.shape[1]
@@ -90,13 +94,11 @@ def write_PDB(dataset,frame=0,fout='cg.pdb'):
                     atomSerial = atom.serial
                 else:
                     atomSerial = atomIndex
-                print(coords)
                 line = "ATOM  %5d %-4s %3s %1s%4d    %s%s%s  1.00 %5s      %-4s%2s  " % ( # Right-justify atom symbol
                     atomSerial % 100000, atomName, resName, chainName,
                     (res.resSeq) % 10000, _format_83(coords[0]),
                     _format_83(coords[1]), _format_83(coords[2]),
                     bfactors[posIndex], atom.segment_id[:4], symbol[-2:])
-                print(line)
                 assert len(line) == 80, 'Fixed width overflow detected'
                 print(line, file=file)
                 posIndex += 1
@@ -197,72 +199,67 @@ def _format_83(f):
     raise ValueError('coordinate "%s" could not be represnted '
                      'in a width-8 field' % f)
 
-def write_PSF(dataset,frame=0,fout='cg.psf',charges=None):
+def write_PSF(dataset,topology,frame=0,fout='cg.psf',charges=None):
     '''
         Write out charmm format psf file from AtomicData object
     '''
     file = open(fout,'w')
     print('PSF',file=file)
-    print('')
-    topology = dataset.topologies.to_mdtraj()
+    cg_topo = dataset.topologies
+    topology = cg_topo.to_mdtraj()
     n_atoms = topology.n_atoms
-    cg_traj = md.Trajectory(
-        dataset.data.pos[int(frame*n_atoms):int((frame+1)*n_atoms)].numpy(), topology
-    )  
-    atom_index = 1
-    pos_index = 0
+    
     # Add in dummy charge
     if charges == None:
-        charges = ['{0:5.2f}'.format(0.0)] * cg_traj.xyz.shape[1]
-    seg_names = ['{0:5.0s}'.format('CG')] * cg_traj.xyz.shape[1]
-    chains = [chain for chain in topology.chains]
+        charges = ['{0:2.6f}'.format(0.0)] * n_atoms
+    seg_names = ['{:2s}'.format('CG')] * n_atoms
 
-    masses = dataset.data.masses
+    if hasattr(dataset.data,'masses'):
+        masses = dataset.data.masses
+    else: masses =  ['{0:2.4f}'.format(0)] * n_atoms
 
     # Write out atom information
-    print('%5d !NATOM' % n_atoms,file=file)
-    for (chainIndex, chain) in enumerate(topology.chains):
-        chainName = chains[chainIndex].index
+    atom_index = 1
+    pos_index = 0
+    print('{:>8d} !NATOM'.format(n_atoms),file=file)
+    for (_, chain) in enumerate(topology.chains):
         # converts int to alphabet (0->a,1->b, etc.) to match convention
-        chainName = chr(chainName+97).upper()
         residues = list(chain.residues)
         for (_, res) in enumerate(residues):
             for atom in res.atoms:
-                atom_type = atom.type
+                atom_type = atom.name
                 atom_name = atom.name
-                resid = atom.resid
-                resname = atom.resname
-                line = "%5d %-4s %5d %4s %4s %4s %4d %4d 0" % ( 
+                resid = atom.residue.index
+                resname = atom.residue.name
+                line = '{:>8d} {:<4s} {:<4d} {:<4} {:<4} {:<4} {} {:>2.4} 0'.format( 
                     atom_index % 100000, seg_names[pos_index], resid, resname,
                     atom_name, atom_type, charges[pos_index], masses[pos_index])
-                print(line)
-                assert len(line) == 80, 'Fixed width overflow detected'
                 print(line, file=file)
                 atom_index += 1
                 pos_index += 1
 
-
-
     # Write out bonding information
-    bonds = []
-    if topology is not None:
-        for atom1, atom2 in topology.bonds:
-                bonds.append((atom1, atom2))
-    n_bonds = len(bonds)
-    print('%5d !NBOND: bonds' % n_bonds,file=file)
+    properties = ['bonds','angles','dihedrals','impropers']
+    titles = ['!NBOND: bonds','!NTHETA: angles','!NPHI: dihedrals','!NIMPHI: impropers']
+    items_per_line = [4,3,2,2]
 
-    i_b = 0
-    while i_b  < n_bonds:
-        bond_list = []
-        for _ in range(4):
-            if i_b > n_bonds-1: continue
-            atom1,atom2 = bonds[i_b]
-            bond_list.append(atom1.index+1)
-            bond_list.append(atom2.index+1)
-            i_b += 1
-
-        string = ['{:5d}'.format(x) for x in bond_list]
-        string = (" ".join(string))
-        print(string,file=file)
+    for i_p,property in enumerate(properties):
+        prop = getattr(cg_topo,property)
+        prop = np.asarray(prop).T
+        n_prop = len(prop)
+        title = '{:>8d} '.format(n_prop)+titles[i_p]
+        print(title,file=file)
+        item_per_line = items_per_line[i_p]
+        i_b = 0
+        while i_b  < n_prop:
+            print_list = []
+            for _ in range(item_per_line):
+                if i_b > n_prop-1: continue
+                for atom in prop[i_b]:
+                    print_list.append(atom+1)
+                i_b += 1
+            string = ['{:>8d}'.format(x) for x in print_list]
+            string = ("".join(string))
+            print(string,file=file)
 
     file.close()

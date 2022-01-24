@@ -74,7 +74,7 @@ class Topology(object):
 
     @property
     def atoms(self):
-        for type, name, resname,resid in zip(self.types, self.names, self.resnames, self.resid):
+        for type, name, resname,resid in zip(self.types, self.names, self.resnames, self.resids):
             yield Atom(type=type, name=name, resname=resname, resid=resid)
 
     @property
