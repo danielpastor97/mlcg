@@ -197,7 +197,7 @@ def _format_83(f):
     raise ValueError('coordinate "%s" could not be represnted '
                      'in a width-8 field' % f)
 
-def write_PSF(dataset,frame=0,fout='cg.psf'):
+def write_PSF(dataset,frame=0,fout='cg.psf',charges=None):
     '''
         Write out charmm format psf file from AtomicData object
     '''
@@ -212,7 +212,8 @@ def write_PSF(dataset,frame=0,fout='cg.psf'):
     atom_index = 1
     pos_index = 0
     # Add in dummy charge
-    charges = ['{0:5.2f}'.format(0.0)] * cg_traj.xyz.shape[1]
+    if charges == None:
+        charges = ['{0:5.2f}'.format(0.0)] * cg_traj.xyz.shape[1]
     seg_names = ['{0:5.0s}'.format('CG')] * cg_traj.xyz.shape[1]
     chains = [chain for chain in topology.chains]
 
