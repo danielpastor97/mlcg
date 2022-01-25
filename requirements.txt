@@ -8,7 +8,7 @@ e3nn
 numpy
 scipy
 scikit-learn
-e3nn
+h5py
 ipython
 # developer tools
 pytest
