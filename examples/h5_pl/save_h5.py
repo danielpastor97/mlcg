@@ -2,7 +2,10 @@ import os
 import h5py
 import numpy as np
 
-from pdb_str_util import read_from_pdb, load_mdtraj_from_str # for handling pdb files in hdf5 files. Not yet used
+from pdb_str_util import (
+    read_from_pdb,
+    load_mdtraj_from_str,
+)  # for handling pdb files in hdf5 files. Not yet used
 
 ROOTDIR = "/import/a12/users/nickc/mlcg_delta_datasets/1_4_res_exclusion/"
 TRAIN_DIR = ROOTDIR + "mlcg_train/"
@@ -34,18 +37,25 @@ cath_names = sorted(cath_names)
 print(cath_names)
 print(len(cath_names))
 
+
 def load_CATH(serial):
     from os import path
+
     output = {}
     if path.exists(TRAIN_DIR + CATH_MUSTER % serial):
         output["cg_coords"] = np.load(TRAIN_DIR + CATH_MUSTER % serial)
-        output["cg_delta_forces"] = np.load(TRAIN_DIR + CATH_MUSTER_FORCE % serial)
+        output["cg_delta_forces"] = np.load(
+            TRAIN_DIR + CATH_MUSTER_FORCE % serial
+        )
         output["cg_embeds"] = np.load(TRAIN_DIR + CATH_MUSTER_EMBED % serial)
     else:
         output["cg_coords"] = np.load(VAL_DIR + CATH_MUSTER % serial)
-        output["cg_delta_forces"] = np.load(VAL_DIR + CATH_MUSTER_FORCE % serial)
+        output["cg_delta_forces"] = np.load(
+            VAL_DIR + CATH_MUSTER_FORCE % serial
+        )
         output["cg_embeds"] = np.load(VAL_DIR + CATH_MUSTER_EMBED % serial)
     return output
+
 
 f = h5py.File(OUTPUT_DIR + "cath_1_4_res_exclusion.h5", "w")
 metaset = f.create_group("CATH")
@@ -54,7 +64,9 @@ for c_name in cath_names:
     hdf_group = metaset.create_group(name)
     cath_data = load_CATH(c_name)
     hdf_group.create_dataset("cg_coords", data=cath_data["cg_coords"])
-    hdf_group.create_dataset("cg_delta_forces", data=cath_data["cg_delta_forces"])
+    hdf_group.create_dataset(
+        "cg_delta_forces", data=cath_data["cg_delta_forces"]
+    )
     hdf_group.attrs["cg_embeds"] = cath_data["cg_embeds"]
     hdf_group.attrs["N_frames"] = cath_data["cg_coords"].shape[0]
     print("Processed cath_%s" % c_name)
@@ -62,19 +74,26 @@ f.close()
 
 # ---- find OPEP data files and accumulate them into a HDF5 record ----
 
+
 def load_OPEP(serial):
     from os import path
+
     output = {}
     serial = "%04d" % serial
     if path.exists(TRAIN_DIR + OPEP_MUSTER % serial):
         output["cg_coords"] = np.load(TRAIN_DIR + OPEP_MUSTER % serial)
-        output["cg_delta_forces"] = np.load(TRAIN_DIR + OPEP_MUSTER_FORCE % serial)
+        output["cg_delta_forces"] = np.load(
+            TRAIN_DIR + OPEP_MUSTER_FORCE % serial
+        )
         output["cg_embeds"] = np.load(TRAIN_DIR + OPEP_MUSTER_EMBED % serial)
     else:
         output["cg_coords"] = np.load(VAL_DIR + OPEP_MUSTER % serial)
-        output["cg_delta_forces"] = np.load(VAL_DIR + OPEP_MUSTER_FORCE % serial)
+        output["cg_delta_forces"] = np.load(
+            VAL_DIR + OPEP_MUSTER_FORCE % serial
+        )
         output["cg_embeds"] = np.load(VAL_DIR + OPEP_MUSTER_EMBED % serial)
     return output
+
 
 f = h5py.File(OUTPUT_DIR + "opep_1_4_res_exclusion.h5", "w")
 metaset = f.create_group("OPEP")
@@ -83,7 +102,9 @@ for i in range(1100):
     hdf_group = metaset.create_group(name)
     opep_data = load_OPEP(i)
     hdf_group.create_dataset("cg_coords", data=opep_data["cg_coords"])
-    hdf_group.create_dataset("cg_delta_forces", data=opep_data["cg_delta_forces"])
+    hdf_group.create_dataset(
+        "cg_delta_forces", data=opep_data["cg_delta_forces"]
+    )
     hdf_group.attrs["cg_embeds"] = opep_data["cg_embeds"]
     hdf_group.attrs["N_frames"] = opep_data["cg_coords"].shape[0]
     print("Processed opep_%04d" % i)
@@ -97,4 +118,3 @@ f = h5py.File(OUTPUT_DIR + "combined_1_4_res_exclusion.h5", "w")
 f["OPEP"] = h5py.ExternalLink("opep_1_4_res_exclusion.h5", "/OPEP")
 f["CATH"] = h5py.ExternalLink("cath_1_4_res_exclusion.h5", "/CATH")
 f.close()
-

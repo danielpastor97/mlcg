@@ -3,16 +3,27 @@ import mdtraj as md
 
 __all__ = ["read_from_pdb", "load_mdtraj_from_str"]
 
+
 def read_from_pdb(filepath):
     """Read the whole pdbfile to a string."""
     with open(filepath) as f:
         pdbdata = f.read()
     return pdbdata
 
+
 # the code below is modified from mdtraj
 from mdtraj.utils import cast_indices, in_units_of
-def load_mdtraj_from_str(pdbstr, stride=None, atom_indices=None, frame=None,
-                         no_boxchk=False, standard_names=True, top=None):
+
+
+def load_mdtraj_from_str(
+    pdbstr,
+    stride=None,
+    atom_indices=None,
+    frame=None,
+    no_boxchk=False,
+    standard_names=True,
+    top=None,
+):
     """Load a RCSB Protein Data Bank file from a string in memory.
     Parameters
     ----------
@@ -68,7 +79,7 @@ def load_mdtraj_from_str(pdbstr, stride=None, atom_indices=None, frame=None,
             coords = f.positions[[frame], atom_slice, :]
         else:
             coords = f.positions[::stride, atom_slice, :]
-        assert coords.ndim == 3, 'internal shape error'
+        assert coords.ndim == 3, "internal shape error"
         n_frames = len(coords)
 
         topology = f.topology
@@ -84,8 +95,15 @@ def load_mdtraj_from_str(pdbstr, stride=None, atom_indices=None, frame=None,
             unitcell_lengths = None
             unitcell_angles = None
 
-        in_units_of(coords, f.distance_unit, Trajectory._distance_unit, inplace=True)
-        in_units_of(unitcell_lengths, f.distance_unit, Trajectory._distance_unit, inplace=True)
+        in_units_of(
+            coords, f.distance_unit, Trajectory._distance_unit, inplace=True
+        )
+        in_units_of(
+            unitcell_lengths,
+            f.distance_unit,
+            Trajectory._distance_unit,
+            inplace=True,
+        )
 
     time = np.arange(len(coords))
     if frame is not None:
@@ -93,9 +111,13 @@ def load_mdtraj_from_str(pdbstr, stride=None, atom_indices=None, frame=None,
     elif stride is not None:
         time *= stride
 
-    traj = Trajectory(xyz=coords, time=time, topology=topology,
-                      unitcell_lengths=unitcell_lengths,
-                      unitcell_angles=unitcell_angles)
+    traj = Trajectory(
+        xyz=coords,
+        time=time,
+        topology=topology,
+        unitcell_lengths=unitcell_lengths,
+        unitcell_angles=unitcell_angles,
+    )
 
     if not no_boxchk and traj.unitcell_lengths is not None:
         # Only one CRYST1 record is allowed, so only do this check for the first
@@ -107,12 +129,16 @@ def load_mdtraj_from_str(pdbstr, stride=None, atom_indices=None, frame=None,
         # to say that no particle density should exceed 10x that.
         particle_density = traj.top.n_atoms / traj.unitcell_volumes[0]
         if particle_density > 1000:
-            warnings.warn('Unlikely unit cell vectors detected in PDB file likely '
-                          'resulting from a dummy CRYST1 record. Discarding unit '
-                          'cell vectors.', category=UserWarning)
+            warnings.warn(
+                "Unlikely unit cell vectors detected in PDB file likely "
+                "resulting from a dummy CRYST1 record. Discarding unit "
+                "cell vectors.",
+                category=UserWarning,
+            )
             traj._unitcell_lengths = traj._unitcell_angles = None
 
     return traj
+
 
 class PDBTrajFromString(md.formats.PDBTrajectoryFile):
     def __init__(self, pdbstring, standard_names=True, top=None):

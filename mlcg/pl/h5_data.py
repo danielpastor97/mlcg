@@ -17,22 +17,29 @@ default_key_mapping = {
     "forces": "cg_delta_forces",
 }
 
+
 class H5DataModule(pl.LightningDataModule):
-    def __init__(self, h5_file_path: str = "",
-                 part_options: Union[Mapping, str] = {},
-                 load_options: Union[Mapping, str] = {"hdf_key_mapping": default_key_mapping}
-                ):
+    def __init__(
+        self,
+        h5_file_path: str = "",
+        part_options: Union[Mapping, str] = {},
+        load_options: Union[Mapping, str] = {
+            "hdf_key_mapping": default_key_mapping
+        },
+    ):
         super(H5DataModule, self).__init__()
         self.save_hyperparameters()
         self._h5_file_path = h5_file_path
+
         def get_options(options_or_path):
             if isinstance(options_or_path, Mapping):
                 return options_or_path
             elif isinstance(options_or_path, str):
-                yaml = YAML() # automatically supports json :)
+                yaml = YAML()  # automatically supports json :)
                 with open(options_or_path, "r") as f:
                     options = yaml.load(f)
                 return options
+
         self._part_options = get_options(part_options)
         self._load_options = get_options(load_options)
 
@@ -45,7 +52,7 @@ class H5DataModule(pl.LightningDataModule):
         # make assignments here (val/train/test split)
         # called on every process in DDP
         # when DDP, get the rank and world_size for loading the correct subset
-        #if not dist.is_available():
+        # if not dist.is_available():
         #    raise RuntimeError("Requires distributed package to be available")
         if dist.is_available() and dist.is_initialized():
             num_replicas = dist.get_world_size()
@@ -56,26 +63,31 @@ class H5DataModule(pl.LightningDataModule):
             rank = 0
         # write possible parallelization settings to load_options
         self._process_load_options = copy.deepcopy(self._load_options)
-        self._process_load_options["parallel"] = {"rank": rank, "world_size": num_replicas}
+        self._process_load_options["parallel"] = {
+            "rank": rank,
+            "world_size": num_replicas,
+        }
         # load the hdf5 file
-        self._h5d = H5Dataset(self._h5_file_path, self._part_options, self._process_load_options)
-    
+        self._h5d = H5Dataset(
+            self._h5_file_path, self._part_options, self._process_load_options
+        )
+
     def train_dataloader(self):
-        #train_split = Dataset(...)
+        # train_split = Dataset(...)
         return self.part_dataloader("train")
-    
+
     def val_dataloader(self):
-        #val_split = Dataset(...)
+        # val_split = Dataset(...)
         return self.part_dataloader("val")
-    
+
     def test_dataloader(self):
-        #test_split = Dataset(...)
+        # test_split = Dataset(...)
         test_part_name = "test"
         if self._h5d.partition(test_part_name) is None:
             # simply use the validation set
             test_part_name = "val"
         return self.part_dataloader(test_part_name)
-    
+
     def part_dataloader(self, part_name):
         part = self._h5d.partition(part_name)
         comb_loader = H5PartitionDataLoader(part)
@@ -86,4 +98,3 @@ class H5DataModule(pl.LightningDataModule):
         # called on every process in DDP
         # del self._h5d # not necessary and lead to exceptions
         pass
-
