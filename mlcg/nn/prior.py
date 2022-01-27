@@ -9,8 +9,7 @@ from ..geometry.topology import Topology
 from ..geometry.internal_coordinates import (
     compute_distances,
     compute_angles,
-    compute_dihedrals,
-    compute_impropers,
+    compute_torsions,
 )
 
 
@@ -28,7 +27,7 @@ class Harmonic(torch.nn.Module, _Prior):
     _compute_map = {
         "bonds": compute_distances,
         "angles": compute_angles,
-        "impropers": compute_impropers,
+        "impropers": compute_torsions,
     }
 
     def __init__(self, statistics, name) -> None:
@@ -291,7 +290,7 @@ class Dihedral(torch.nn.Module, _Prior):
 
     @staticmethod
     def compute_features(pos, mapping):
-        return compute_dihedrals(pos, mapping)
+        return compute_torsions(pos, mapping)
 
     @staticmethod
     def wrapper_fit_func(theta, *args):
