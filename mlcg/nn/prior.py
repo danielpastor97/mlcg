@@ -274,8 +274,8 @@ class Dihedral(torch.nn.Module, _Prior):
             data.atom_types[mapping[ii]] for ii in range(self.order)
         ]
         features = self.data2features(data).flatten()
-        k1s = [self.k1[ii] for ii in range(self.n_degs)]
-        k2s = [self.k2[ii] for ii in range(self.n_degs)]
+        k1s = [self.k1[ii][interaction_types] for ii in range(self.n_degs)]
+        k2s = [self.k2[ii][interaction_types] for ii in range(self.n_degs)]
         y = Dihedral.compute(
             features,
             k1s,
