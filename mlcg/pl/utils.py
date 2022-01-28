@@ -37,7 +37,7 @@ def merge_priors_and_checkpoint(
         full path to the hyper parameter file associated with the checkpoint file.
         It is typically not necessary to provide it.
     use_only_priors : (bool) (default: False)
-        Flag to merge only priors into a model 
+        If True, a model consisting only of priors will be returned.
 
     Returns
     -------
@@ -49,9 +49,7 @@ def merge_priors_and_checkpoint(
     merged_model = torch.nn.ModuleDict()
 
     # if use_only_priors is not True, then load model from checkpoint file or use loaded model
-    if use_only_priors:
-        print('*** Building model with only priors, check use_only_priors flag ***')
-    if not use_only_priors:
+    if use_only_priors == False:
         # if checkpoint is a path specifying checkpoint file, load model; else make use as model
         if isinstance(checkpoint, str):
             ml_model = extract_model_from_checkpoint(checkpoint, hparams_file)
