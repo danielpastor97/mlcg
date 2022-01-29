@@ -124,8 +124,7 @@ class SchNet(torch.nn.Module):
 
         energy = self.output_network(x)
         energy = scatter(energy, data.batch, dim=0, reduce="sum")
-
-        energy = energy.squeeze()
+        energy = energy.flatten()
         data.out[self.name] = {ENERGY_KEY: energy}
 
         return data
@@ -177,7 +176,7 @@ class InteractionBlock(torch.nn.Module):
         self,
         cfconv_layer: torch.nn.Module,
         hidden_channels: int = 128,
-        activation: type = torch.nn.Tanh,
+        activation: torch.nn.Module = torch.nn.Tanh(),
     ):
         super(InteractionBlock, self).__init__()
         self.conv = cfconv_layer
@@ -404,7 +403,7 @@ class StandardSchNet(SchNet):
         interaction_blocks = []
         for _ in range(num_interactions):
             filter_network = MLP(
-                layer_widths=[rbf_layer.num_rbf, num_filters],
+                layer_widths=[rbf_layer.num_rbf, num_filters, num_filters],
                 activation_func=activation,
             )
 

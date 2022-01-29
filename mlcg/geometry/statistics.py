@@ -4,7 +4,7 @@ import torch
 from scipy.integrate import trapezoid
 
 from ..data import AtomicData
-from ..nn.prior import Harmonic, _Prior
+from ..nn.prior import Dihedral, Harmonic, _Prior
 from ..utils import tensor2tuple
 from ._symmetrize import _symmetrise_map, _flip_map
 
@@ -80,6 +80,7 @@ def compute_statistics(
     nbins: int = 100,
     bmin: Optional[float] = None,
     bmax: Optional[float] = None,
+    target_fit_kwargs: Optional[Dict] = None,
 ) -> Dict:
     r"""Function for computing atom type-specific statistics for
     every combination of atom types present in a collated AtomicData
@@ -106,12 +107,14 @@ def compute_statistics(
     nbins:
         The number of bins over which 1-D feature histograms are constructed
         in order to estimate distributions
-    bmin
+    bmin:
         If specified, the lower bound of bin edges. If not specified, the lower bound
         defaults to the lowest value in the input feature
-    bmax
+    bmax:
         If specified, the upper bound of bin edges. If not specified, the upper bound
         defaults to the greatest value in the input feature
+    target_fit_kwargs:
+        Extra fit options that are prior_specific
 
     Returns
     -------
@@ -173,13 +176,20 @@ def compute_statistics(
             ptr=[20801]
         )
 
-        bond_stats = compute_statistics(my_data,
+        angle_stats = bond_stats = compute_statistics(my_data,
              'bonds', beta=beta,
              TargetPrior=HarmonicBonds
         )
+        dihedral_stats = compute_statistics(my_data,
+                                            'dihedrals',
+                                            beta=beta,
+                                            TargetPrior=Dihedral
+        )
+
 
     """
-
+    if target_fit_kwargs == None:
+        target_fit_kwargs = {}
     unique_types = torch.unique(data.atom_types)
     order = data.neighbor_list[target]["index_mapping"].shape[0]
     unique_keys = _get_all_unique_keys(unique_types, order)
@@ -227,7 +237,9 @@ def compute_statistics(
 
         ncounts_nz = hist[mask]
         dG_nz = -torch.log(ncounts_nz) / beta
-        params = TargetPrior.fit_from_potential_estimates(bin_centers_nz, dG_nz)
+        params = TargetPrior.fit_from_potential_estimates(
+            bin_centers_nz, dG_nz, **target_fit_kwargs
+        )
         kk = tensor2tuple(unique_key)
         statistics[kk] = params
 

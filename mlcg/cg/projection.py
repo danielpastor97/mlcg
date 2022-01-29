@@ -4,7 +4,12 @@ import numpy as np
 
 
 from ._mappings import CA_MAP
-from ..geometry.topology import Topology, add_chain_bonds, add_chain_angles
+from ..geometry.topology import (
+    Topology,
+    add_chain_bonds,
+    add_chain_angles,
+    add_chain_dihedrals,
+)
 
 
 def build_cg_matrix(
@@ -98,6 +103,7 @@ def build_cg_topology(
     special_terminal: bool = True,
     bonds: Optional[Callable] = add_chain_bonds,
     angles: Optional[Callable] = add_chain_angles,
+    dihedrals: Optional[Callable] = add_chain_dihedrals,
 ):
     """Function for building a coarse grain topology
     from a high resolution topology and a coarse grain mapping
@@ -145,5 +151,7 @@ def build_cg_topology(
         bonds(cg_topo)
     if angles is not None:
         angles(cg_topo)
+    if dihedrals is not None:
+        dihedrals(cg_topo)
 
     return cg_topo
