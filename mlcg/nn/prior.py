@@ -248,20 +248,17 @@ class Dihedral(torch.nn.Module, _Prior):
         self.n_degs = n_degs
         self.k1_names = ["k1_" + str(ii) for ii in range(0, self.n_degs)]
         self.k2_names = ["k2_" + str(ii) for ii in range(0, self.n_degs)]
-        self.k1 = torch.zeros(self.n_degs, *sizes)
-        self.k2 = torch.zeros(self.n_degs, *sizes)
+        k1 = torch.zeros(self.n_degs * [np.zeros(sizes)])
+        k2 = torch.zeros(self.n_degs * [np.zeros(sizes)])
 
         for key in statistics.keys():
             for ii in range(self.n_degs):
                 k1_name = self.k1_names[ii]
                 k2_name = self.k2_names[ii]
-                self.k1[ii][key] = statistics[key]["k1s"][k1_name]
-                self.k2[ii][key] = statistics[key]["k2s"][k2_name]
-        for ii in range(self.n_degs):
-            k1_name = self.k1_names[ii]
-            k2_name = self.k2_names[ii]
-            self.register_buffer(k1_name, self.k1[ii])
-            self.register_buffer(k2_name, self.k2[ii])
+                k1[ii][key] = statistics[key]["k1s"][k1_name]
+                k2[ii][key] = statistics[key]["k2s"][k2_name]
+        self.register_buffer("k1s", k1)
+        self.register_buffer("k2s", k2)
 
     def data2features(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
@@ -274,8 +271,8 @@ class Dihedral(torch.nn.Module, _Prior):
             data.atom_types[mapping[ii]] for ii in range(self.order)
         ]
         features = self.data2features(data).flatten()
-        k1s = [self.k1[ii][interaction_types] for ii in range(self.n_degs)]
-        k2s = [self.k2[ii][interaction_types] for ii in range(self.n_degs)]
+        k1s = [self.k1s[ii][interaction_types] for ii in range(self.n_degs)]
+        k2s = [self.k2s[ii][interaction_types] for ii in range(self.n_degs)]
         y = Dihedral.compute(
             features,
             k1s,
