@@ -248,8 +248,8 @@ class Dihedral(torch.nn.Module, _Prior):
         self.n_degs = n_degs
         self.k1_names = ["k1_" + str(ii) for ii in range(0, self.n_degs)]
         self.k2_names = ["k2_" + str(ii) for ii in range(0, self.n_degs)]
-        k1 = torch.zeros(self.n_degs * [np.zeros(sizes)])
-        k2 = torch.zeros(self.n_degs * [np.zeros(sizes)])
+        k1 = torch.zeros(self.n_degs, *sizes)
+        k2 = torch.zeros(self.n_degs, *sizes)
 
         for key in statistics.keys():
             for ii in range(self.n_degs):
