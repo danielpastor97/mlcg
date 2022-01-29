@@ -2,7 +2,7 @@ import torch
 from torch_scatter import scatter
 from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit
-from typing import Final, Optional
+from typing import Final, Optional, Dict
 from math import pi
 
 from ..geometry.topology import Topology
@@ -12,6 +12,7 @@ from ..geometry.internal_coordinates import (
     compute_dihedrals,
     compute_impropers,
 )
+from ..data.atomic_data import AtomicData
 
 
 class _Prior(object):

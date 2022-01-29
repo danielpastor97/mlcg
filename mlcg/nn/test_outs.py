@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Dict
+from typing import Dict, Union
 import torch
 import pytest
 import numpy as np
@@ -27,7 +27,9 @@ schnet_force_model = GradientsOut(schnet, targets=[FORCE_KEY]).double()
 
 @pytest.fixture
 def ASE_prior_model():
-    def _model_builder(mol: str = "CH3CH2NH2") -> Dict:
+    def _model_builder(
+        mol: str = "CH3CH2NH2", sum_out: bool = True
+    ) -> Union[torch.nn.Module, torch.nn.ModuleDict]:
         """Fixture that returns a simple prior-only model of
         an ASE molecule with HarmonicBonds and HarmonicAngles
         priors whose parameters are estimated from coordinates
@@ -37,8 +39,10 @@ def ASE_prior_model():
         ----------
         mol:
             Molecule specifying string found in ase.build.molecule
-        out_targets:
-            Targets the the model should predict
+            associated with the g2 organic molecule database
+        sum_out:
+            If True, the model constituents are wrapped within
+            a SumOut instance
 
         Returns
         -------
