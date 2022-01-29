@@ -7,7 +7,7 @@ from mlcg.geometry.internal_coordinates import *
 # Mock data of ten atoms for 1000 frames
 n_frames = 1000
 n_atoms = 10
-test_coords = 10.0 * np.random.randn(n_frames, n_atoms, 3)
+test_coords = np.random.randn(n_frames, n_atoms, 3).astype("float32")
 torch_coords = torch.tensor(test_coords.reshape(n_frames * n_atoms, 3))
 
 dihedral_atoms = np.array(
@@ -38,4 +38,4 @@ def test_mdtraj_dihedral_compatibility():
         .reshape(n_frames, dihedral_atoms.shape[0])
     )
     mdtraj_dihedrals = mdtraj.compute_dihedrals(traj, dihedral_atoms)
-    np.testing.assert_array_equal(mlcg_dihedrals, mdtraj_dihedrals)
+    np.testing.assert_allclose(mlcg_dihedrals, mdtraj_dihedrals, rtol=1e-3)
