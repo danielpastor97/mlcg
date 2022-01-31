@@ -5,7 +5,7 @@ from mdtraj.core.element import carbon
 from mlcg.geometry.internal_coordinates import compute_torsions
 import copy
 from mlcg.geometry.statistics import _get_bin_centers
-from mlcg.nn.prior import Dihedrals
+from mlcg.nn.prior import Dihedral
 
 # Mock data of ten atoms for 1000 frames
 n_frames = 1000
@@ -48,8 +48,7 @@ def test_dihedral_aic_criterion():
         Test to ensure that proper index of fitting is choosen
         Perturb coordinates of first dihedral with a 3-amplitude sine wave
     '''
-    TargetPrior = Dihedrals
-
+    TargetPrior = Dihedral
     test_coords = np.random.randn(n_frames, n_atoms, 3).astype("float32")
     torch_coords = torch.tensor(test_coords.reshape(n_frames * n_atoms, 3))
     torch_coords[1::n_atoms] = torch.tensor((0,0,0)) 
@@ -59,11 +58,12 @@ def test_dihedral_aic_criterion():
     ind_mapping = torch.tensor((0,1,2,3))
     ind_mapping = torch.reshape(ind_mapping,[4,1])
     theta_map = theta_mapping(pos,ind_mapping)
-    k1s = [1,2,3]
-    samples = sample_from_curve(k1s,n_frames)
+    k1s = [1,0.5,1,0,0,0]
+    k2s = [1,0,0,0,0,0]
+    samples = sample_from_curve(k1s,k2s,n_frames)
     for i_s,sample in enumerate(samples):
         for k,v in theta_map.items():
-            if np.abs(sample,v) < 1e-2:
+            if np.abs(sample-v) < 1e-2:
                 torch_coords[i_s*n_atoms] = torch.stack(k)
 
     values = TargetPrior.compute_features(torch_coords, mapping)
@@ -75,20 +75,38 @@ def test_dihedral_aic_criterion():
 
     mask = hist > 0
     bin_centers_nz = bin_centers[mask]
-
     ncounts_nz = hist[mask]
     dG_nz = -torch.log(ncounts_nz)
     params = TargetPrior.fit_from_potential_estimates(
         bin_centers_nz, dG_nz
     )
-    assert all(params['k1s'][4:] == 0)
 
-def sample_from_curve(k1s,n_frames):
+    for i_k, (k1,k2) in enumerate(zip(params['k1s'].values(),params['k2s'].values())):
+        # First term is a constant so value is unimportant
+        # Values inverted mdtraj criteria so k1 == -k1s[i_k]
+        if i_k == 0: continue
+        assert np.abs(k1+k1s[i_k]) < 0.1
+        assert np.abs(k2-k2s[i_k]) < 0.1
+
+def sample_from_curve(k1s,k2s,n_frames,beta=1):
+    '''
+        Sample from a potential
+        Inputs:
+            k1s
+                values from sin coefficient 
+            k2s
+                values from cos coefficient
+            n_frames
+                number of samples to pull
+        Outputs:
+            theta
+                values drawn from potential
+    '''
     V = 0
     thetas = torch.from_numpy(np.linspace(-np.pi,np.pi,100))
-    for ik,k1 in enumerate(k1s):
-        V += k1*torch.sin(ik*thetas)
-    pi = torch.exp(-V)
+    for ik,(k1,k2) in enumerate(zip(k1s,k2s)):
+        V += k1*torch.sin(ik*thetas) + k2*torch.cos(ik*thetas)
+    pi = torch.exp(-beta*V)
     pi = pi/torch.sum(pi)
     cum_pi = torch.cumsum(pi,dim=0).numpy()
     theta = []
@@ -97,12 +115,26 @@ def sample_from_curve(k1s,n_frames):
         theta.append(thetas[sel_ind].numpy())
     return theta
 
-def theta_mapping(pos,mapping):
+def theta_mapping(pos,mapping,x0 = torch.tensor(-1),r = 1):
+    '''
+        Given a list of position find the values of x,y,z that give a particular torsion angle
+        Inputs:
+            pos
+                positions
+            mapping
+                atoms which form torsion
+            x0
+                position along x dimesion (easiest to keep fixed)
+            r
+                radius of rotation
+        Outputs:
+            theta_map
+                keys : (x,y,z) position
+                values : torsion angles
+    '''
     theta_map = {}
-    r = 1
     thetas = torch.linspace(-np.pi,np.pi,100)
     for thet in thetas:
-        x0 = torch.tensor(-1)
         y0 = r*torch.cos(thet)
         z0 = r*torch.sin(thet)
         pos[0] = torch.tensor((x0,y0,z0))
