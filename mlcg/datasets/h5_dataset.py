@@ -121,14 +121,6 @@ from torch_geometric.loader.dataloader import Collater as PyGCollater
 
 from mlcg.data import AtomicData
 
-__all__ = [
-    "MolData",
-    "MetaSet",
-    "Partition",
-    "H5Dataset",
-    "H5PartitionDataLoader",
-]
-
 
 class MolData:
     """Data-holder for coordinates, forces and embedding vector of a molecule, e.g., opep_0000."""
@@ -524,9 +516,6 @@ class H5Dataset:
             'H5Dataset:\nPath: "%s"\nPartitions:\n' % self._h5_path
             + "\n".join(['- "' + str(part) + '"' for part in self._partitions])
         )
-
-
-from torch.utils.data import DataLoader
 
 
 class H5PartitionDataLoader:
