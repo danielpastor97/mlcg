@@ -163,10 +163,7 @@ class MolData:
         return self.coords.shape[1]
 
     def __repr__(self):
-        return (
-            'MolData(name="'
-            + self.name
-            + '", N_beads=%d, N_frames=%d)' % (self.n_beads, self.n_frames)
+        return (f"""MolData(name={self.name}", N_beads={self.n_beads}, N_frames={self.n_frames})"""
         )
 
     def sub_sample(self, indices):
@@ -356,10 +353,7 @@ class MetaSet:
         return self.n_total_samples
 
     def __repr__(self):
-        return "Metaset with %d molecules and %d samples" % (
-            self.n_mol,
-            self.n_total_samples,
-        )
+        return f"Metaset with {self.n_mol} molecules and {self.n_total_samples} samples"
 
 
 class Partition:
@@ -467,9 +461,8 @@ class H5Dataset:
             for metaset_name in part_info["metasets"]:
                 if metaset_name not in self._metaset_entries:
                     raise KeyError(
-                        "`partition_options` refer to metaset %s,"
-                        " which is not in the h5 dataset at path %s"
-                        % (part, self._h5_path)
+                        f"`partition_options` refer to metaset {part},"
+                        f" which is not in the h5 dataset at path {self._h5_path}"
                     )
                 mol_list = part_info["metasets"][metaset_name]["molecules"]
                 detailed_indices = part_info["metasets"][metaset_name].get(

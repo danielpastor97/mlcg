@@ -6,6 +6,7 @@ tqdm
 ase
 e3nn
 numpy
+h5py
 scipy
 scikit-learn
 h5py

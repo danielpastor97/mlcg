@@ -1,10 +1,7 @@
-import os
 import copy
 from typing import List, Union
 from collections.abc import Mapping
 
-import numpy as np
-import torch
 import torch.distributed as dist
 import pytorch_lightning as pl
 from ruamel.yaml import YAML
@@ -16,7 +13,6 @@ default_key_mapping = {
     "coords": "cg_coords",
     "forces": "cg_delta_forces",
 }
-
 
 class H5DataModule(pl.LightningDataModule):
     def __init__(
