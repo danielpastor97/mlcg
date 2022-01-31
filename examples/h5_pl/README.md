@@ -6,11 +6,10 @@
 - Bundled datasets in single (or several) HDF5 files
 
 ## Additional dependencies
-- h5py
-- PyTorch-Lightning
+- h5py (install can be done with `conda install -c conda-forge h5py`)
 
 ## Guidelines
-1. Run `save_h5.py` to create the dataset (Please check the saving paths. The full-sized combined datasets require around 60GB disk space.)
+1. Run `save_h5.py` to create the dataset (Please check the CLI helper. The full-sized combined datasets require around 60GB disk space.)
 2. Check out `train_h5_1_10.yaml` and `partition_settings.yaml` and adjust the settings according to the actual needs, e.g., the training set composition and number of GPUs.
 3. Run `python ../../scripts/mlcg-train_h5.py fit --config train_h5_1_10.yaml` for model training.
 
