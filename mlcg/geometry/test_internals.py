@@ -32,7 +32,7 @@ traj = mdtraj.core.trajectory.Trajectory(test_coords, topo)
 
 def test_mdtraj_dihedral_compatibility():
     """Tests to make sure that MLCG torsion calculations
-    aggree with the dihedral calculations from mlcg
+    agree with the dihedral calculations from MDTraj
     """
 
     mlcg_dihedrals = (
@@ -41,7 +41,7 @@ def test_mdtraj_dihedral_compatibility():
         .reshape(n_frames, dihedral_atoms.shape[0])
     )
     mdtraj_dihedrals = mdtraj.compute_dihedrals(traj, dihedral_atoms)
-    np.testing.assert_allclose(mlcg_dihedrals, mdtraj_dihedrals, rtol=1e-3)
+    np.testing.assert_allclose(mlcg_dihedrals, mdtraj_dihedrals, rtol=1e-2)
 
 def test_dihedral_aic_criterion():
     '''
