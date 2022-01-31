@@ -1,11 +1,9 @@
-import os
 import os.path as osp
 import h5py
 import numpy as np
 import argparse
 from glob import glob
 from tqdm import tqdm
-# from jsonargparse.typing import Path_dc
 from torch_geometric.data.makedirs import makedirs
 
 

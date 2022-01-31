@@ -72,14 +72,14 @@ An example "partition_options" (as a Python Mappable (e.g., dict)):
             }
         },
         "batch_size": {
-            # each batch will contain 24 samples from 
+            # each batch will contain 24 samples from
             # The two metasets will be trimmed down according to this ratio
             # so optimally it should be proportional to the ratio of numbers of frames in the metasets.
             "OPEP": 24,
             "CATH": 6,
         },
         "subsample_random_seed": 42, # optional, default 42. Random seed for trimming down the frames.
-        "max_epoch_samples": None, # optional, default None. For setting a desired dataset size. 
+        "max_epoch_samples": None, # optional, default None. For setting a desired dataset size.
         # Works by subsampling the dataset after it is loaded with the given stride.
     },
     "val": { # similar
@@ -104,10 +104,10 @@ An example "loading_options" (as a Python Mappable (e.g., dict)):
 
 > Class `H5PartitionDataLoader` mimics the pytorch data loader and can generate training/validation batches with fixed proportion of samples from several Metasets in a Partition.
 The proportion and batch size is defined when the partition is initialized.
-When the molecules in each Metaset have similar embedding vector lengths, the processing of output batches will require a more or less fixed size of VRAM on GPU, which can benefit the 
+When the molecules in each Metaset have similar embedding vector lengths, the processing of output batches will require a more or less fixed size of VRAM on GPU, which can benefit the
 
 Note:
-1. Usually in a train-val split, each molecule goes to either the train or the test partition. 
+1. Usually in a train-val split, each molecule goes to either the train or the test partition.
 In some special cases (e.g., non-transferable training) one molecule can be part of both partitions.
 In this situation, "detailed_indices" can be set to assign the corresponding frames to the desired partitions.
 
@@ -524,6 +524,9 @@ class H5Dataset:
             'H5Dataset:\nPath: "%s"\nPartitions:\n' % self._h5_path
             + "\n".join(['- "' + str(part) + '"' for part in self._partitions])
         )
+
+
+from torch.utils.data import DataLoader
 
 
 class H5PartitionDataLoader:
