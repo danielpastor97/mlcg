@@ -14,6 +14,7 @@ default_key_mapping = {
     "forces": "cg_delta_forces",
 }
 
+
 class H5DataModule(pl.LightningDataModule):
     def __init__(
         self,

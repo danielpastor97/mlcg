@@ -163,8 +163,7 @@ class MolData:
         return self.coords.shape[1]
 
     def __repr__(self):
-        return (f"""MolData(name={self.name}", N_beads={self.n_beads}, N_frames={self.n_frames})"""
-        )
+        return f"""MolData(name={self.name}", N_beads={self.n_beads}, N_frames={self.n_frames})"""
 
     def sub_sample(self, indices):
         self._coords = self._coords[indices]
