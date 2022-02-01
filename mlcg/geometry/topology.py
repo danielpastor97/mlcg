@@ -237,12 +237,13 @@ class Topology(object):
         self.impropers = tuple(edge_index.numpy().tolist())
 
     def remove_bond(self, bond_removal_list):
-        """Method to remove bonds given list of bonds to be removed
+        """Method to remove bonds given list of bonds to be removed.
+        The changes are made in place to the Topology.bonds attribute.
 
         Parameters
         ----------
         bond_removal_list : list
-            List of bonds to be removed from current bond list.
+            List of bonds, of shape (2, n_bonds), to be removed from current bond list.
             Format: [[index1, index2], ..., [index1, index2]]
                 where index1 and index are the indices of the first and second atom involved in bonding,
                 respectively.
@@ -264,15 +265,17 @@ class Topology(object):
 
             if True in mask:
                 to_pop = np.where(mask)[0][0]
-                self.bonds[0].pop(to_pop), self.bonds[1].pop(to_pop)
+                self.bonds[0].pop(to_pop)
+                self.bonds[1].pop(to_pop)
 
     def remove_angle(self, angle_removal_list):
-        """Method to remove angles given list of angles to be removed
+        """Method to remove angles given list of angles to be removed. The changes
+        are made in place to the Topology.angles attribute.
 
         Parameters
         ----------
         angle_removal_list : list
-            List of bonds to be removed from current bond list.
+            List of angles, of shape (3, n_angles), to be removed from current angle list.
             Format: [[index1, index2, index3], ..., [index1, index2, index3]]
                 where index1, index2, index3 are the indices of the first, second, and third
                 atom involved in angle formation, respectively.
@@ -297,9 +300,9 @@ class Topology(object):
 
             if True in mask:
                 to_pop = np.where(mask)[0][0]
-                self.angles[0].pop(to_pop), self.angles[1].pop(
-                    to_pop
-                ), self.angles[2].pop(to_pop)
+                self.angles[0].pop(to_pop)
+                self.angles[1].pop(to_pop)
+                self.angles[2].pop(to_pop)
 
     def to_mdtraj(self) -> mdtraj.Topology:
         """Convert to mdtraj format
