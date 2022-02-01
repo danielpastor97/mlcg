@@ -17,17 +17,18 @@ def extract_model_from_checkpoint(checkpoint_path, hparams_file):
 
 
 def merge_priors_and_checkpoint(
-    checkpoint_path: str,
+    checkpoint: Union[str, torch.nn.Module],
     priors: Union[str, torch.nn.ModuleDict],
     hparams_file: Optional[str] = None,
+    use_only_priors: bool = False,
 ) -> torch.nn.Module:
     """load prior models and trained model from a checkpoint and merge them
     into a :ref:`mlcg.nn.SumOut` module.
 
     Parameters
     ----------
-    checkpoint_path :
-        full path to the checkpoint file
+    checkpoint :
+        full path to the checkpoint file OR loaded `torch.nn.Module`
     priors :
         If :obj:`torch.nn.ModuleDict`, it should be the collection of priors
         used as a baseline for training the ML model. If :obj:`str`, it should
@@ -35,17 +36,27 @@ def merge_priors_and_checkpoint(
     hparams_file :
         full path to the hyper parameter file associated with the checkpoint file.
         It is typically not necessary to provide it.
+    use_only_priors : (bool) (default: False)
+        If True, a model consisting only of priors will be returned.
 
     Returns
     -------
-        model :ref:`mlcg.nn.SumOut` module containing the trained model with
-        the priors
+        model :ref:`mlcg.nn.SumOut` module containing :
+            - trained model with the priors (if use_only_priors is False)
+            - model with only priors (if use_only_priors is True)
     """
-
     # merged_model should be a ModuleDict
     merged_model = torch.nn.ModuleDict()
-    ml_model = extract_model_from_checkpoint(checkpoint_path, hparams_file)
-    merged_model[ml_model.name] = ml_model
+
+    # if use_only_priors is not True, then load model from checkpoint file or use loaded model
+    if use_only_priors == False:
+        # if checkpoint is a path specifying checkpoint file, load model; else make use as model
+        if isinstance(checkpoint, str):
+            ml_model = extract_model_from_checkpoint(checkpoint, hparams_file)
+        else:
+            ml_model = checkpoint
+
+        merged_model[ml_model.name] = ml_model
 
     if isinstance(priors, str):
         prior_model = torch.load(priors)

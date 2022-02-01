@@ -12,6 +12,7 @@ from typing import NamedTuple, List, Optional, Tuple, Dict, Callable
 import torch
 import numpy as np
 import networkx as nx
+from itertools import combinations
 
 from .utils import ase_z2name
 from ..neighbor_list.neighbor_list import make_neighbor_list
@@ -48,6 +49,8 @@ class Topology(object):
     angles: Tuple[List[int], List[int], List[int]]
     #: list of dihedrals formed by quadruplets of atoms
     dihedrals: Tuple[List[int], List[int], List[int], List[int]]
+    #: list of impropers formed by quadruplets of atoms
+    impropers: Tuple[List[int], List[int], List[int], List[int]]
 
     def __init__(self) -> None:
         super(Topology, self).__init__()
@@ -57,6 +60,7 @@ class Topology(object):
         self.bonds = ([], [])
         self.angles = ([], [], [])
         self.dihedrals = ([], [], [], [])
+        self.impropers = ([], [], [], [])
 
     def add_atom(self, type: int, name: str, resname: Optional[str] = None):
         self.types.append(type)
@@ -85,6 +89,9 @@ class Topology(object):
     def dihedrals2torch(self, device: str = "cpu"):
         return torch.tensor(self.dihedrals, dtype=torch.long, device=device)
 
+    def impropers2torch(self, device: str = "cpu"):
+        return torch.tensor(self.impropers, dtype=torch.long, device=device)
+
     def fully_connected2torch(self, device: str = "cpu"):
         ids = torch.arange(self.n_atoms)
         mapping = torch.cartesian_prod(ids, ids).t()
@@ -102,7 +109,13 @@ class Topology(object):
         device:
             device upon which the neighborlist is returned
         """
-        allowed_types = ["bonds", "angles", "dihedrals", "fully connected"]
+        allowed_types = [
+            "bonds",
+            "angles",
+            "dihedrals",
+            "impropers",
+            "fully connected",
+        ]
         assert type in allowed_types, f"type should be any of {allowed_types}"
         if type == "bonds":
             mapping = self.bonds2torch(device)
@@ -110,6 +123,8 @@ class Topology(object):
             mapping = self.angles2torch(device)
         elif type == "dihedrals":
             mapping = self.dihedrals2torch(device)
+        elif type == "impropers":
+            mapping = self.impropers2torch(device)
         elif type == "fully connected":
             mapping = self.fully_connected2torch(device)
 
@@ -204,6 +219,85 @@ class Topology(object):
             )
 
         self.dihedrals = tuple(edge_index.numpy().tolist())
+
+    def impropers_from_edge_index(self, edge_index: torch.tensor):
+        """Overwrites the internal improper list with the improper
+        defined in the supplied improper edge_index
+
+        Parameters
+        ----------
+        edge_index:
+            Edge index tensor of shape (4, n_impropers)
+        """
+        if edge_index.shape[0] != 4:
+            raise ValueError(
+                "improper edge index must have shape (4, n_impropers)"
+            )
+
+        self.impropers = tuple(edge_index.numpy().tolist())
+
+    def remove_bond(self, bond_removal_list):
+        """Method to remove bonds given list of bonds to be removed
+        
+        Parameters
+        ----------
+        bond_removal_list : list
+            List of bonds to be removed from current bond list.
+            Format: [[index1, index2], ..., [index1, index2]]
+                where index1 and index are the indices of the first and second atom involved in bonding,
+                respectively.
+
+
+        Notes
+        -----
+        - The order of the removal list matters, e.g., [1,2] and [2,1] are treated differently
+        
+        TO DO: Include feature to reorder removal_list elements as [i,j] such that i<j
+        """
+        for bond in bond_removal_list:
+            index1 = bond[0]
+            index2 = bond[1]
+            mask_1 = np.array(self.bonds[0]) == index1
+            mask_2 = np.array(self.bonds[1]) == index2
+    
+            mask = np.array(mask_1) * np.array(mask_2)
+            
+            if True in mask:
+                to_pop = np.where(mask)[0][0]    
+                self.bonds[0].pop(to_pop), self.bonds[1].pop(to_pop)
+    
+    def remove_angle(self, angle_removal_list):
+        """Method to remove angles given list of angles to be removed
+        
+        Parameters
+        ----------
+        angle_removal_list : list
+            List of bonds to be removed from current bond list.
+            Format: [[index1, index2, index3], ..., [index1, index2, index3]]
+                where index1, index2, index3 are the indices of the first, second, and third 
+                atom involved in angle formation, respectively.
+
+        Notes
+        -----
+        - The order of the removal list matters, e.g., [1,2,3] and [3,2,1] are treated differently
+        
+        TO DO: Include feature to reorder removal_list elements as [i,j,k] such that i<k
+        """
+
+        for angle in angle_removal_list:        
+            index1 = angle[0]
+            index2 = angle[1]
+            index3 = angle[2]
+            
+            mask_1 = np.array(self.angles[0]) == index1
+            mask_2 = np.array(self.angles[1]) == index2
+            mask_3 = np.array(self.angles[2]) == index3
+    
+            mask = np.array(mask_1) * np.array(mask_2) * np.array(mask_3)
+            
+            if True in mask:
+                to_pop = np.where(mask)[0][0]    
+                self.angles[0].pop(to_pop), self.angles[1].pop(to_pop), self.angles[2].pop(to_pop)
 
     def to_mdtraj(self) -> mdtraj.Topology:
         """Convert to mdtraj format
@@ -361,89 +455,6 @@ class Topology(object):
 
         nx.draw(graph, **drawing_kwargs)
 
-    @staticmethod
-    def remove_bond(bonds, index1, index2):
-        """Method to remove bond given bond list and indices of bonding atoms
-
-        Parameters
-        ----------
-        bonds : list
-            List of bonds with shape [2, n_bonds]
-        index1 : int
-            Index of first atom involved in bonding.
-        index2 : int
-            Index of second atom involved in bonding.
-
-        Returns
-        -------
-        bonds_new : list
-            List of bonds with shape [2, n_bonds_new], where n_bonds_new is the number of bonds after deletion of bond.
-            If there is no bond between index1 and index2, original bond list is returned
-
-        Notes
-        -----
-        - Note that this does not edit the bond_list in place. Instead, the method explicitly returns a
-          new bond list with the desired bond removed
-        - The order of bonding matters (index1 is the atom in the first list, index2 is the atom in the second list)
-        """
-        from copy import deepcopy
-
-        bonds_new = deepcopy(bonds)
-
-        mask_1 = np.array(bonds_new[0]) == index1
-        mask_2 = np.array(bonds_new[1]) == index2
-
-        mask = np.array(mask_1) * np.array(mask_2)
-
-        if True in mask:
-            to_pop = np.where(mask)[0][0]
-            bonds_new[0].pop(to_pop), bonds_new[1].pop(to_pop)
-        return bonds_new
-
-    @staticmethod
-    def remove_angle(angles, index1, index2, index3):
-        """Method to remove bond given bond list and indices of bonding atoms
-
-        Parameters
-        ----------
-        bonds : list
-            List of bonds with shape [3, n_angles]
-        index1 : int
-            Index of first atom involved in angle.
-        index2 : int
-            Index of second atom involved in angle.
-        index3 : int
-            Index of third atom involved in angle.
-
-        Returns
-        -------
-        angles_new : list
-            List of angles with shape [3, n_angles_new], where n_angles_new is the number of angles after deletion of angle.
-            If there is no angle between index1-index2-index3, original angle list is returned
-
-        Notes
-        -----
-        - Note that this does not edit the angle_list in place. Instead, the method explicitly returns a
-          new angle list with the desired bond removed
-        - The order of angle formation matters (index{i} is the atom in the i-th list)
-        """
-        from copy import deepcopy
-
-        angles_new = deepcopy(angles)
-
-        mask_1 = np.array(angles_new[0]) == index1
-        mask_2 = np.array(angles_new[1]) == index2
-        mask_3 = np.array(angles_new[2]) == index3
-
-        mask = np.array(mask_1) * np.array(mask_2) * np.array(mask_3)
-
-        if True in mask:
-            to_pop = np.where(mask)[0][0]
-            angles_new[0].pop(to_pop), angles_new[1].pop(to_pop), angles_new[
-                2
-            ].pop(to_pop)
-        return angles_new
-
 
 def get_connectivity_matrix(
     topology: Topology, directed: bool = False
@@ -498,6 +509,15 @@ def add_chain_angles(topology: Topology) -> None:
     """
     for i in range(topology.n_atoms - 2):
         topology.add_angle(i, i + 1, i + 2)
+
+
+def add_chain_dihedrals(topology: Topology) -> None:
+    """Add dihedrals to the topology assuming a chain-like pattern, i.e. dihedrals are
+    defined following the insertion order of the atoms in the topology.
+    A four atoms chain `1-2-3-4` will find the dihedral: `1-2-3-4`.
+    """
+    for i in range(topology.n_atoms - 3):
+        topology.add_dihedral(i, i + 1, i + 2, i + 3)
 
 
 def get_n_pairs(
@@ -560,7 +580,7 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
         Path index tensor of shape (n, n_pairs)
     """
 
-    if n not in [2, 3] and unique == True:
+    if n not in [2, 3, 4] and unique == True:
         raise NotImplementedError("Unique currently only works for n=2,3")
 
     graph = nx.Graph(connectivity_matrix.numpy())
@@ -575,8 +595,123 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
                 # print(sub_atom)
                 final_paths[k].append(sub_atom)
     final_paths = torch.tensor(final_paths)
-    if unique and n in [2, 3]:
+    if unique and n in [2, 3, 4]:
         final_paths = _symmetrise_map[n](final_paths)
         final_paths = torch.unique(final_paths, dim=1)
 
     return final_paths
+
+
+def get_improper_paths(
+    connectivity_matrix: torch.Tensor, unique: bool = True
+) -> torch.tensor:
+    """This function returns all paths defining an improper dihedral
+
+            k
+            |
+        i - j - l
+
+    where the order of connected nodes is given as [i,k,l,j] - i.e., the
+    central node is reported last.
+
+    Parameters
+    ----------
+    connectivity_matrix:
+        Connectivity/adjacency matrix of the molecular graph of shape (n_atoms, n_atoms)
+    unique:
+        If True, the returned paths will be unique
+
+    Returns
+    -------
+    final_paths:
+        Path index tensor of shape (4, n_impropers)
+    """
+
+    n = 4
+    neigh_counts = np.sum(connectivity_matrix.numpy(), axis=0)
+    final_paths = [[] for i in range(n)]
+    for i_nc, neigh_count in enumerate(neigh_counts):
+        if neigh_count >= 3:
+            neigh_list = np.where(connectivity_matrix.numpy()[i_nc] == 1)[0]
+            for combo in combinations(neigh_list, 3):
+                final_paths[-1].append(i_nc)
+                for ic, ind in enumerate(combo):
+                    final_paths[ic].append(ind)
+
+    final_paths = torch.tensor(final_paths)
+    if unique:
+        final_paths = torch.unique(final_paths, dim=1)
+
+    return final_paths
+
+
+def _grab_atom_index_by_name(
+    top: mdtraj.Topology, atom_selection=None
+) -> np.ndarray:
+    """
+    Helper function to select atoms indices based on atom names according to mdtraj scheme
+        Some useful examples of possible :obj:`atom_selection` for (improper) dihedrals:
+            Impropers: (Central atom must go last)
+                GAMMA1_ATOMS = ["N", "CB", "C", "CA"]
+                GAMMA2_ATOMS = ["CA", "O", "+N", "C"]
+            Dihedrals: (Previous and next residue indicated by (-) and (+) sign)
+                PHI_ATOMS = ["-C", "N", "CA", "C"]
+                PSI_ATOMS = ["N", "CA", "C", "+N"]
+                OMEGA_ATOMS = ["CA", "C", "+N", "+CA"]
+
+    """
+
+    if hasattr(top, "topology"):
+        warnings.warn(
+            "Passing a Trajectory object. Please pass a Topology object",
+            DeprecationWarning,
+        )
+        top = top.topology
+
+    if atom_selection is not None:
+        improper_atoms = mdtraj.geometry.dihedral._atom_sequence(
+            top, atom_selection
+        )[1]
+    else:
+        improper_atoms = None
+    return improper_atoms
+
+
+def _residue_mapping_dictionary(
+    top: mdtraj.Topology, atom_indices=None
+) -> Dict:
+    """
+    Helper function to assign each set of atom_indices to a specific residue type
+    Inputs:
+        top:
+            mdtraj topology object
+        atom_indices:
+            np.ndarray (n_instances,n_atoms).
+            A row is a specific interaction and where each column are the atoms involved in it.
+
+    Outputs:
+        residue_dictionary:
+            dict. k,v = residue, atom_indices
+    """
+    from collections import defaultdict
+
+    if hasattr(top, "topology"):
+        warnings.warn(
+            "Passing a Trajectory object. Please pass a Topology object",
+            DeprecationWarning,
+        )
+        top = top.topology
+
+    residue_dictionary = defaultdict(list)
+    resids = np.array([atom.residue.name for atom in top.atoms])
+    for i in range(atom_indices.shape[0]):
+        group = atom_indices[i]
+        res_group = resids[group]
+        unique_res, counts = np.unique(res_group, return_counts=True)
+        current_res = unique_res[np.argmax(counts)]
+        residue_dictionary[current_res].append(group)
+
+    for k, v in residue_dictionary.items():
+        residue_dictionary[k] = np.array(v)
+    return residue_dictionary
+>>>>>>> b6058656a98b84fed019da596d3e5827d00d626e
