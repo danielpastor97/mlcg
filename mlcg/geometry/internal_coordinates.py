@@ -133,3 +133,78 @@ def compute_angles(
         (dr1 * dr2).sum(dim=1) / dr1.norm(p=2, dim=1) / dr2.norm(p=2, dim=1)
     )
     return cos_theta
+
+
+@torch.jit.script
+def compute_dihedrals(pos: torch.Tensor, mapping: torch.Tensor):
+    """
+    Compute the dihedral angle between positions in :obj:'pos' following the
+    :obj:`mapping` assuming that mapping indices follow::
+
+       j--k--l
+      /
+     i
+    Convention is to assign rotations w.r.t position of i&l as positive is l is rotated counterclockwise
+    when starting down bond jk
+
+    In the case of periodic boundary conditions, :obj:`cell_shifts` must be
+    provided so that :math:`\mathbf{r}_j` can be outside of the original unit
+    cell.
+    """
+    assert mapping.dim() == 2
+    assert mapping.shape[0] == 4
+    dr1 = pos[mapping[1]] - pos[mapping[0]]
+    dr1 = dr1 / dr1.norm(p=2, dim=1)[:, None]
+    dr2 = pos[mapping[2]] - pos[mapping[1]]
+    dr2 = dr2 / dr2.norm(p=2, dim=1)[:, None]
+    dr3 = pos[mapping[3]] - pos[mapping[2]]
+    dr3 = dr3 / dr3.norm(p=2, dim=1)[:, None]
+
+    n1 = torch.cross(dr1, dr2, dim=1)
+    n2 = torch.cross(dr2, dr3, dim=1)
+    m1 = torch.cross(n1, dr2, dim=1)
+    y = torch.sum(m1 * n2, dim=-1)
+    x = torch.sum(n1 * n2, dim=-1)
+    theta = torch.atan2(y, x)
+
+    return theta
+
+
+@torch.jit.script
+def compute_impropers(pos: torch.Tensor, mapping: torch.Tensor):
+    """
+    Compute the improper angle between positions in :obj:'pos' following the
+    :obj:`mapping` assuming that mapping indices follow::
+     k
+      \
+       l--j
+      /
+     i
+    Convention is to assign mapping so l is always the central atom. 
+    Computes the angle between planes ikl and ikj
+    """
+    assert mapping.dim() == 2
+    assert mapping.shape[0] == 4
+    il = pos[mapping[0]] - pos[mapping[3]]
+    kl = pos[mapping[1]] - pos[mapping[3]]
+    ij = pos[mapping[0]] - pos[mapping[2]]
+    kj = pos[mapping[1]] - pos[mapping[2]]
+
+    il = il / il.norm(p=2, dim=1)[:, None]
+    kl = kl / kl.norm(p=2, dim=1)[:, None]
+    ij = ij / ij.norm(p=2, dim=1)[:, None]
+    kj = kj / kj.norm(p=2, dim=1)[:, None]
+
+    planeikl = torch.cross(il, kl, dim=1)
+    planeikj = torch.cross(ij, kj, dim=1)
+    # Dot product of each row
+    costheta = torch.sum(planeikl * planeikj, dim=1)
+    normalize = torch.norm(planeikl, p=2, dim=1) * torch.norm(
+        planeikj, p=2, dim=1
+    )
+    costheta = costheta / normalize
+    # If on same plane get error so set equal to 0
+    mask = torch.abs(costheta) > 1
+    theta = torch.acos(costheta)
+    theta[mask] = 0
+    return theta

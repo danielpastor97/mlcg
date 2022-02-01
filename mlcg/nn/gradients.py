@@ -1,5 +1,5 @@
 import torch
-from typing import Sequence, Any, List
+from typing import Sequence, Any, List, Union
 from ..data.atomic_data import AtomicData
 from ..data._keys import *
 
@@ -108,9 +108,11 @@ class GradientsOut(torch.nn.Module):
         in the targets.
     """
 
-    _targets = {FORCE_KEY: ENERGY_KEY}
+    _targets = [FORCE_KEY, ENERGY_KEY]
 
-    def __init__(self, model: torch.nn.Module, targets: str = FORCE_KEY):
+    def __init__(
+        self, model: torch.nn.Module, targets: Union[List[str], str] = FORCE_KEY
+    ):
         super(GradientsOut, self).__init__()
         self.model = model
         self.name = self.model.name

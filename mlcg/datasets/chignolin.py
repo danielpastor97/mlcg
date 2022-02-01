@@ -18,6 +18,7 @@ from ..nn import (
     HarmonicBonds,
     HarmonicAngles,
     Repulsion,
+    Dihedral,
     GradientsOut,
 )
 from .utils import remove_baseline_forces, chunker
@@ -104,7 +105,6 @@ class ChignolinDataset(InMemoryDataset):
         )
         cg_topo = build_cg_topology(topology, cg_mapping=CA_MAP)
         copy(topology_fn, self.processed_paths[1])
-
         prior_nls = {}
         for cls in self.priors_cls:
             prior_nls.update(**cls.neighbor_list(cg_topo))
@@ -191,3 +191,22 @@ class ChignolinDataset(InMemoryDataset):
         torch.save((cg_topo), self.processed_paths[2])
         torch.save(baseline_models, self.processed_paths[3])
         torch.save((datas, slices), self.processed_paths[0])
+
+
+class ChignolinDatasetWithDihedralPriors(ChignolinDataset):
+    """
+    Inherit from Chignolin Dataset and redefine priors to compute
+    Modify _prior_cls to include priors to compute
+    Must provide
+        -----
+    """
+
+    _priors_cls = [HarmonicBonds, HarmonicAngles, Repulsion, Dihedral]
+
+    def __init__(
+        self, root, transform=None, pre_transform=None, pre_filter=None
+    ):
+        self.priors_cls = self._priors_cls
+        super(ChignolinDatasetWithDihedralPriors, self).__init__(
+            root, transform, pre_transform, pre_filter
+        )
