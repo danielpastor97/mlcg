@@ -238,7 +238,7 @@ class Topology(object):
 
     def remove_bond(self, bond_removal_list):
         """Method to remove bonds given list of bonds to be removed
-        
+
         Parameters
         ----------
         bond_removal_list : list
@@ -251,7 +251,7 @@ class Topology(object):
         Notes
         -----
         - The order of the removal list matters, e.g., [1,2] and [2,1] are treated differently
-        
+
         TO DO: Include feature to reorder removal_list elements as [i,j] such that i<j
         """
         for bond in bond_removal_list:
@@ -259,45 +259,47 @@ class Topology(object):
             index2 = bond[1]
             mask_1 = np.array(self.bonds[0]) == index1
             mask_2 = np.array(self.bonds[1]) == index2
-    
+
             mask = np.array(mask_1) * np.array(mask_2)
-            
+
             if True in mask:
-                to_pop = np.where(mask)[0][0]    
+                to_pop = np.where(mask)[0][0]
                 self.bonds[0].pop(to_pop), self.bonds[1].pop(to_pop)
-    
+
     def remove_angle(self, angle_removal_list):
         """Method to remove angles given list of angles to be removed
-        
+
         Parameters
         ----------
         angle_removal_list : list
             List of bonds to be removed from current bond list.
             Format: [[index1, index2, index3], ..., [index1, index2, index3]]
-                where index1, index2, index3 are the indices of the first, second, and third 
+                where index1, index2, index3 are the indices of the first, second, and third
                 atom involved in angle formation, respectively.
 
         Notes
         -----
         - The order of the removal list matters, e.g., [1,2,3] and [3,2,1] are treated differently
-        
+
         TO DO: Include feature to reorder removal_list elements as [i,j,k] such that i<k
         """
 
-        for angle in angle_removal_list:        
+        for angle in angle_removal_list:
             index1 = angle[0]
             index2 = angle[1]
             index3 = angle[2]
-            
+
             mask_1 = np.array(self.angles[0]) == index1
             mask_2 = np.array(self.angles[1]) == index2
             mask_3 = np.array(self.angles[2]) == index3
-    
+
             mask = np.array(mask_1) * np.array(mask_2) * np.array(mask_3)
-            
+
             if True in mask:
-                to_pop = np.where(mask)[0][0]    
-                self.angles[0].pop(to_pop), self.angles[1].pop(to_pop), self.angles[2].pop(to_pop)
+                to_pop = np.where(mask)[0][0]
+                self.angles[0].pop(to_pop), self.angles[1].pop(
+                    to_pop
+                ), self.angles[2].pop(to_pop)
 
     def to_mdtraj(self) -> mdtraj.Topology:
         """Convert to mdtraj format
@@ -714,4 +716,3 @@ def _residue_mapping_dictionary(
     for k, v in residue_dictionary.items():
         residue_dictionary[k] = np.array(v)
     return residue_dictionary
->>>>>>> b6058656a98b84fed019da596d3e5827d00d626e
