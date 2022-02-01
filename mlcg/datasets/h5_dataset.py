@@ -10,14 +10,14 @@ This file contains the python data structures for handling the HDF5 file and its
 An example HDF5 file structure and correponding class types after loading:
 / (HDF-group, => `H5Dataset._h5_root`)
 ├── OPEP (HDF-group =(part, according to "partition_options")=> `Metaset` in a `Partition`)
-│   ├── opep_0000 (HDF-group, => `MolData`)
-│   │   ├── attrs (HDF-attributes of the molecule "/OPEP/opep_0000")
-│   │   │   ├── cg_embeds (a 1-d numpy.int array)
-│   │   │   ├── N_frames (int, number of frames = size of cg_coords on axis 0)
-│   │   │   ... (optional, e.g., cg_top, cg_pdb, etc that corrsponds to the molecule)
-│   │   ├── cg_coords (HDF-dataset of the molecule "/OPEP/opep_0000", 3-d numpy.float32 array)
-│   │   └── cg(_delta)_forces (HDF-dataset of the molecule "/OPEP/opep_0000", 3-d numpy.float32 array)
-│   ... (other molecules in "/OPEP")
+│   ├── opep_0000 (HDF-group, => `MolData`)
+│   │   ├── attrs (HDF-attributes of the molecule "/OPEP/opep_0000")
+│   │   │   ├── cg_embeds (a 1-d numpy.int array)
+│   │   │   ├── N_frames (int, number of frames = size of cg_coords on axis 0)
+│   │   │   ... (optional, e.g., cg_top, cg_pdb, etc that corrsponds to the molecule)
+│   │   ├── cg_coords (HDF-dataset of the molecule "/OPEP/opep_0000", 3-d numpy.float32 array)
+│   │   └── cg(_delta)_forces (HDF-dataset of the molecule "/OPEP/opep_0000", 3-d numpy.float32 array)
+│   ... (other molecules in "/OPEP")
 ├── CATH (HDF-group ="partition_options"=> `Metaset` in a `Partition`)
 ...
 
