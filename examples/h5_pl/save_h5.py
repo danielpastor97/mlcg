@@ -23,7 +23,9 @@ OPEP_MUSTER_EMBED = "opep_%s_cg_embeds.npy"
 
 
 def parse_cli():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="""
+    Example for converting raw datasets of OPEP and CATH with baselined forces in the form of a collection of `.npy` files into an HDF5 file.
+    """)
     parser.add_argument(
         "-rd",
         "--rootdir",
