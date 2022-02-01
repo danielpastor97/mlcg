@@ -117,6 +117,7 @@ import numpy as np
 import torch
 import typing
 import itertools
+import warnings
 from torch_geometric.loader.dataloader import Collater as PyGCollater
 
 from mlcg.data import AtomicData
@@ -278,10 +279,16 @@ class MetaSet:
         self._mol_map[mol_data.name] = self.n_mol - 1
         self._update_info()
 
-    def trim_down_to(self, target_n_samples, random_seed=42):
+    def trim_down_to(self, target_n_samples, random_seed=42, verbose=True):
         """Trimming all datasets randomly to reach the target number of samples"""
         if target_n_samples > self.n_total_samples or target_n_samples <= 0:
             raise ValueError("Target number of samples invalid")
+        elif target_n_samples == self.n_total_samples:
+            return
+        if verbose:
+            warnings.warn(
+                f"\nMetaset {self.name}: subsampling to {target_n_samples} samples with random seed {random_seed}."
+            )
         rng = np.random.default_rng(random_seed)
         # get the indices of samples to keep
         indices = rng.choice(
@@ -397,14 +404,45 @@ class Partition:
         max_batches = [
             int(sample_sizes[k] // batch_sizes[k]) for k in batch_sizes
         ]
-        if max_epoch_samples is not None:
-            max_batches.append(max_epoch_samples // sum(batch_sizes.values()))
         n_batches = min(max_batches)
-        # trimming down the number of samples in each metaset accordingly
-        for k in self._metasets:
-            self._metasets[k].trim_down_to(
-                n_batches * batch_sizes[k], random_seed=random_seed
+        trim_down_is_needed = any(
+            [n_batches != desired_n for desired_n in max_batches]
+        )
+        trim_down_due_to_max_epoch_samples = False
+        if max_epoch_samples is not None:
+            max_epoch_batch = max_epoch_samples // sum(batch_sizes.values())
+            if max_epoch_batch < n_batches:
+                trim_down_is_needed = True
+                trim_down_due_to_max_epoch_samples = True
+                n_batches = max_epoch_batch
+        if trim_down_is_needed:
+            warn_message = f"\nPartition `{self.name}`: The size of samples in given Metasets will be reduced via subsampling "
+            if trim_down_due_to_max_epoch_samples:
+                warn_message += "accoring to the `max_epoch_samples`.\n"
+            else:
+                warn_message += "accoring to the desired batch composition.\n"
+            batch_size_message = (
+                ":".join(self._metasets.keys())
+                + " = "
+                + ":".join([str(batch_sizes[k]) for k in self._metasets])
             )
+            warn_message += (
+                f"This partition now contains {n_batches} mini batches.\n"
+            )
+            warn_message += (
+                "The target sizes of samples from Metasets are "
+                + batch_size_message
+                + ".\n"
+            )
+            warn_message += "Note for reproducibility: the subsampling (trimming down) of each Metasets is controlled by the molecule entries and frames , the `stride`, the ratio of `batch_sizes` as well as the `subsample_random_seed`."
+            warnings.warn(warn_message)
+            # trimming down the number of samples in each metaset accordingly
+            for k in self._metasets:
+                self._metasets[k].trim_down_to(
+                    n_batches * batch_sizes[k],
+                    random_seed=random_seed,
+                    verbose=False,  # since we already warned above
+                )
         self._sample_ready = True
 
     @property
