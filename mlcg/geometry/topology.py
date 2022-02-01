@@ -34,6 +34,9 @@ class Atom(NamedTuple):
     resname: Optional[str] = None
     #: number of the resid containing the atom
     resid: Optional[int] = None
+    #: partial charge of the atom
+    charge: Optional[float] = None
+
 
 
 class Topology(object):
@@ -47,6 +50,8 @@ class Topology(object):
     resnames: List[str]
     #: number of the resid containing the atoms
     resids: List[int]
+    #: charge of the atoms
+    charges: List[int]
     #: list of bonds between the atoms. Defines the bonded topology.
     bonds: Tuple[List[int], List[int]]
     #: list of angles formed by triplets of atoms
@@ -62,6 +67,7 @@ class Topology(object):
         self.names = []
         self.resnames = []
         self.resids = []
+        self.charges = []
         self.bonds = ([], [])
         self.angles = ([], [], [])
         self.dihedrals = ([], [], [], [])
@@ -73,18 +79,20 @@ class Topology(object):
         name: str,
         resname: Optional[str] = None,
         resid: Optional[int] = None,
+        charge: Optional[float] = None,
     ):
         self.types.append(type)
         self.names.append(name)
         self.resnames.append(resname)
         self.resids.append(resid)
+        self.charges.append(charge)
 
     @property
     def atoms(self):
-        for type, name, resname, resid in zip(
-            self.types, self.names, self.resnames, self.resids
+        for type, name, resname, resid, charge in zip(
+            self.types, self.names, self.resnames, self.resids, self.charges
         ):
-            yield Atom(type=type, name=name, resname=resname, resid=resid)
+            yield Atom(type=type, name=name, resname=resname, resid=resid, charge=charge)
 
     @property
     def n_atoms(self) -> int:
