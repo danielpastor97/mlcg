@@ -61,7 +61,7 @@ def write_PDB(dataset, frame=0, fout="cg.pdb"):
     bfactors = ["{0:5.2f}".format(0.0)] * cg_traj.xyz.shape[1]
 
     # file = open(fout, "w")
-    with open(fout,"w") as file:
+    with open(fout, "w") as file:
         _write_header(file)
         atomIndex = 1
         posIndex = 0
@@ -82,7 +82,9 @@ def write_PDB(dataset, frame=0, fout="cg.pdb"):
                     if (
                         len(atom.name) < 4
                         and atom.name[:1].isalpha()
-                        and (atom.element is None or len(atom.element.symbol) < 2)
+                        and (
+                            atom.element is None or len(atom.element.symbol) < 2
+                        )
                     ):
                         atomName = " " + atom.name
                     elif len(atom.name) > 4:
@@ -100,24 +102,21 @@ def write_PDB(dataset, frame=0, fout="cg.pdb"):
                         atomSerial = atom.serial
                     else:
                         atomSerial = atomIndex
-                    line = (
-                        "ATOM  %5d %-4s %3s %1s%4d    %s%s%s  1.00 %5s      %-4s%2s  "
-                        % (  # Right-justify atom symbol
-                            atomSerial % 100000,
-                            atomName,
-                            resName,
-                            chainName,
-                            (res.resSeq) % 10000,
-                            _format_83(coords[0]),
-                            _format_83(coords[1]),
-                            _format_83(coords[2]),
-                            bfactors[posIndex],
-                            atom.segment_id[:4],
-                            symbol[-2:],
-                        )
+                    line = "ATOM  %5d %-4s %3s %1s%4d    %s%s%s  1.00 %5s      %-4s%2s  " % (  # Right-justify atom symbol
+                        atomSerial % 100000,
+                        atomName,
+                        resName,
+                        chainName,
+                        (res.resSeq) % 10000,
+                        _format_83(coords[0]),
+                        _format_83(coords[1]),
+                        _format_83(coords[2]),
+                        bfactors[posIndex],
+                        atom.segment_id[:4],
+                        symbol[-2:],
                     )
                     assert len(line) == 80, "Fixed width overflow detected"
-                    file.write(line+'\n')
+                    file.write(line + "\n")
                     posIndex += 1
                     atomIndex += 1
                 if resIndex == len(residues) - 1:
@@ -214,7 +213,7 @@ def _write_footer(file, topology=None):
             line = "CONECT%5d" % index1
             for index2 in bonded:
                 line = "%s%5d" % (line, index2)
-            file.write(line+'\n')
+            file.write(line + "\n")
     file.write("END")
 
 
@@ -236,7 +235,7 @@ def write_PSF(dataset, fout="cg.psf", charges=None):
     """
     Write out charmm format psf file from AtomicData object
     """
-    with open(fout,"w") as file:
+    with open(fout, "w") as file:
         file.write("PSF \n")
         cg_topo = dataset.topologies
         topology = cg_topo.to_mdtraj()
@@ -294,7 +293,7 @@ def write_PSF(dataset, fout="cg.psf", charges=None):
             prop = np.asarray(prop).T
             n_prop = len(prop)
             title = "{:>8d} ".format(n_prop) + titles[i_p]
-            file.write(title+'\n')
+            file.write(title + "\n")
             item_per_line = items_per_line[i_p]
             i_b = 0
             while i_b < n_prop:
@@ -307,5 +306,4 @@ def write_PSF(dataset, fout="cg.psf", charges=None):
                     i_b += 1
                 string = ["{:>8d}".format(x) for x in print_list]
                 string = "".join(string)
-                file.write(string+'\n')
-
+                file.write(string + "\n")

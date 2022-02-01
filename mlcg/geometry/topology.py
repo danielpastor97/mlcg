@@ -38,7 +38,6 @@ class Atom(NamedTuple):
     charge: Optional[float] = None
 
 
-
 class Topology(object):
     """Define the topology of an isolated protein."""
 
@@ -92,7 +91,13 @@ class Topology(object):
         for type, name, resname, resid, charge in zip(
             self.types, self.names, self.resnames, self.resids, self.charges
         ):
-            yield Atom(type=type, name=name, resname=resname, resid=resid, charge=charge)
+            yield Atom(
+                type=type,
+                name=name,
+                resname=resname,
+                resid=resid,
+                charge=charge,
+            )
 
     @property
     def n_atoms(self) -> int:
