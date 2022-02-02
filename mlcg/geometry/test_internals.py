@@ -53,6 +53,7 @@ def test_dihedral_aic_criterion():
     """
     TargetPrior = Dihedral
     n_atoms = 4
+    n_frames = 20000
     test_coords = np.random.randn(n_frames, n_atoms, 3).astype("float32")
     dihedral_atoms = np.array(
         [[i, i + 1, i + 2, i + 3] for i in range(test_coords.shape[1] - 3)]
