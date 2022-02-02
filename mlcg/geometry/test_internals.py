@@ -7,6 +7,8 @@ import copy
 from mlcg.geometry.statistics import _get_bin_centers
 from mlcg.nn.prior import Dihedral
 
+np.random.seed(15149)
+
 # Mock data of ten atoms for 1000 frames
 n_frames = 1000
 n_atoms = 10
