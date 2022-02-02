@@ -6,9 +6,10 @@ tqdm
 ase
 e3nn
 numpy
+h5py
 scipy
 scikit-learn
-e3nn
+h5py
 ipython
 # developer tools
 pytest

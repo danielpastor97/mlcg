@@ -1,6 +1,7 @@
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.cli import instantiate_class
+from pytorch_lightning.utilities.finite_checks import detect_nan_parameters
 from typing import Optional
 from copy import deepcopy
 
@@ -76,6 +77,16 @@ class PLModel(pl.LightningModule):
                 )
 
         return optim_config
+
+    def on_epoch_start(self):
+        # this can avoid growing VRAM usage after 1 epoch
+        # so that we can maximize the batch size quickly on a GPU
+        # by the success of first several training steps
+        torch.cuda.empty_cache()
+
+    def on_train_epoch_end(self):
+        # instead of checking it after every training step, which is costly
+        detect_nan_parameters(self.model)
 
     def training_step(self, data: AtomicData, batch_idx: int) -> torch.Tensor:
         loss = self.step(data, "training")

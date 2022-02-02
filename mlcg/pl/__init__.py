@@ -2,9 +2,11 @@ from .data import DataModule
 from .model import PLModel
 from .utils import SingleDevicePlugin, DDPPlugin, merge_priors_and_checkpoint
 from .cli import LightningCLI
+from .h5_data import H5DataModule
 
 __all__ = [
     "DataModule",
+    "H5DataModule",
     "PLModel",
     "SingleDevicePlugin",
     "DDPPlugin",
