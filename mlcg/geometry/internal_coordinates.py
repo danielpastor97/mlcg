@@ -143,11 +143,13 @@ def compute_torsions(pos: torch.Tensor, mapping: torch.Tensor):
 
     For dihedrals: the angle w.r.t. position of i&l is positive if l i rotated clockwise
     when staring down bond jk
+
        j--k--l
       /
      i
 
     For impropers: the angle is positive if when looking in plane ikj, l is rotated clockwise
+
      k
       \
        l--j
@@ -173,6 +175,6 @@ def compute_torsions(pos: torch.Tensor, mapping: torch.Tensor):
     m1 = torch.cross(n1, dr2, dim=1)
     y = torch.sum(m1 * n2, dim=-1)
     x = torch.sum(n1 * n2, dim=-1)
-    theta = torch.atan2(-y, x)
+    theta = torch.atan2(-y, x) # -y to match MDTraj convention
 
     return theta
