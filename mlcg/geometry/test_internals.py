@@ -45,28 +45,39 @@ def test_mdtraj_dihedral_compatibility():
     mdtraj_dihedrals = mdtraj.compute_dihedrals(traj, dihedral_atoms)
     np.testing.assert_allclose(mlcg_dihedrals, mdtraj_dihedrals, rtol=1e-2)
 
+
 def test_dihedral_aic_criterion():
-    '''
-        Test to ensure that proper index of fitting is choosen
-        Perturb coordinates of first dihedral with a 3-amplitude sine wave
-    '''
+    """
+    Test to ensure that proper index of fitting is choosen
+    Perturb coordinates of first dihedral with a 3-amplitude sine wave
+    """
     TargetPrior = Dihedral
+    n_atoms = 4
+    test_coords = np.random.randn(n_frames, n_atoms, 3).astype("float32")
+    dihedral_atoms = np.array(
+        [[i, i + 1, i + 2, i + 3] for i in range(test_coords.shape[1] - 3)]
+    )
+    mapping = torch.tensor(
+        np.concatenate(
+            [dihedral_atoms.T + (n_atoms * i) for i in range(n_frames)], axis=1
+        )
+    )
     test_coords = np.random.randn(n_frames, n_atoms, 3).astype("float32")
     torch_coords = torch.tensor(test_coords.reshape(n_frames * n_atoms, 3))
-    torch_coords[1::n_atoms] = torch.tensor((0,0,0)) 
-    torch_coords[2::n_atoms] = torch.tensor((1,0,0)) 
-    torch_coords[3::n_atoms] = torch.tensor((2,1,0)) 
+    torch_coords[1::n_atoms] = torch.tensor((0, 0, 0))
+    torch_coords[2::n_atoms] = torch.tensor((1, 0, 0))
+    torch_coords[3::n_atoms] = torch.tensor((2, 1, 0))
     pos = torch_coords[:4]
-    ind_mapping = torch.tensor((0,1,2,3))
-    ind_mapping = torch.reshape(ind_mapping,[4,1])
-    theta_map = theta_mapping(pos,ind_mapping)
-    k1s = [1,0.5,1,0,0,0]
-    k2s = [1,0,0,0,0,0]
-    samples = sample_from_curve(k1s,k2s,n_frames)
-    for i_s,sample in enumerate(samples):
-        for k,v in theta_map.items():
-            if np.abs(sample-v) < 1e-2:
-                torch_coords[i_s*n_atoms] = torch.stack(k)
+    ind_mapping = torch.tensor((0, 1, 2, 3))
+    ind_mapping = torch.reshape(ind_mapping, [4, 1])
+    theta_map = theta_mapping(pos, ind_mapping)
+    k1s = [1, 0.5, 1, 0, 0, 0]
+    k2s = [1, 0, 0, 0, 0, 0]
+    samples = sample_from_curve(k1s, k2s, n_frames)
+    for i_s, sample in enumerate(samples):
+        for k, v in theta_map.items():
+            if np.abs(sample - v) < 1e-2:
+                torch_coords[i_s * n_atoms] = torch.stack(k)
 
     values = TargetPrior.compute_features(torch_coords, mapping)
     b_min = values.min()
@@ -79,67 +90,70 @@ def test_dihedral_aic_criterion():
     bin_centers_nz = bin_centers[mask]
     ncounts_nz = hist[mask]
     dG_nz = -torch.log(ncounts_nz)
-    params = TargetPrior.fit_from_potential_estimates(
-        bin_centers_nz, dG_nz
-    )
+    params = TargetPrior.fit_from_potential_estimates(bin_centers_nz, dG_nz)
 
-    for i_k, (k1,k2) in enumerate(zip(params['k1s'].values(),params['k2s'].values())):
+    for i_k, (k1, k2) in enumerate(
+        zip(params["k1s"].values(), params["k2s"].values())
+    ):
         # First term is a constant so value is unimportant
         # Values inverted mdtraj criteria so k1 == -k1s[i_k]
-        if i_k == 0: continue
-        assert np.abs(k1+k1s[i_k]) < 0.1
-        assert np.abs(k2-k2s[i_k]) < 0.1
+        if i_k == 0:
+            continue
+        assert np.abs(k1 + k1s[i_k]) < 0.1
+        assert np.abs(k2 - k2s[i_k]) < 0.1
 
-def sample_from_curve(k1s,k2s,n_frames,beta=1):
-    '''
-        Sample from a potential
-        Inputs:
-            k1s
-                values from sin coefficient 
-            k2s
-                values from cos coefficient
-            n_frames
-                number of samples to pull
-        Outputs:
-            theta
-                values drawn from potential
-    '''
+
+def sample_from_curve(k1s, k2s, n_frames, beta=1):
+    """
+    Sample from a potential
+    Inputs:
+        k1s
+            values from sin coefficient
+        k2s
+            values from cos coefficient
+        n_frames
+            number of samples to pull
+    Outputs:
+        theta
+            values drawn from potential
+    """
     V = 0
-    thetas = torch.from_numpy(np.linspace(-np.pi,np.pi,100))
-    for ik,(k1,k2) in enumerate(zip(k1s,k2s)):
-        V += k1*torch.sin(ik*thetas) + k2*torch.cos(ik*thetas)
-    pi = torch.exp(-beta*V)
-    pi = pi/torch.sum(pi)
-    cum_pi = torch.cumsum(pi,dim=0).numpy()
+    thetas = torch.from_numpy(np.linspace(-np.pi, np.pi, 100))
+    for ik, (k1, k2) in enumerate(zip(k1s, k2s)):
+        V += k1 * torch.sin(ik * thetas) + k2 * torch.cos(ik * thetas)
+    pi = torch.exp(-beta * V)
+    pi = pi / torch.sum(pi)
+    cum_pi = torch.cumsum(pi, dim=0).numpy()
     theta = []
     for _ in range(n_frames):
-        sel_ind = np.where(cum_pi>np.random.rand())[0][0]
+        sel_ind = np.where(cum_pi > np.random.rand())[0][0]
         theta.append(thetas[sel_ind].numpy())
     return theta
 
-def theta_mapping(pos,mapping,x0 = torch.tensor(-1),r = 1):
-    '''
-        Given a list of position find the values of x,y,z that give a particular torsion angle
-        Inputs:
-            pos
-                positions
-            mapping
-                atoms which form torsion
-            x0
-                position along x dimesion (easiest to keep fixed)
-            r
-                radius of rotation
-        Outputs:
-            theta_map
-                keys : (x,y,z) position
-                values : torsion angles
-    '''
+
+def theta_mapping(pos, mapping, x0=torch.tensor(-1), r=1):
+    """
+    Given a list of position find the values of x,y,z that give a particular torsion angle
+    Inputs:
+        pos
+            positions
+        mapping
+            atoms which form torsion
+        x0
+            position along x dimesion (easiest to keep fixed)
+        r
+            radius of rotation
+    Outputs:
+        theta_map
+            keys : (x,y,z) position
+            values : torsion angles
+    """
     theta_map = {}
-    thetas = torch.linspace(-np.pi,np.pi,100)
+    thetas = torch.linspace(-np.pi, np.pi, 100)
     for thet in thetas:
-        y0 = r*torch.cos(thet)
-        z0 = r*torch.sin(thet)
-        pos[0] = torch.tensor((x0,y0,z0))
+        y0 = r * torch.cos(thet)
+        z0 = r * torch.sin(thet)
+        pos[0] = torch.tensor((x0, y0, z0))
         dr1 = pos[mapping[1]] - pos[mapping[0]]
         dr1 = dr1 / dr1.norm(p=2, dim=1)[:, None]
         dr2 = pos[mapping[2]] - pos[mapping[1]]
@@ -152,5 +166,5 @@ def theta_mapping(pos,mapping,x0 = torch.tensor(-1),r = 1):
         y = torch.sum(m1 * n2, dim=-1)
         x = torch.sum(n1 * n2, dim=-1)
         theta = torch.atan2(-y, x)
-        theta_map[(x0,y0,z0)] = theta.numpy()
+        theta_map[(x0, y0, z0)] = theta.numpy()
     return theta_map
