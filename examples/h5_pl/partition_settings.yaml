@@ -106,8 +106,8 @@ train:
       - cath_1d3yA01
       stride: 100
   batch_sizes:
-    OPEP: 46
-    CATH: 10
+    OPEP: 37
+    CATH: 8
   subsample_random_seed: 42 # can be anything. Keeping it unchanged allows reproducibility
   max_epoch_samples:
 val:
@@ -142,7 +142,7 @@ val:
       - cath_2dkzA01
       stride: 100
   batch_sizes:
-    OPEP: 46
-    CATH: 10
+    OPEP: 37
+    CATH: 8
   subsample_random_seed: 42
   max_epoch_samples:
