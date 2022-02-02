@@ -12,14 +12,14 @@ from pdb_str_util import (
     load_mdtraj_from_str,
 )  # for handling pdb files in hdf5 files. Not yet used
 
-# define some
-CATH_GLOB_MUSTER = "cath_*_cg_coords.npy"
-CATH_MUSTER = "cath_%s_cg_coords.npy"
-CATH_MUSTER_FORCE = "cath_%s_{outname}_delta_forces_shaped.npy"
-CATH_MUSTER_EMBED = "cath_%s_cg_embeds.npy"
-OPEP_MUSTER = "opep_%s_cg_coords.npy"
-OPEP_MUSTER_FORCE = "opep_%s_{outname}_delta_forces_shaped.npy"
-OPEP_MUSTER_EMBED = "opep_%s_cg_embeds.npy"
+# define templates for the coordinate, force and embedding files
+CATH_GLOB_TEMPL = "cath_*_cg_coords.npy"
+CATH_TEMPL = "cath_%s_cg_coords.npy"
+CATH_TEMPL_FORCE = "cath_%s_{outname}_delta_forces.npy"
+CATH_TEMPL_EMBED = "cath_%s_cg_embeds.npy"
+OPEP_TEMPL = "opep_%s_cg_coords.npy"
+OPEP_TEMPL_FORCE = "opep_%s_{outname}_delta_forces.npy"
+OPEP_TEMPL_EMBED = "opep_%s_cg_embeds.npy"
 
 
 def parse_cli():
@@ -32,7 +32,7 @@ def parse_cli():
         "-rd",
         "--rootdir",
         metavar="FN",
-        default="/import/a12/users/nickc/mlcg_delta_datasets/1_4_res_exclusion/",
+        default="/import/a12/users/nickc/mlcg_delta_datasets/dihedral_1_6_res_exclusion/",
         type=str,
         help="path to the raw data including the OPEP and CATH datasets",
     )
@@ -51,23 +51,23 @@ def parse_cli():
 
 def load_CATH(serial, outname):
     output = {}
-    force_fn = CATH_MUSTER_FORCE.format(outname=outname)
-    fn = osp.join(TRAIN_DIR, CATH_MUSTER % serial)
+    force_fn = CATH_TEMPL_FORCE.format(outname=outname)
+    fn = osp.join(TRAIN_DIR, CATH_TEMPL % serial)
     if osp.exists(fn):
         output["cg_coords"] = np.load(fn)
         output["cg_delta_forces"] = np.load(
             osp.join(TRAIN_DIR, force_fn % serial)
         )
         output["cg_embeds"] = np.load(
-            osp.join(TRAIN_DIR, CATH_MUSTER_EMBED % serial)
+            osp.join(TRAIN_DIR, CATH_TEMPL_EMBED % serial)
         )
     else:
-        output["cg_coords"] = np.load(osp.join(VAL_DIR, CATH_MUSTER % serial))
+        output["cg_coords"] = np.load(osp.join(VAL_DIR, CATH_TEMPL % serial))
         output["cg_delta_forces"] = np.load(
             osp.join(VAL_DIR, force_fn % serial)
         )
         output["cg_embeds"] = np.load(
-            osp.join(VAL_DIR, CATH_MUSTER_EMBED % serial)
+            osp.join(VAL_DIR, CATH_TEMPL_EMBED % serial)
         )
     return output
 
@@ -75,22 +75,22 @@ def load_CATH(serial, outname):
 def load_OPEP(serial, outname):
     output = {}
     serial = "%04d" % serial
-    force_fn = OPEP_MUSTER_FORCE.format(outname=outname)
-    if osp.exists(osp.join(TRAIN_DIR, OPEP_MUSTER % serial)):
-        output["cg_coords"] = np.load(osp.join(TRAIN_DIR, OPEP_MUSTER % serial))
+    force_fn = OPEP_TEMPL_FORCE.format(outname=outname)
+    if osp.exists(osp.join(TRAIN_DIR, OPEP_TEMPL % serial)):
+        output["cg_coords"] = np.load(osp.join(TRAIN_DIR, OPEP_TEMPL % serial))
         output["cg_delta_forces"] = np.load(
             osp.join(TRAIN_DIR, force_fn % serial)
         )
         output["cg_embeds"] = np.load(
-            osp.join(TRAIN_DIR, OPEP_MUSTER_EMBED % serial)
+            osp.join(TRAIN_DIR, OPEP_TEMPL_EMBED % serial)
         )
     else:
-        output["cg_coords"] = np.load(osp.join(VAL_DIR, OPEP_MUSTER % serial))
+        output["cg_coords"] = np.load(osp.join(VAL_DIR, OPEP_TEMPL % serial))
         output["cg_delta_forces"] = np.load(
             osp.join(VAL_DIR, force_fn % serial)
         )
         output["cg_embeds"] = np.load(
-            osp.join(VAL_DIR, OPEP_MUSTER_EMBED % serial)
+            osp.join(VAL_DIR, OPEP_TEMPL_EMBED % serial)
         )
     return output
 
@@ -109,10 +109,10 @@ if __name__ == "__main__":
 
     # ---- find CATH data files and accumulate them into a HDF5 record ----
     cath_names = []
-    for f in glob(osp.join(TRAIN_DIR, CATH_GLOB_MUSTER)):
+    for f in glob(osp.join(TRAIN_DIR, CATH_GLOB_TEMPL)):
         name = f.split("/")[-1][5:12]
         cath_names.append(name)
-    for f in glob(osp.join(VAL_DIR, CATH_GLOB_MUSTER)):
+    for f in glob(osp.join(VAL_DIR, CATH_GLOB_TEMPL)):
         name = f.split("/")[-1][5:12]
         cath_names.append(name)
     cath_names = sorted(cath_names)

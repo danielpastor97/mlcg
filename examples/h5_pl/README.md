@@ -9,7 +9,7 @@
 - h5py (install can be done with `conda install -c conda-forge h5py`)
 
 ## Guidelines
-1. Run `save_h5.py` to create the dataset (Please check the CLI helper. The full-sized combined datasets require around 60GB disk space.)
+1. (Optional) Run `save_h5.py` to create the dataset (Please check the CLI helper. The full-sized combined datasets require around 60GB disk space.) Alternatively, you can start with a sample dataset at `/import/a12/users/nickc/mlcg_delta_datasets/dihedral_1_6_res_exclusion/combined_dihedral_1_6_res_exclusion.h5`. Please remember to change the path in the `train_h5_1_10.yaml` file.
 2. Check out `train_h5_1_10.yaml` and `partition_settings.yaml` and adjust the settings according to the actual needs, e.g., the training set composition and number of GPUs.
 3. Run `python ../../scripts/mlcg-train_h5.py fit --config train_h5_1_10.yaml` for model training.
 
