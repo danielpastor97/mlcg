@@ -1,6 +1,6 @@
-# example part_options
+# example partition_options
 # it creates two paritions "train" and "val" from the h5 dataset file
-# as for a quick test, this only involves 10% of all entries, and frames are loaded 
+# as for a quick test, this only involves 10% of all entries, and frames are loaded
 # the batch size is set to maximize the usage of 11-GB VRAM of the GPUs on cluster nodes
 # e.g., GTX1080Ti and 2080Ti
 # note that the batch size controls the batch loaded to each GPU, thus in parallel setup,

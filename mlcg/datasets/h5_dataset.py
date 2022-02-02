@@ -471,9 +471,9 @@ class Partition:
 class H5Dataset:
     """The top-level class for handling multiple datasets contained in a HDF5 file."""
 
-    def __init__(self, h5_path, partition_options, loading_options):
-        self._h5_path = h5_path
-        self._h5_root = h5py.File(h5_path, "r")
+    def __init__(self, h5_file_path, partition_options, loading_options):
+        self._h5_path = h5_file_path
+        self._h5_root = h5py.File(h5_file_path, "r")
         self._metaset_entries = {}
         # ^ dict containing all metasets in the HDF5 file
         self._partitions = {}  # dict containing the configured metasets

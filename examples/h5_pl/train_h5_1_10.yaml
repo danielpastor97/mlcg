@@ -8,7 +8,7 @@
 #   optimizer.init_args.lr
 #   data
 #       h5_file_path
-#       part_options
+#       partition_options
 seed_everything: 19384
 # define the training
 trainer:
@@ -29,7 +29,6 @@ trainer:
         save_dir: default_root_dir
         name: tensorboard
         version: ''
-
   benchmark: false
   enable_checkpointing: true
   callbacks:
@@ -114,9 +113,9 @@ lr_scheduler:
     patience: 3
     min_lr: 0.000001
 data:
-  h5_file_path: "./datasets/combined_1_4_res_exclusion.h5" # point to your actual dataset location
-  part_options: "./partition_settings.yaml"
-  load_options:
+  h5_file_path: /import/a12/users/nickc/mlcg_delta_datasets/dihedral_1_6_res_exclusion/combined_dihedral_1_6_res_exclusion.h5 # point to your actual dataset location
+  partition_options: ./partition_settings.yaml
+  loading_options:
     hdf_key_mapping:
       embeds: attrs:cg_embeds
       coords: cg_coords

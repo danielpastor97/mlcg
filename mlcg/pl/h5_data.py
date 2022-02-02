@@ -19,8 +19,8 @@ class H5DataModule(pl.LightningDataModule):
     def __init__(
         self,
         h5_file_path: str = "",
-        part_options: Union[Mapping, str] = {},
-        load_options: Union[Mapping, str] = {
+        partition_options: Union[Mapping, str] = {},
+        loading_options: Union[Mapping, str] = {
             "hdf_key_mapping": default_key_mapping
         },
     ):
@@ -37,8 +37,8 @@ class H5DataModule(pl.LightningDataModule):
                     options = yaml.load(f)
                 return options
 
-        self._part_options = get_options(part_options)
-        self._load_options = get_options(load_options)
+        self._part_options = get_options(partition_options)
+        self._load_options = get_options(loading_options)
 
     def prepare_data(self):
         # download, split, etc...
@@ -58,7 +58,7 @@ class H5DataModule(pl.LightningDataModule):
             # for the DataModule, running without DDP is the same as with DDP and world_size = 1
             num_replicas = 1
             rank = 0
-        # write possible parallelization settings to load_options
+        # write possible parallelization settings to loading_options
         self._process_load_options = copy.deepcopy(self._load_options)
         self._process_load_options["parallel"] = {
             "rank": rank,
