@@ -287,7 +287,8 @@ class MetaSet:
             return
         if verbose:
             warnings.warn(
-                f"\nMetaset {self.name}: subsampling to {target_n_samples} samples with random seed {random_seed}."
+                f"\nMetaset {self.name}: subsampling to {target_n_samples} samples with random seed {random_seed}. "
+                f"\n({self.n_total_samples - target_n_samples}/{self.n_total_samples}) samples will be removed."
             )
         rng = np.random.default_rng(random_seed)
         # get the indices of samples to keep
@@ -387,6 +388,7 @@ class Partition:
         batch_sizes: typing.Dict[str, MetaSet],
         max_epoch_samples=None,
         random_seed=42,
+        verbose=True,
     ):
         """Calculate the number of batches available for an epoch according to
         the batch size for each metaset and optionally the maximum number of
@@ -415,27 +417,10 @@ class Partition:
                 trim_down_is_needed = True
                 trim_down_due_to_max_epoch_samples = True
                 n_batches = max_epoch_batch
+        return_info = {
+            "total_size": {k: len(self._metasets[k]) for k in self._metasets}
+        }
         if trim_down_is_needed:
-            warn_message = f"\nPartition `{self.name}`: The size of samples in given Metasets will be reduced via subsampling "
-            if trim_down_due_to_max_epoch_samples:
-                warn_message += "accoring to the `max_epoch_samples`.\n"
-            else:
-                warn_message += "accoring to the desired batch composition.\n"
-            batch_size_message = (
-                ":".join(self._metasets.keys())
-                + " = "
-                + ":".join([str(batch_sizes[k]) for k in self._metasets])
-            )
-            warn_message += (
-                f"This partition now contains {n_batches} mini batches.\n"
-            )
-            warn_message += (
-                "The target sizes of samples from Metasets are "
-                + batch_size_message
-                + ".\n"
-            )
-            warn_message += "Note for reproducibility: the subsampling (trimming down) of each Metasets is controlled by the molecule entries and frames , the `stride`, the ratio of `batch_sizes` as well as the `subsample_random_seed`."
-            warnings.warn(warn_message)
             # trimming down the number of samples in each metaset accordingly
             for k in self._metasets:
                 self._metasets[k].trim_down_to(
@@ -443,7 +428,30 @@ class Partition:
                     random_seed=random_seed,
                     verbose=False,  # since we already warned above
                 )
+            # warn about the sampling
+            warn_message = f"\nPartition `{self.name}`: The size of samples in given Metasets will be reduced via subsampling "
+            if trim_down_due_to_max_epoch_samples:
+                warn_message += "according to the `max_epoch_samples`.\n"
+            else:
+                warn_message += "according to desired batch composition.\n"
+            batch_size_message = (
+                ":".join(self._metasets.keys())
+                + " = "
+                + ":".join([str(batch_sizes[k]) for k in self._metasets])
+            )
+            warn_message += (
+                f"This partition now contains {n_batches} mini batches, "
+            )
+            warn_message += "each containing " + batch_size_message + ".\n"
+            warn_message += "Note for reproducibility: the subsampling (trimming down) of each Metasets is controlled by the molecule entries and frames, the `stride`, the ratio of `batch_sizes` as well as the `subsample_random_seed`."
+            if verbose:
+                warnings.warn(warn_message)
         self._sample_ready = True
+        return_info["is_trimmed"] = trim_down_is_needed
+        return_info["current_size"] = {
+            k: len(self._metasets[k]) for k in self._metasets
+        }
+        return return_info
 
     @property
     def batch_sizes(self):
@@ -455,11 +463,8 @@ class Partition:
         return {k: self._metasets[k].n_total_samples for k in self._metasets}
 
     def __repr__(self):
-        return "Partition `%s` with Metasets:\n" % self.name + "\n".join(
-            [
-                '- "%s": %d samples' % (k, v)
-                for k, v in self.sample_sizes.items()
-            ]
+        return f"Partition `self.name` with Metasets:\n" + "\n".join(
+            ['- "{k}": {v} samples' for k, v in self.sample_sizes.items()]
         )
 
 
@@ -472,7 +477,7 @@ class H5Dataset:
         self._metaset_entries = {}
         # ^ dict containing all metasets in the HDF5 file
         self._partitions = {}  # dict containing the configured metasets
-        self._sample_ready = False
+        self._partition_sample_info = {}
 
         # processing the hdf5 file
         for metaset_name in self._h5_root:
@@ -524,10 +529,13 @@ class H5Dataset:
                 max_epoch_samples = int(
                     max_epoch_samples // parallel["world_size"]
                 )
-            part.sampling_setup(
+            self._partition_sample_info[part_name] = part.sampling_setup(
                 part_info["batch_sizes"],
                 max_epoch_samples,
                 random_seed=random_seed,
+                verbose=(
+                    parallel["rank"] == 0
+                ),  # show trimming info only on rank 0
             )
             self._partitions[part_name] = part
 
@@ -540,6 +548,10 @@ class H5Dataset:
 
     def partition(self, partition_name):
         return self._partitions.get(partition_name, None)
+
+    @property
+    def partition_sample_info(self):
+        return self._partition_sample_info
 
     def __repr__(self):
         return (

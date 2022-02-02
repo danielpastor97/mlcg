@@ -140,7 +140,7 @@ val:
     CATH:
       molecules:
       - cath_2dkzA01
-  stride: 100
+      stride: 100
   batch_sizes:
     OPEP: 72
     CATH: 16

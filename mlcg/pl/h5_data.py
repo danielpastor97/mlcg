@@ -68,6 +68,39 @@ class H5DataModule(pl.LightningDataModule):
         self._h5d = H5Dataset(
             self._h5_file_path, self._part_options, self._process_load_options
         )
+        sample_info = [None] * num_replicas
+        dist.all_gather_object(sample_info, self._h5d.partition_sample_info)
+        if rank == 0:  # only the main process prints
+            info = "\n" + "-" * 79 + "\n"
+            info += "Summary of subsampling for batch compsition balancing:\n"
+            is_any_trimmed = False
+            # merge the subsampling info
+            for part_name in sample_info[0]:
+                is_trimmed = any(
+                    [
+                        process_info[part_name]["is_trimmed"]
+                        for process_info in sample_info
+                    ]
+                )
+                is_any_trimmed = is_any_trimmed or is_trimmed
+                if is_trimmed:
+                    info += f"Partition `{part_name}`:\n"
+                    for metaset_name in sample_info[0][part_name]["total_size"]:
+                        metaset_total_size = 0
+                        metaset_current_size = 0
+                        for process_info in sample_info:
+                            part_info = process_info[part_name]
+                            metaset_total_size += part_info["total_size"][
+                                metaset_name
+                            ]
+                            metaset_current_size += part_info["current_size"][
+                                metaset_name
+                            ]
+                        info += f"\tMetaset `{metaset_name}`: {metaset_current_size} / {metaset_total_size} used\n"
+            info += "Please check whether the batch size compsition is close to the original sample ratio.\n"
+            info += "-" * 79 + "\n"
+            if is_any_trimmed:
+                print(info)
 
     def train_dataloader(self):
         # train_split = Dataset(...)
