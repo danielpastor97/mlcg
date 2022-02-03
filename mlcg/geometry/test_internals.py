@@ -97,10 +97,9 @@ def test_dihedral_aic_criterion():
         zip(params["k1s"].values(), params["k2s"].values())
     ):
         # First term is a constant so value is unimportant
-        # Values inverted mdtraj criteria so k1 == -k1s[i_k]
         if i_k == 0:
             continue
-        assert np.abs(k1 + k1s[i_k]) < 0.1
+        assert np.abs(k1 - k1s[i_k]) < 0.1
         assert np.abs(k2 - k2s[i_k]) < 0.1
 
 
