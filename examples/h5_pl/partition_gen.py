@@ -17,3 +17,18 @@ split_dict = multimol_split(
     verbose=True,
 )
 print(split_dict)
+
+
+def parse_cli():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-rd",
+        "--rootdir",
+        default="/import/a12/users/nickc/mlcg_delta_datasets/dihedral_1_6_res_exclusion/combined_dihedral_1_6_res_exclusion.h5",
+    )
+    parser.add_argument("--kfsplits", default=None)
+    parser.add_argument("--kfsplits", default=None)
+    parser.add_argument("--seed", default=5513)
+    parser.add_argument("--proportions", default=[0.8, 0.2])
+
+    return parser.parse_args()
