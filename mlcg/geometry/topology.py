@@ -264,7 +264,8 @@ class Topology(object):
         self.impropers = tuple(edge_index.numpy().tolist())
 
     def to_mdtraj(self) -> mdtraj.Topology:
-        """Convert to mdtraj format
+        """Convert to mdtraj format. If the topology does not have a resids
+        attribute, the resids will be written incrementally for each atom.
 
         Returns
         -------
@@ -286,8 +287,14 @@ class Topology(object):
             else:
                 element = Element.getBySymbol(self.names[i_at])
 
-            residue = topo.add_residue(self.resnames[i_at], chain)
+            if self.resids == None:
+                residue = topo.add_residue(self.resnames[i_at], chain=chain)
+            else:
+                residue = topo.add_residue(
+                    self.resnames[i_at], chain=chain, resSeq=self.resids[i_at]
+                )
             topo.add_atom(self.names[i_at], element, residue)
+
         for idx in range(len(self.bonds[0])):
             idx1, idx2 = self.bonds[0][idx], self.bonds[1][idx]
             a1, a2 = topo.atom(idx1), topo.atom(idx2)

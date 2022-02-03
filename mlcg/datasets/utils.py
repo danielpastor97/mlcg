@@ -1,5 +1,6 @@
 import torch
 from torch_geometric.loader import DataLoader
+from torch_geometric.data import InMemoryDataset
 from typing import Dict, List, Sequence
 from mlcg.data.atomic_data import AtomicData
 import mdtraj as md
@@ -44,11 +45,22 @@ def remove_baseline_forces(
     return data_list
 
 
-def write_PDB(dataset, frame=0, fout="cg.pdb"):
+def write_PDB(dataset: InMemoryDataset, frame: int = 0, fout: str = "cg.pdb"):
     """
-    Given a mlcg Atomic Data object write out trajectory in PDB for a particular frame
-    More or less a copy of mdtraj PDBReporter but explicit writing of bond connection
+    Given a mlcg dataset containing both data and topologies attributes,
+    write out trajectory in PDB for a particular frame More or less a copy
+    of mdtraj PDBReporter but explicit writing of bond connection
+
+    Parameters
+    ----------
+    dataset:
+        mlcg InMemory dataset instance
+    frame:
+        Specifies the frame with which a structure should be saved
+    fout:
+        Name of the saved PDB file.
     """
+
     topology = dataset.topologies.to_mdtraj()
     n_atoms = topology.n_atoms
     cg_traj = md.Trajectory(
@@ -59,7 +71,6 @@ def write_PDB(dataset, frame=0, fout="cg.pdb"):
     )
     chains = [chain for chain in topology.chains]
     bfactors = ["{0:5.2f}".format(0.0)] * cg_traj.xyz.shape[1]
-
     # file = open(fout, "w")
     with open(fout, "w") as file:
         _write_header(file)
