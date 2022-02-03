@@ -175,6 +175,6 @@ def compute_torsions(pos: torch.Tensor, mapping: torch.Tensor):
     m1 = torch.cross(n1, dr2, dim=1)
     y = torch.sum(m1 * n2, dim=-1)
     x = torch.sum(n1 * n2, dim=-1)
-    theta = torch.atan2(-y, x) # -y to match MDTraj convention
+    theta = torch.atan2(-y, x)  # -y to match MDTraj convention
 
     return theta
