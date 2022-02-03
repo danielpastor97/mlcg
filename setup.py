@@ -26,7 +26,13 @@ setup(
     zip_safe=True,
     python_requires=">=3.8",
     license="MIT",
-    author="Fe" + "\u0301" + "lix Musil, Nick Charron",
+    author="Fe"
+    + "\u0301"
+    + "lix Musil, Nick Charron, Yoayi Chen, Atharva Kelkar, Clark Templeton",
     install_requires=install_requires,
-    scripts=["scripts/mlcg-train.py", "scripts/mlcg-nvt_langevin.py"],
+    scripts=[
+        "scripts/mlcg-train.py",
+        "scripts/mlcg-nvt_langevin.py",
+        "scripts/mlcg-train_h5.py",
+    ],
 )
