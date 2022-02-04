@@ -270,6 +270,74 @@ class Topology(object):
 
         self.impropers = tuple(edge_index.numpy().tolist())
 
+    def remove_bond(self, bond_removal_list):
+        """Method to remove bonds given list of bonds to be removed.
+        The changes are made in place to the Topology.bonds attribute.
+
+        Parameters
+        ----------
+        bond_removal_list : list
+            List of bonds, of shape (2, n_bonds), to be removed from current bond list.
+            Format: [[index1, index2], ..., [index1, index2]]
+                where index1 and index are the indices of the first and second atom involved in bonding,
+                respectively.
+
+
+        Notes
+        -----
+        - The order of the removal list matters, e.g., [1,2] and [2,1] are treated differently
+
+        TO DO: Include feature to reorder removal_list elements as [i,j] such that i<j
+        """
+        for bond in bond_removal_list:
+            index1 = bond[0]
+            index2 = bond[1]
+            mask_1 = np.array(self.bonds[0]) == index1
+            mask_2 = np.array(self.bonds[1]) == index2
+
+            mask = np.array(mask_1) * np.array(mask_2)
+
+            if True in mask:
+                to_pop = np.where(mask)[0][0]
+                self.bonds[0].pop(to_pop)
+                self.bonds[1].pop(to_pop)
+
+    def remove_angle(self, angle_removal_list):
+        """Method to remove angles given list of angles to be removed. The changes
+        are made in place to the Topology.angles attribute.
+
+        Parameters
+        ----------
+        angle_removal_list : list
+            List of angles, of shape (3, n_angles), to be removed from current angle list.
+            Format: [[index1, index2, index3], ..., [index1, index2, index3]]
+                where index1, index2, index3 are the indices of the first, second, and third
+                atom involved in angle formation, respectively.
+
+        Notes
+        -----
+        - The order of the removal list matters, e.g., [1,2,3] and [3,2,1] are treated differently
+
+        TO DO: Include feature to reorder removal_list elements as [i,j,k] such that i<k
+        """
+
+        for angle in angle_removal_list:
+            index1 = angle[0]
+            index2 = angle[1]
+            index3 = angle[2]
+
+            mask_1 = np.array(self.angles[0]) == index1
+            mask_2 = np.array(self.angles[1]) == index2
+            mask_3 = np.array(self.angles[2]) == index3
+
+            mask = np.array(mask_1) * np.array(mask_2) * np.array(mask_3)
+
+            if True in mask:
+                to_pop = np.where(mask)[0][0]
+                self.angles[0].pop(to_pop)
+                self.angles[1].pop(to_pop)
+                self.angles[2].pop(to_pop)
+
     def to_mdtraj(self) -> mdtraj.Topology:
         """Convert to mdtraj format
 

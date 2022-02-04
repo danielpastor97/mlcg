@@ -79,6 +79,29 @@ for atom_type, name in zip(atom_types, atom_names):
 # Adding bonds
 test_topo.bonds_from_edge_index(bond_edges)
 
+# Adding angles
+test_topo.angles_from_edge_index(bonded_angles)
+
+# Bonds to remove
+bonds_to_remove = [
+    edge.numpy().tolist() for i, edge in enumerate(bond_edges.t()) if i % 2 == 0
+]
+bonds_left = [
+    edge.numpy().tolist() for i, edge in enumerate(bond_edges.t()) if i % 2 != 0
+]
+
+# Angles to remove
+angles_to_remove = [
+    edge.numpy().tolist()
+    for i, edge in enumerate(bonded_angles.t())
+    if i % 2 == 0
+]
+angles_left = [
+    edge.numpy().tolist()
+    for i, edge in enumerate(bonded_angles.t())
+    if i % 2 != 0
+]
+
 
 @pytest.mark.parametrize(
     "topo_input,cmat_expected,directed",
@@ -113,3 +136,54 @@ def test_n_paths(test_topo, edges_expected, n, unique):
     cmat = get_connectivity_matrix(test_topo)
     recovered_paths = get_n_paths(cmat, n=n, unique=unique).numpy()
     np.testing.assert_array_equal(recovered_paths, edges_expected.numpy())
+
+
+# <<< !!! Leave these here! the removal methods modify the topology bond/angle lists in place !!! >>> #
+
+
+@pytest.mark.parametrize(
+    "test_topo, bonds_to_remove, bonds_left",
+    [
+        (test_topo, bonds_to_remove, bonds_left),
+    ],
+)
+def test_remove_bonds(test_topo, bonds_to_remove, bonds_left):
+    """Tests to make sure bonds are removed properly"""
+    num_bonds = len(test_topo.bonds[0])
+    test_topo.remove_bond(bonds_to_remove)
+    assert len(test_topo.bonds[0]) == num_bonds - len(bonds_to_remove)
+    assert len(test_topo.bonds[1]) == num_bonds - len(bonds_to_remove)
+    for i in range(len(test_topo.bonds[0])):
+        atom1, atom2 = test_topo.bonds[0][i], test_topo.bonds[1][i]
+        expected_atom1, expected_atom2 = bonds_left[i][0], bonds_left[i][1]
+        assert atom1 == expected_atom1
+        assert atom2 == expected_atom2
+
+
+@pytest.mark.parametrize(
+    "test_topo, angles_to_remove, angles_left",
+    [
+        (test_topo, angles_to_remove, angles_left),
+    ],
+)
+def test_remove_angles(test_topo, angles_to_remove, angles_left):
+    """Tests to make sure angles are removed properly"""
+    num_angles = len(test_topo.angles[0])
+    test_topo.remove_angle(angles_to_remove)
+    assert len(test_topo.angles[0]) == num_angles - len(angles_to_remove)
+    assert len(test_topo.angles[1]) == num_angles - len(angles_to_remove)
+    assert len(test_topo.angles[2]) == num_angles - len(angles_to_remove)
+    for i in range(len(test_topo.angles[0])):
+        atom1, atom2, atom3 = (
+            test_topo.angles[0][i],
+            test_topo.angles[1][i],
+            test_topo.angles[2][i],
+        )
+        expected_atom1, expected_atom2, expected_atom3 = (
+            angles_left[i][0],
+            angles_left[i][1],
+            angles_left[i][2],
+        )
+        assert atom1 == expected_atom1
+        assert atom2 == expected_atom2
+        assert atom3 == expected_atom3
