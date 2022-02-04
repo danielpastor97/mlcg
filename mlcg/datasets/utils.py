@@ -48,7 +48,7 @@ def remove_baseline_forces(
 def write_PDB(
     dataset: InMemoryDataset,
     frame: int = 0,
-    molecule_index: Union[None, int] = 0,
+    molecule_name: Union[None, str] = None,
     fout: str = "cg.pdb",
 ):
     """
@@ -64,18 +64,18 @@ def write_PDB(
         Specifies the frame with which a structure should be saved
     molecule_index:
         If dataset has more than one molecule, specifies which molecule
-        index to use
+        to use
     fout:
         Name of the saved PDB file.
     """
 
-    if isinstance(dataset.topologies, list):
-        if molecule_index == None:
+    if isinstance(dataset.topologies, dict):
+        if molecule_name == None:
             raise ValueError(
-                "Dataset has multiple topologies, but molecule_index is None."
+                "Dataset has multiple topologies, but molecule_name is None."
             )
         else:
-            topology = dataset.topologies[molecule_index].to_mdtraj()
+            topology = dataset.topologies[molecule_name].to_mdtraj()
     else:
         topology = dataset.topologies.to_mdtraj()
     n_atoms = topology.n_atoms
