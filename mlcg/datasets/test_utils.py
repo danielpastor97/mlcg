@@ -43,7 +43,7 @@ def test_mdtraj_dump():
             "CONECT    6    5\n"
             "END"
         )
-        with open(temp_dir + "/test_pdb.pdb", "w") as pfile:
+        with open(osp.join(temp_dir, "test_pdb.pdb"), "w") as pfile:
             pfile.write(ala2_pdb)
 
         md_pdb = md.load(temp_dir + "/test_pdb.pdb")
