@@ -10,11 +10,9 @@ def prepare_molecule_dictionary(h5_file):
     mol_dict = {}
     subset_names = list[f.keys()]
     for name in subset_names:
-    for k in f[name]:
-        mol_dict[k] = f["name"][k].attrs["N_frames"]
+        for k in f[name]:
+            mol_dict[k] = f["name"][k].attrs["N_frames"]
     return mol_dict
-
-
 
 
 def parse_cli():
@@ -63,16 +61,18 @@ if __name__ == "__main__":
     mol_dict = prepare_molecule_dictionary(args.h5path)
 
     if args.kfsplits != None:
-        k_fold_splits = n_fold_multi_mol_split(mol_dict, k=args.kfsplits, shuffle=True, random_state=seed)
-        with open(args.outfile,"wb") as yfile:
+        k_fold_splits = n_fold_multi_mol_split(
+            mol_dict, k=args.kfsplits, shuffle=True, random_state=seed
+        )
+        with open(args.outfile, "wb") as yfile:
             yaml.dump(k_fold_splits, yfile)
 
     else:
-		splits = multimol_split(
-			mol_dict,
-			proportions=args.proportions,
-			random_seed=args.seed,
-			verbose=verbose,
-		)
-        with open(args.outfile,"wb") as yfile:
+        splits = multimol_split(
+            mol_dict,
+            proportions=args.proportions,
+            random_seed=args.seed,
+            verbose=verbose,
+        )
+        with open(args.outfile, "wb") as yfile:
             yaml.dump(splits, yfile)
