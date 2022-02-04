@@ -46,7 +46,7 @@ def test_mdtraj_dump():
         with open(osp.join(temp_dir, "test_pdb.pdb"), "w") as pfile:
             pfile.write(ala2_pdb)
 
-        md_pdb = md.load(temp_dir + "/test_pdb.pdb")
+        md_pdb = md.load(osp.join(temp_dir, "test_pdb.pdb"))
         for atom in md_pdb.topology.atoms:
             print(atom, atom.residue, atom.residue.index, atom.residue.resSeq)
 
