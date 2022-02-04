@@ -1,7 +1,7 @@
 import torch
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import InMemoryDataset
-from typing import Dict, List, Sequence
+from typing import Dict, List, Sequence, Union
 from mlcg.data.atomic_data import AtomicData
 import mdtraj as md
 import numpy as np
@@ -45,7 +45,12 @@ def remove_baseline_forces(
     return data_list
 
 
-def write_PDB(dataset: InMemoryDataset, frame: int = 0, fout: str = "cg.pdb"):
+def write_PDB(
+    dataset: InMemoryDataset,
+    frame: int = 0,
+    molecule_index: Union[None, int] = 0,
+    fout: str = "cg.pdb",
+):
     """
     Given a mlcg dataset containing both data and topologies attributes,
     write out trajectory in PDB for a particular frame More or less a copy
@@ -57,11 +62,22 @@ def write_PDB(dataset: InMemoryDataset, frame: int = 0, fout: str = "cg.pdb"):
         mlcg InMemory dataset instance
     frame:
         Specifies the frame with which a structure should be saved
+    molecule_index:
+        If dataset has more than one molecule, specifies which molecule
+        index to use
     fout:
         Name of the saved PDB file.
     """
 
-    topology = dataset.topologies.to_mdtraj()
+    if isinstance(dataset.topologies, list):
+        if molecule_index == None:
+            raise ValueError(
+                "Dataset has multiple topologies, but molecule_index is None."
+            )
+        else:
+            topology = dataset.topologies[molecule_index].to_mdtraj()
+    else:
+        topology = dataset.topologies.to_mdtraj()
     n_atoms = topology.n_atoms
     cg_traj = md.Trajectory(
         dataset.data.pos[
