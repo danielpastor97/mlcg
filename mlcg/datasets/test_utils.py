@@ -67,7 +67,7 @@ def test_mdtraj_dump():
 
         dataset = MockDataset(data, mlcg_topo)
         mlcg_coords = dataset.data.pos.detach().numpy().reshape(1, n_atoms, 3)
-        write_PDB(dataset, fout=temp_dir + "/mlcg_pdb.pdb")
+        write_PDB(dataset, fout=osp.join(temp_dir, "mlcg_pdb.pdb"))
         new_md_pdb = md.load(temp_dir + "/mlcg_pdb.pdb")
 
         # check names
