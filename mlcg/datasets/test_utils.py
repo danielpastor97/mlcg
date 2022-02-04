@@ -20,7 +20,6 @@ class MockDataset(object):
         self.topologies = topology
 
 
-# @pytest.mark.parametrize("dataset", [(mock_data)])
 def test_mdtraj_dump():
     """Tests to make sure that write_PDB dumps output
     correctly when it is later loaded by MDTraj later"""
