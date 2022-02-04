@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import mdtraj as md
 import tempfile
+import os.path as osp
 from ase.build import molecule
 
 from mlcg.geometry.topology import Topology
