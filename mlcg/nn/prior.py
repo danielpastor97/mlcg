@@ -9,8 +9,7 @@ from ..geometry.topology import Topology
 from ..geometry.internal_coordinates import (
     compute_distances,
     compute_angles,
-    compute_dihedrals,
-    compute_impropers,
+    compute_torsions,
 )
 
 
@@ -24,11 +23,13 @@ class Harmonic(torch.nn.Module, _Prior):
         "bonds": 2,
         "angles": 3,
         "impropers": 4,
+        "dihedrals": 4,
     }
     _compute_map = {
         "bonds": compute_distances,
         "angles": compute_angles,
-        "impropers": compute_impropers,
+        "impropers": compute_torsions,
+        "dihedrals": compute_torsions,
     }
 
     def __init__(self, statistics, name) -> None:
@@ -247,8 +248,8 @@ class Dihedral(torch.nn.Module, _Prior):
         self.n_degs = n_degs
         self.k1_names = ["k1_" + str(ii) for ii in range(0, self.n_degs)]
         self.k2_names = ["k2_" + str(ii) for ii in range(0, self.n_degs)]
-        k1 = self.n_degs * [torch.zeros(sizes)]
-        k2 = self.n_degs * [torch.zeros(sizes)]
+        k1 = torch.zeros(self.n_degs, *sizes)
+        k2 = torch.zeros(self.n_degs, *sizes)
 
         for key in statistics.keys():
             for ii in range(self.n_degs):
@@ -256,11 +257,8 @@ class Dihedral(torch.nn.Module, _Prior):
                 k2_name = self.k2_names[ii]
                 k1[ii][key] = statistics[key]["k1s"][k1_name]
                 k2[ii][key] = statistics[key]["k2s"][k2_name]
-        for ii in range(self.n_degs):
-            k1_name = self.k1_names[ii]
-            k2_name = self.k2_names[ii]
-            self.register_buffer(k1_name, k1[ii])
-            self.register_buffer(k2_name, k2[ii])
+        self.register_buffer("k1s", k1)
+        self.register_buffer("k2s", k2)
 
     def data2features(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
@@ -273,13 +271,8 @@ class Dihedral(torch.nn.Module, _Prior):
             data.atom_types[mapping[ii]] for ii in range(self.order)
         ]
         features = self.data2features(data).flatten()
-        k1s = []
-        k2s = []
-        for ii in range(self.n_degs):
-            k1_name = self.k1_names[ii]
-            k2_name = self.k2_names[ii]
-            k1s.append(getattr(self, k1_name)[interaction_types])
-            k2s.append(getattr(self, k2_name)[interaction_types])
+        k1s = [self.k1s[ii][interaction_types] for ii in range(self.n_degs)]
+        k2s = [self.k2s[ii][interaction_types] for ii in range(self.n_degs)]
         y = Dihedral.compute(
             features,
             k1s,
@@ -291,7 +284,7 @@ class Dihedral(torch.nn.Module, _Prior):
 
     @staticmethod
     def compute_features(pos, mapping):
-        return compute_dihedrals(pos, mapping)
+        return compute_torsions(pos, mapping)
 
     @staticmethod
     def wrapper_fit_func(theta, *args):
