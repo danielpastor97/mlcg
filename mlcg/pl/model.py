@@ -87,15 +87,21 @@ class PLModel(pl.LightningModule):
     def on_train_epoch_end(self):
         # instead of checking it after every training step, which is costly
         detect_nan_parameters(self.model)
-    
+
     def validation_epoch_end(self, validation_step_outputs):
-        # we calculate the epochal validation loss that is compatible with 
+        # we calculate the epochal validation loss that is compatible with
         # the original loss calculation for combined metasets (which is still used for training)
         # i.e., a weighted mean with batch size for each metaset as weight
         with torch.no_grad():
-            out = torch.tensor(validation_step_outputs) # shape (N_metasets, N_batches, 2)
-            out = out[:, :, 0] * out[:, :, 1] / out[:, :, 1].sum(axis=0, keepdim=True)
-            out = out.sum(axis=0) # shape (N_batches,)
+            out = torch.tensor(
+                validation_step_outputs
+            )  # shape (N_metasets, N_batches, 2)
+            out = (
+                out[:, :, 0]
+                * out[:, :, 1]
+                / out[:, :, 1].sum(axis=0, keepdim=True)
+            )
+            out = out.sum(axis=0)  # shape (N_batches,)
             out = out.mean()
         # in ddp this will be run separately on different processes
         # therefore we need to synchronize (sync_dist=True)
@@ -112,11 +118,15 @@ class PLModel(pl.LightningModule):
         loss, _ = self.step(data, "training")
         return loss
 
-    def validation_step(self, data: AtomicData, batch_idx, dataloader_idx=0) -> Tuple[torch.Tensor, int]:
+    def validation_step(
+        self, data: AtomicData, batch_idx, dataloader_idx=0
+    ) -> Tuple[torch.Tensor, int]:
         loss, batch_size = self.step(data, "validation")
         return loss, batch_size
 
-    def test_step(self, data: AtomicData, batch_idx, dataloader_idx=0) -> Tuple[torch.Tensor, int]:
+    def test_step(
+        self, data: AtomicData, batch_idx, dataloader_idx=0
+    ) -> Tuple[torch.Tensor, int]:
         loss, batch_size = self.step(data, "test")
         return loss, batch_size
 

@@ -632,7 +632,9 @@ class H5MetasetDataLoader:
         return self
 
     def __next__(self):
-        batch_samples = tuple((self._metaset[i] for i in next(self._sampler_iter)))
+        batch_samples = tuple(
+            (self._metaset[i] for i in next(self._sampler_iter))
+        )
         output = self._collater_fn(batch_samples)
         if self._pin_memory:
             output = output.pin_memory()
@@ -640,4 +642,3 @@ class H5MetasetDataLoader:
 
     def __len__(self):
         return len(self._sampler)
-

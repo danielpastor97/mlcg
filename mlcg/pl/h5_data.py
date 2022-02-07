@@ -65,7 +65,9 @@ class H5DataModule(pl.LightningDataModule):
             "world_size": num_replicas,
         }
         # load the hdf5 file
-        print(f"Loading samples for rank ({rank}/{num_replicas})...", flush=True)
+        print(
+            f"Loading samples for rank ({rank}/{num_replicas})...", flush=True
+        )
         self._h5d = H5Dataset(
             self._h5_file_path, self._part_options, self._process_load_options
         )
@@ -127,7 +129,9 @@ class H5DataModule(pl.LightningDataModule):
             loaders = []
             for (metaset_name, batch_size) in part.batch_sizes.items():
                 metaset = part.get_metaset(metaset_name)
-                loaders.append(H5MetasetDataLoader(metaset, batch_size, shuffle=False))
+                loaders.append(
+                    H5MetasetDataLoader(metaset, batch_size, shuffle=False)
+                )
             if len(loaders) == 1:
                 comb_loader = loaders[0]
             else:
