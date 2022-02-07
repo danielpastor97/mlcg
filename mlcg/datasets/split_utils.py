@@ -215,7 +215,7 @@ def n_fold_muli_mol_split(
     k: int = 5,
     shuffle: bool = True,
     random_state: Union[None, int] = None,
-) -> Dict[Dict[str, List[str]]]:
+) -> Dict[str, Dict[str, List[str]]]:
     """Function for creating k non-overlapping molecule train/validation sets
     for use in cross validation experiments.
 
