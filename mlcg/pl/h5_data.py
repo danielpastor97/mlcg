@@ -6,7 +6,7 @@ import torch.distributed as dist
 import pytorch_lightning as pl
 from ruamel.yaml import YAML
 
-from ..datasets import H5Dataset, H5PartitionDataLoader
+from ..datasets import H5Dataset, H5PartitionDataLoader, H5MetasetDataLoader
 
 default_key_mapping = {
     "embeds": "attrs:cg_embeds",
@@ -65,6 +65,7 @@ class H5DataModule(pl.LightningDataModule):
             "world_size": num_replicas,
         }
         # load the hdf5 file
+        print(f"Loading samples for rank ({rank}/{num_replicas})...", flush=True)
         self._h5d = H5Dataset(
             self._h5_file_path, self._part_options, self._process_load_options
         )
@@ -120,7 +121,17 @@ class H5DataModule(pl.LightningDataModule):
 
     def part_dataloader(self, part_name):
         part = self._h5d.partition(part_name)
-        comb_loader = H5PartitionDataLoader(part)
+        if part_name == "train":
+            comb_loader = H5PartitionDataLoader(part)
+        else:
+            loaders = []
+            for (metaset_name, batch_size) in part.batch_sizes.items():
+                metaset = part.get_metaset(metaset_name)
+                loaders.append(H5MetasetDataLoader(metaset, batch_size, shuffle=False))
+            if len(loaders) == 1:
+                comb_loader = loaders[0]
+            else:
+                comb_loader = tuple(loaders)
         return comb_loader
 
     def teardown(self, stage):

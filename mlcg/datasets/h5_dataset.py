@@ -608,3 +608,36 @@ class H5PartitionDataLoader:
 
     def __len__(self):
         return min([len(s) for s in self._samplers])
+
+
+class H5MetasetDataLoader:
+    """Load batches from one Metaset."""
+
+    def __init__(
+        self,
+        metaset,
+        batch_size,
+        collater_fn=PyGCollater(None, None),
+        shuffle=True,
+        pin_memory=False,
+    ):
+        self._metaset = metaset
+        s = torch.utils.data.RandomSampler(metaset)
+        self._sampler = torch.utils.data.BatchSampler(s, batch_size, shuffle)
+        self._collater_fn = collater_fn
+        self._pin_memory = pin_memory
+
+    def __iter__(self):
+        self._sampler_iter = iter(self._sampler)
+        return self
+
+    def __next__(self):
+        batch_samples = tuple((self._metaset[i] for i in next(self._sampler_iter)))
+        output = self._collater_fn(batch_samples)
+        if self._pin_memory:
+            output = output.pin_memory()
+        return output
+
+    def __len__(self):
+        return len(self._sampler)
+
