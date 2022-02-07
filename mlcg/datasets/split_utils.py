@@ -210,7 +210,7 @@ def multimol_split(
     return split_mols
 
 
-def n_fold_muli_mol_split(
+def n_fold_multi_mol_split(
     mol_count_dict: Dict[str, int],
     k: int = 5,
     shuffle: bool = True,
