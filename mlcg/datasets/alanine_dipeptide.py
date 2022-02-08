@@ -306,6 +306,11 @@ class AlanineDataset(InMemoryDataset):
     def make_cg_topology(topology, cg_mapping=AL_CG_MAP, special_terminal=False):
         """Method to make Topology class object of CG molecule, creates custom bonds and angles to make a non-linear CG molecule
         
+                 CB(3)
+                  |
+          N(1) - CA(2) - C(4)
+         /                  \
+        C(0)                 N(5)
 
         Parameters
         ----------
