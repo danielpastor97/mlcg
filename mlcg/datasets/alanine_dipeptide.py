@@ -21,6 +21,14 @@ from .utils import remove_baseline_forces, chunker
 
 class AlanineDataset(InMemoryDataset):
     r"""Dataset for training a CG model of the alanine-dipeptide protein following a Cα + 1 C\beta CG mapping
+    
+    Alanine Dipeptide CG structure:
+                CB(3)
+                  |
+          N(1) - CA(2) - C(4)
+         /                  \
+        C(0)                 N(5)
+
 
     This Dataset produces delta forces for model training, in which the CG prior forces (harmonic bonds and angles) have been subtracted from the full CG forces.
     
@@ -306,12 +314,6 @@ class AlanineDataset(InMemoryDataset):
     def make_cg_topology(topology, cg_mapping=AL_CG_MAP, special_terminal=False):
         """Method to make Topology class object of CG molecule, creates custom bonds and angles to make a non-linear CG molecule
         
-                 CB(3)
-                  |
-          N(1) - CA(2) - C(4)
-         /                  \
-        C(0)                 N(5)
-
         Parameters
         ----------
         topology : Topology
