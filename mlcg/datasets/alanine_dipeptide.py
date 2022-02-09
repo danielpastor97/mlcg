@@ -63,8 +63,8 @@ class AlanineDataset(InMemoryDataset):
 
     def __init__(
             self,
-            root,
-            stride=1,
+            root: str,
+            stride: int = 1,
             transform=None,
             pre_transform=None,
             pre_filter=None,
@@ -101,28 +101,32 @@ class AlanineDataset(InMemoryDataset):
         path_pdb = download_url(url_pdb, self.raw_dir)
 
     def make_data_slices_prior(
-            self, coords_forces_file, topology, cg_mapping, cg_topo
-            ):
+            self, 
+            coords_forces_file: str, 
+            topology: Topology, 
+            cg_mapping: dict, 
+            cg_topo: Topology,
+            ) -> [AtomicData, dict, torch.nn.ModuleDict]:
         """Method to make collated AtomicData object, slices, and baseline models
 
         Parameters
         ----------
-        coords_forces_file : str
+        coords_forces_file:
             npz file containing the forces and coordinates from the all-atom simulation
-        topology : Topology
+        topology: 
             Topology of all-atom model
-        cg_mapping : dict
+        cg_mapping:
             Dictionary containing CG mapping.
-        cg_topo : Topology
+        cg_topo:
             Topology of CG model
 
         Returns
         -------
-        data_list_coll : AtomicData
+        data_list_coll:
             Collated AtomicData object
-        slices : dict
+        slices:
             Dictionary containing slices of the AtomicData object
-        baseline_models : torch.nn.ModuleDict
+        baseline_models: 
             Module dictionary containing fitted prior models
 
         """
@@ -214,19 +218,23 @@ class AlanineDataset(InMemoryDataset):
 
         return data_list_coll, slices, baseline_models
 
-    def make_priors(self, priors_cls, cg_topo):
+    def make_priors(
+            self, 
+            priors_cls: list, 
+            cg_topo: Topology,
+            ) -> dict:
         """Method to make prior neighbor lists
 
 
         Parameters
         ----------
-        priors_cls : List
+        priors_cls:
             List of prior classes
-        cg_topo : Topology
+        cg_topo:
 
         Returns
         -------
-        prior_nls : dict
+        prior_nls:
             Dictionary containing all prior neighbor lists
 
         """
@@ -239,15 +247,15 @@ class AlanineDataset(InMemoryDataset):
         return prior_nls
 
     @staticmethod
-    def repulsion_nls(name, cg_topo):
+    def repulsion_nls(name: str, cg_topo: Topology) -> dict:
         """Method for generating neighbor list for Repulsion prior - all interactions not included in bond or angle interactions
 
 
         Parameters
         ----------
-        name : str
+        name:
             Name of prior class
-        cg_topo : Topology
+        cg_topo:
             Topology object of CG molecule
 
         Returns
@@ -294,18 +302,18 @@ class AlanineDataset(InMemoryDataset):
         return {name: nl}
 
     @staticmethod
-    def load_original_topology(pdb_file):
+    def load_original_topology(pdb_file: str) -> Topology:
         """Method to load origin topology
 
 
         Parameters
         ----------
-        pdb_file : str
+        pdb_file:
             Path of all-atom PDB file
 
         Returns
         -------
-        topology : Topology
+        topology:
             Topology class object for all-atom molecule
 
         """
@@ -319,22 +327,24 @@ class AlanineDataset(InMemoryDataset):
 
     @staticmethod
     def make_cg_topology(
-        topology, cg_mapping=AL_CG_MAP, special_terminal=False
-    ):
+        topology: Topology, 
+        cg_mapping: dict = AL_CG_MAP, 
+        special_terminal: bool =False
+        ) -> Topology:
         """Method to make Topology class object of CG molecule, creates custom bonds and angles to make a non-linear CG molecule
         
         Parameters
         ----------
-        topology : Topology
+        topology:
             All-atom topology
-        cg_mapping : dict, optional
+        cg_mapping : (optional)
             Dictionary containing CG mapping. The default is AL_CG_MAP.
-        special_terminal : bool, optional
+        special_terminal : (optional)
             True if termini beads are to be treated separately. The default is False.
 
         Returns
         -------
-        cg_topo : Topology
+        cg_topo:
             Topology class object for CG molecule
 
         """
@@ -363,22 +373,26 @@ class AlanineDataset(InMemoryDataset):
         return cg_topo
 
     @staticmethod
-    def make_baseline_models(data, beta, priors_cls):
+    def make_baseline_models(
+            data: AtomicData, 
+            beta: float, 
+            priors_cls: list,
+            ) -> torch.nn.ModuleDict:
         """Method to make all baseline models
 
 
         Parameters
         ----------
-        data : AtomicData
+        data:
             AtomicData object of entire trajectory
-        beta : float
+        beta:
             1/(k_B * T)
-        priors_cls : list
+        priors_cls:
             List of prior classes
 
         Returns
         -------
-        baseline_models : torch.nn.ModuleDict
+        baseline_models: 
             Dictionary of prior models fitted with the right harmonic restraint values
 
         """
@@ -394,26 +408,32 @@ class AlanineDataset(InMemoryDataset):
 
         return baseline_models
 
-    def save_dataset(self, pickle_name):
+    def save_dataset(
+            self, 
+            pickle_name: str
+            ):
         """Method for saving dataset given pickle name
 
         Parameters
         ----------
-        pickle_name : str
+        pickle_name:
             Name of pickle to store the dataset in
 
         """
         with open(pickle_name, "wb") as f:
             pickle.dump(self, f)
 
-    def process(self, cg_mapping=AL_CG_MAP):
+    def process(
+            self, 
+            cg_mapping: dict = AL_CG_MAP,
+            ):
         """Method for processing the raw data - this is where all processing function calls take place
         All outputs are stored in the relevant processed files
 
 
         Parameters
         ----------
-        cg_mapping : dict, optional
+        cg_mapping: (optional)
             CG mapping dictionary. The default is AL_CG_MAP.
 
 
