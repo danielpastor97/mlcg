@@ -109,8 +109,8 @@ self.stride = stride
             Dictionary containing CG mapping.
         cg_topo : Topology
             Topology of CG model
-        frac_dataset : float, optional
-            Fraction of total trajectory frames to be used for building the dataset. The default is 1.
+stride:
+    Frame stride used when loading the coordinates and forces.
 
         Returns
         -------
