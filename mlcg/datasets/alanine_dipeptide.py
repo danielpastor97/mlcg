@@ -62,13 +62,13 @@ class AlanineDataset(InMemoryDataset):
     _priors_cls = [HarmonicBonds, HarmonicAngles]
 
     def __init__(
-            self,
-            root: str,
-            stride: int = 1,
-            transform=None,
-            pre_transform=None,
-            pre_filter=None,
-            ):
+        self,
+        root: str,
+        stride: int = 1,
+        transform=None,
+        pre_transform=None,
+        pre_filter=None,
+    ):
 
         self.stride = stride
         self.priors_cls = AlanineDataset._priors_cls
@@ -101,19 +101,19 @@ class AlanineDataset(InMemoryDataset):
         path_pdb = download_url(url_pdb, self.raw_dir)
 
     def make_data_slices_prior(
-            self, 
-            coords_forces_file: str, 
-            topology: Topology, 
-            cg_mapping: dict, 
-            cg_topo: Topology,
-            ) -> [AtomicData, dict, torch.nn.ModuleDict]:
+        self,
+        coords_forces_file: str,
+        topology: Topology,
+        cg_mapping: dict,
+        cg_topo: Topology,
+    ) -> [AtomicData, dict, torch.nn.ModuleDict]:
         """Method to make collated AtomicData object, slices, and baseline models
 
         Parameters
         ----------
         coords_forces_file:
             npz file containing the forces and coordinates from the all-atom simulation
-        topology: 
+        topology:
             Topology of all-atom model
         cg_mapping:
             Dictionary containing CG mapping.
@@ -126,7 +126,7 @@ class AlanineDataset(InMemoryDataset):
             Collated AtomicData object
         slices:
             Dictionary containing slices of the AtomicData object
-        baseline_models: 
+        baseline_models:
             Module dictionary containing fitted prior models
 
         """
@@ -161,12 +161,14 @@ class AlanineDataset(InMemoryDataset):
             np.einsum("mn, ind-> imd", f_proj, forces), dtype=np.float32
         )
 
-        for i, (cg_coord, cg_force) in enumerate(zip(cg_coords[::self.stride], cg_forces[::self.stride])):
-            
+        for i, (cg_coord, cg_force) in enumerate(
+            zip(cg_coords[:: self.stride], cg_forces[:: self.stride])
+        ):
+
             pos = torch.from_numpy(cg_coord)
             z = torch.from_numpy(embeddings).long()
             force = torch.from_numpy(cg_force)
-            
+
             ## MAKE ATOMICDATA OBJECT
             atomicData = AtomicData.from_points(
                 atom_types=z,
@@ -219,10 +221,10 @@ class AlanineDataset(InMemoryDataset):
         return data_list_coll, slices, baseline_models
 
     def make_priors(
-            self, 
-            priors_cls: list, 
-            cg_topo: Topology,
-            ) -> dict:
+        self,
+        priors_cls: list,
+        cg_topo: Topology,
+    ) -> dict:
         """Method to make prior neighbor lists
 
 
@@ -327,12 +329,12 @@ class AlanineDataset(InMemoryDataset):
 
     @staticmethod
     def make_cg_topology(
-        topology: Topology, 
-        cg_mapping: dict = AL_CG_MAP, 
-        special_terminal: bool =False
-        ) -> Topology:
+        topology: Topology,
+        cg_mapping: dict = AL_CG_MAP,
+        special_terminal: bool = False,
+    ) -> Topology:
         """Method to make Topology class object of CG molecule, creates custom bonds and angles to make a non-linear CG molecule
-        
+
         Parameters
         ----------
         topology:
@@ -374,10 +376,10 @@ class AlanineDataset(InMemoryDataset):
 
     @staticmethod
     def make_baseline_models(
-            data: AtomicData, 
-            beta: float, 
-            priors_cls: list,
-            ) -> torch.nn.ModuleDict:
+        data: AtomicData,
+        beta: float,
+        priors_cls: list,
+    ) -> torch.nn.ModuleDict:
         """Method to make all baseline models
 
 
@@ -392,7 +394,7 @@ class AlanineDataset(InMemoryDataset):
 
         Returns
         -------
-        baseline_models: 
+        baseline_models:
             Dictionary of prior models fitted with the right harmonic restraint values
 
         """
@@ -408,10 +410,7 @@ class AlanineDataset(InMemoryDataset):
 
         return baseline_models
 
-    def save_dataset(
-            self, 
-            pickle_name: str
-            ):
+    def save_dataset(self, pickle_name: str):
         """Method for saving dataset given pickle name
 
         Parameters
@@ -424,9 +423,9 @@ class AlanineDataset(InMemoryDataset):
             pickle.dump(self, f)
 
     def process(
-            self, 
-            cg_mapping: dict = AL_CG_MAP,
-            ):
+        self,
+        cg_mapping: dict = AL_CG_MAP,
+    ):
         """Method for processing the raw data - this is where all processing function calls take place
         All outputs are stored in the relevant processed files
 
