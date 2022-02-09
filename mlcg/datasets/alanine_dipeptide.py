@@ -41,6 +41,12 @@ class AlanineDataset(InMemoryDataset):
             - prior_models : Prior models (HarmonicBonds, HarmonicAngles) of the dataset with x_0 and \sigma
             - topologies : Object of Topology class containing all topology information of the _CG_ molecule, including neighbor lists for bond and angle priors
 
+    Inputs:
+        root :
+            Location for AlanineDataset to be downloaded and processed
+        stride : 
+            Stride length over dataset
+
     Default priors:
         - HarmonicBonds, HarmonicAngles
     Optional priors:
@@ -56,15 +62,15 @@ class AlanineDataset(InMemoryDataset):
     _priors_cls = [HarmonicBonds, HarmonicAngles]  # , Repulsion]
 
     def __init__(
-        self,
-        root,
-        transform=None,
-        pre_transform=None,
-        pre_filter=None,
-        frac_dataset=1.0,  # Fraction of frames from the trajectory that you wish to use
-    ):
+            self,
+            root,
+            stride=1,
+            transform=None,
+            pre_transform=None,
+            pre_filter=None,
+            ):
 
-self.stride = stride
+        self.stride = stride
         self.priors_cls = AlanineDataset._priors_cls
         self.beta = 1 / (AlanineDataset.temperature * AlanineDataset.kB)
 
@@ -95,8 +101,8 @@ self.stride = stride
         path_pdb = download_url(url_pdb, self.raw_dir)
 
     def make_data_slices_prior(
-        self, coords_forces_file, topology, cg_mapping, cg_topo, frac_dataset=1
-    ):
+            self, coords_forces_file, topology, cg_mapping, cg_topo
+            ):
         """Method to make collated AtomicData object, slices, and baseline models
 
         Parameters
@@ -109,8 +115,6 @@ self.stride = stride
             Dictionary containing CG mapping.
         cg_topo : Topology
             Topology of CG model
-stride:
-    Frame stride used when loading the coordinates and forces.
 
         Returns
         -------
@@ -153,12 +157,12 @@ stride:
             np.einsum("mn, ind-> imd", f_proj, forces), dtype=np.float32
         )
 
-        for i in range(int(len(coords) * frac_dataset)):
-
-            pos = torch.from_numpy(cg_coords[i].reshape(n_beads, 3))
+        for i, (cg_coord, cg_force) in enumerate(zip(cg_coords[::self.stride], cg_forces[::self.stride])):
+            
+            pos = torch.from_numpy(cg_coord)
             z = torch.from_numpy(embeddings).long()
-            force = torch.from_numpy(cg_forces[i].reshape(n_beads, 3))
-
+            force = torch.from_numpy(cg_force)
+            
             ## MAKE ATOMICDATA OBJECT
             atomicData = AtomicData.from_points(
                 atom_types=z,
