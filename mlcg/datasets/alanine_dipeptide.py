@@ -59,7 +59,7 @@ class AlanineDataset(InMemoryDataset):
     #:Boltzmann constant in kcal/mol/K
     kB = 0.0019872041
     #:
-    _priors_cls = [HarmonicBonds, HarmonicAngles]  # , Repulsion]
+    _priors_cls = [HarmonicBonds, HarmonicAngles]
 
     def __init__(
             self,
