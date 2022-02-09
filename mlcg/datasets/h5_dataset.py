@@ -613,8 +613,8 @@ class H5PartitionDataLoader:
 class H5MetasetDataLoader:
     """Load batches from one Metaset. For kwargs/options, see
     https://pytorch.org/docs/stable/data.html?highlight=dataset#torch.utils.data.Dataset
-    
-    
+
+
     Parameters
     -----------
     metaset:
@@ -622,18 +622,20 @@ class H5MetasetDataLoader:
     batch_size:
         Size of the batches to draw from the metaset
     """
+
     def __init__(
-def __init__(
         self,
         metaset: torch.utils.data.Dataset,
         batch_size: int,
-        collater_fn: torch_geometric.loader.dataloder.Collater=PyGCollater(None, None),
-        shuffle: bool=True,
-        pin_memory: bool=False,
-) 
+        collater_fn: PyGCollater = PyGCollater(None, None),
+        shuffle: bool = True,
+        pin_memory: bool = False,
+    ):
         self._metaset = metaset
-sampler = torch.utils.data.RandomSampler(metaset)
-self._sampler = torch.utils.data.BatchSampler(sampler, batch_size, shuffle)
+        sampler = torch.utils.data.RandomSampler(metaset)
+        self._sampler = torch.utils.data.BatchSampler(
+            sampler, batch_size, shuffle
+        )
         self._collater_fn = collater_fn
         self._pin_memory = pin_memory
 
