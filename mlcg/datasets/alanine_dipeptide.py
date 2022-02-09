@@ -64,7 +64,7 @@ class AlanineDataset(InMemoryDataset):
         frac_dataset=1.0,  # Fraction of frames from the trajectory that you wish to use
     ):
 
-        self.frac_dataset = frac_dataset
+self.stride = stride
         self.priors_cls = AlanineDataset._priors_cls
         self.beta = 1 / (AlanineDataset.temperature * AlanineDataset.kB)
 
