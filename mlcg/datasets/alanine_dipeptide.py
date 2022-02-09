@@ -432,7 +432,6 @@ class AlanineDataset(InMemoryDataset):
             topology,
             cg_mapping,
             topologies,
-            frac_dataset=self.frac_dataset,
         )
 
         ## SAVE PROCESSED OUTPUT
