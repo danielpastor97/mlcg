@@ -129,7 +129,7 @@ import typing
 import itertools
 import warnings
 from torch_geometric.loader.dataloader import Collater as PyGCollater
-
+from typing import Dict
 from mlcg.data import AtomicData
 
 

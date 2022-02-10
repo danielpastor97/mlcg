@@ -21,7 +21,7 @@ def make_hdf5(tdir, detailed_idx=True):
         mol_frames.append(n_frames)
         coords = np.random.randn(n_frames, n_atoms, 3)
         forces = np.random.randn(n_frames, n_atoms, 3)
-        types = np.random.randn(n_frames, n_atoms, 3)
+        types = np.random.randn(n_atoms)
 
         grp = f.create_group(name)
         grp.create_dataset("cg_coords", data=coords)
