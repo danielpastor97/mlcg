@@ -16,7 +16,7 @@ default_key_mapping = {
 
 
 class H5DataModule(pl.LightningDataModule):
-    """DataModule for datasets stored in HDF5 format
+    r"""DataModule for datasets stored in HDF5 format
 
     Parameters
     ----------
@@ -24,12 +24,12 @@ class H5DataModule(pl.LightningDataModule):
         Path to the hdf5 file containing the dataset
     partition_options:
         Mapping that defines which molecules are in the train and
-        validation sets
+        validation sets. See `mlcg.datasets.h5_dataset.py`.
     loading_options:
         kwarg dictionary. Specifies the dataset organization of the hdf5
         file. Eg, for training on delta forces, one would specify:
 
-        .. code::
+        .. code-block::
 
             loading_options = {"hdf_key_mapping": {
                 "embeds": "attrs:cg_embeds",
@@ -38,7 +38,9 @@ class H5DataModule(pl.LightningDataModule):
             }
 
         where the keys are the names values are the attrs/datasets of an hdf5 group.
+        See `mlcg.datasets.h5_dataset.py`.
     """
+
     def __init__(
         self,
         h5_file_path: str = "",

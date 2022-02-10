@@ -134,7 +134,19 @@ from mlcg.data import AtomicData
 
 
 class MolData:
-    """Data-holder for coordinates, forces and embedding vector of a molecule, e.g., opep_0000."""
+    """Data-holder for coordinates, forces and embedding vector of a molecule, e.g., opep_0000.
+
+    Parameters
+    ----------
+    name:
+        Name of the molecule
+    embeds:
+        Type embeddings for each atom, of shape `(n_atoms,)`
+    coords:
+        Cartesian coordinates of the molecule, of shape `(n_frames, n_atoms, 3)`
+    forces:
+        Cartesian forces of the molecule, of shape `(n_frames, n_atoms, 3)`
+    """
 
     def __init__(
         self,
@@ -143,11 +155,15 @@ class MolData:
         coords: np.ndarray,
         forces: np.ndarray,
     ):
-        # TODO: check input consistency (e.g., number of CG beads and frames)
         self._name = name
         self._embeds = embeds
         self._coords = coords
         self._forces = forces
+
+        assert (
+            len(self._embeds) == self._coords.shape[1] == self._forces.shape[1]
+        )
+        assert self._coords.shape == self._forces.shape
 
     @property
     def name(self):
@@ -182,6 +198,15 @@ class MolData:
 
 
 class MetaSet:
+    """Set of MolData instances for molecules with similar characterstics
+
+    Parameters
+    ----------
+    name:
+        Name of the metaset
+
+    """
+
     def __init__(self, name):
         self.name = name
         self._mol_dataset = []
@@ -290,7 +315,10 @@ class MetaSet:
         self._update_info()
 
     def trim_down_to(self, target_n_samples, random_seed=42, verbose=True):
-        """Trimming all datasets randomly to reach the target number of samples"""
+        """Trimming all datasets randomly to reach the target number of samples.
+        MolData attributes of the MetaSet are permanently subsampled by this
+        method.
+        """
         if target_n_samples > self.n_total_samples or target_n_samples <= 0:
             raise ValueError("Target number of samples invalid")
         elif target_n_samples == self.n_total_samples:
@@ -381,7 +409,6 @@ class Partition:
     name:
         name of the partition
     """
-
 
     def __init__(self, name: str):
         self.name = name
@@ -493,13 +520,15 @@ class H5Dataset:
     h5_file_path:
         Path to the hdf5 file containing the dataset(s)
     partition_options:
-        Dictionary of options for each metaset in a partition
+        Dictionary of partition names mapping to collections of metaset information
     loading_options:
         Dictionary of options specifying how hdf5 attrs/datasets are named
         within hd5 groups
     """
 
-    def __init__(self, h5_file_path: str, partition_options: Dict, loading_options: Dict):
+    def __init__(
+        self, h5_file_path: str, partition_options: Dict, loading_options: Dict
+    ):
         self._h5_path = h5_file_path
         self._h5_root = h5py.File(h5_file_path, "r")
         self._metaset_entries = {}
@@ -515,6 +544,7 @@ class H5Dataset:
 
     def _create_partitions(self, partition_options, loading_options):
         ## TODO: sanity check of the given dictionary
+
         hdf_key_mapping = loading_options.get("hdf_key_mapping")
         parallel = loading_options.get(
             "parallel",
