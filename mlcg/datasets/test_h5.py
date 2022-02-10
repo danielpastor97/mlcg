@@ -62,8 +62,13 @@ def test_metaset_props():
     # Test index preselection
     with tempfile.TemporaryDirectory() as tdir:
         f, mol_list, detailed_idx = make_hdf5(tdir, detailed_idx=True)
-        sub_coords = [f[name]['cg_coords'][:][detailed_idx[name]] for name in mol_list]
-        sub_forces = [f[name]['cg_delta_forces'][:][detailed_idx[name]] for name in mol_list]
+        sub_coords = [
+            f[name]["cg_coords"][:][detailed_idx[name]] for name in mol_list
+        ]
+        sub_forces = [
+            f[name]["cg_delta_forces"][:][detailed_idx[name]]
+            for name in mol_list
+        ]
         meta_set = MetaSet.create_from_hdf5_group(
             f, mol_list, detailed_indices=detailed_idx
         )
@@ -76,9 +81,9 @@ def test_metaset_props():
         # test correct coords/forces indexed
         for i, name in enumerate(mol_list):
             mol_id = meta_set._mol_map[name]
-            np.testing.assert_equal(sub_coords[i], meta_set._mol_dataset[mol_id]._coords)
-            np.testing.assert_equal(sub_forces[i], meta_set._mol_dataset[mol_id]._forces)
-
-
-
-
+            np.testing.assert_equal(
+                sub_coords[i], meta_set._mol_dataset[mol_id]._coords
+            )
+            np.testing.assert_equal(
+                sub_forces[i], meta_set._mol_dataset[mol_id]._forces
+            )

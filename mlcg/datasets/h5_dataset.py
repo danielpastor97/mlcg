@@ -660,10 +660,11 @@ class H5MetasetDataLoader:
         pin_memory: bool = False,
     ):
         self._metaset = metaset
-        sampler = torch.utils.data.RandomSampler(metaset)
-        self._sampler = torch.utils.data.BatchSampler(
-            sampler, batch_size, shuffle
-        )
+        if shuffle:
+            sampler = torch.utils.data.RandomSampler(metaset)
+        else:
+            sampler = torch.utils.data.SequentialSampler(metaset)
+        self._sampler = torch.utils.data.BatchSampler(sampler, batch_size, True)
         self._collater_fn = collater_fn
         self._pin_memory = pin_memory
 
