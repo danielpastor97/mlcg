@@ -1,4 +1,4 @@
-"""Python classes for processing data stored in HDF5 format.
+r"""Python classes for processing data stored in HDF5 format.
 
 HDF5 format benefits the dataset management for mlcg-tools when training/validation involves multiple molecules of vastly different lengths and when parallelization is used.
 The main features are:
@@ -8,18 +8,22 @@ The main features are:
 
 This file contains the python data structures for handling the HDF5 file and its content, i.e., the coordinates, forces and embedding vectors for multiple CG molecules.
 An example HDF5 file structure and correponding class types after loading:
-/ (HDF-group, => `H5Dataset._h5_root`)
-├── OPEP (HDF-group =(part, according to "partition_options")=> `Metaset` in a `Partition`)
-│   ├── opep_0000 (HDF-group, => `MolData`)
-│   │   ├── attrs (HDF-attributes of the molecule "/OPEP/opep_0000")
-│   │   │   ├── cg_embeds (a 1-d numpy.int array)
-│   │   │   ├── N_frames (int, number of frames = size of cg_coords on axis 0)
-│   │   │   ... (optional, e.g., cg_top, cg_pdb, etc that corrsponds to the molecule)
-│   │   ├── cg_coords (HDF-dataset of the molecule "/OPEP/opep_0000", 3-d numpy.float32 array)
-│   │   └── cg(_delta)_forces (HDF-dataset of the molecule "/OPEP/opep_0000", 3-d numpy.float32 array)
-│   ... (other molecules in "/OPEP")
-├── CATH (HDF-group ="partition_options"=> `Metaset` in a `Partition`)
-...
+
+.. code-block::
+
+	/ (HDF-group, => `H5Dataset._h5_root`)
+	├── OPEP (HDF-group =(part, according to "partition_options")=> `Metaset` in a `Partition`)
+	│   ├── opep_0000 (HDF-group, => `MolData`)
+	│   │   ├── attrs (HDF-attributes of the molecule "/OPEP/opep_0000")
+	│   │   │   ├── cg_embeds (a 1-d numpy.int array)
+	│   │   │   ├── N_frames (int, number of frames = size of cg_coords on axis 0)
+	│   │   │   ... (optional, e.g., cg_top, cg_pdb, etc that corrsponds to the molecule)
+	│   │   ├── cg_coords (HDF-dataset of the molecule "/OPEP/opep_0000", 3-d numpy.float32 array)
+	│   │   └── cg(_delta)_forces (HDF-dataset of the molecule "/OPEP/opep_0000", 3-d numpy.float32 array)
+	│   ... (other molecules in "/OPEP")
+	├── CATH (HDF-group ="partition_options"=> `Metaset` in a `Partition`)
+	...
+
 
 > Data structure `MolData` is the basic brick of the dataset.
 It holds embeds, coords and forces of certain number of frames for a single molecule.
@@ -47,59 +51,65 @@ The exact content inside a `Partition` object is controlled by the `partition_op
 `loading_options` mainly deal with the HDF key mapping (which datasets/attributes corresponds to the coordinates, forces and embeddings) as well as (optionally) the information for correctly split the dataset in a parallel training/validation.
 
 An example "partition_options" (as a Python Mappable (e.g., dict)):
-{
-    "train": {
-        "metasets": {
-            "OPEP": {
-                "molecules": [
-                    "opep_0000",
-                    "opep_0001",
-                    ...
-                ],
-                "stride": 1, # optional, default 1
-                "detailed_indices": { # optional, providing the indices of frames to work with (before striding and splitting for parallel processes).
-                    # If detailed_indices are not provided for a given molecule, then it is equivalent to np.arange(N_frames)
-                    "opep_0000": [1, 3, 5, 7, 9, ...],
-                },
-            },
-            "CATH": {
-                "molecules": [
-                    "cath_1b43A02",
-                    ...
-                ],
-                "stride": 1, # optional
-                "detailed_indices": {}, # optional
-            }
-        },
-        "batch_size": {
-            # each batch will contain 24 samples from
-            # The two metasets will be trimmed down according to this ratio
-            # so optimally it should be proportional to the ratio of numbers of frames in the metasets.
-            "OPEP": 24,
-            "CATH": 6,
-        },
-        "subsample_random_seed": 42, # optional, default 42. Random seed for trimming down the frames.
-        "max_epoch_samples": None, # optional, default None. For setting a desired dataset size.
-        # Works by subsampling the dataset after it is loaded with the given stride.
-    },
-    "val": { # similar
-    }
-}
+
+.. code-block::
+
+	{
+		"train": {
+			"metasets": {
+				"OPEP": {
+					"molecules": [
+						"opep_0000",
+						"opep_0001",
+						...
+					],
+					"stride": 1, # optional, default 1
+					"detailed_indices": { # optional, providing the indices of frames to work with (before striding and splitting for parallel processes).
+						# If detailed_indices are not provided for a given molecule, then it is equivalent to np.arange(N_frames)
+						"opep_0000": [1, 3, 5, 7, 9, ...],
+					},
+				},
+				"CATH": {
+					"molecules": [
+						"cath_1b43A02",
+						...
+					],
+					"stride": 1, # optional
+					"detailed_indices": {}, # optional
+				}
+			},
+			"batch_size": {
+				# each batch will contain 24 samples from
+				# The two metasets will be trimmed down according to this ratio
+				# so optimally it should be proportional to the ratio of numbers of frames in the metasets.
+				"OPEP": 24,
+				"CATH": 6,
+			},
+			"subsample_random_seed": 42, # optional, default 42. Random seed for trimming down the frames.
+			"max_epoch_samples": None, # optional, default None. For setting a desired dataset size.
+			# Works by subsampling the dataset after it is loaded with the given stride.
+		},
+		"val": { # similar
+		}
+	}
 
 An example "loading_options" (as a Python Mappable (e.g., dict)):
-{
-    "hdf_key_mapping": {
-        # keys for reading CG data from HDF5 groups
-        "embeds": "attrs:cg_embeds",
-        "coords": "cg_coords",
-        "forces": "cg_delta_forces",
-    },
-    "parallel": { # optional, default rank=0 and world_size=1 (single process).
-        # For split the dataset evenly and load only the necessary parts to each process in a parallelized train/val setup
-        "rank": 0, # which process is this
-        "world_size": 1, # how many processes are there
-    }
-}
+
+.. code-block::
+
+	{
+		"hdf_key_mapping": {
+			# keys for reading CG data from HDF5 groups
+			"embeds": "attrs:cg_embeds",
+			"coords": "cg_coords",
+			"forces": "cg_delta_forces",
+		},
+		"parallel": { # optional, default rank=0 and world_size=1 (single process).
+			# For split the dataset evenly and load only the necessary parts to each process in a parallelized train/val setup
+			"rank": 0, # which process is this
+			"world_size": 1, # how many processes are there
+		}
+	}
 
 
 > Class `H5PartitionDataLoader` mimics the pytorch data loader and can generate training/validation batches with fixed proportion of samples from several Metasets in a Partition.
@@ -110,8 +120,8 @@ Note:
 1. Usually in a train-val split, each molecule goes to either the train or the test partition.
 In some special cases (e.g., non-transferable training) one molecule can be part of both partitions.
 In this situation, "detailed_indices" can be set to assign the corresponding frames to the desired partitions.
-
 """
+
 import h5py
 import numpy as np
 import torch
@@ -119,12 +129,24 @@ import typing
 import itertools
 import warnings
 from torch_geometric.loader.dataloader import Collater as PyGCollater
-
+from typing import Dict
 from mlcg.data import AtomicData
 
 
 class MolData:
-    """Data-holder for coordinates, forces and embedding vector of a molecule, e.g., opep_0000."""
+    """Data-holder for coordinates, forces and embedding vector of a molecule, e.g., opep_0000.
+
+    Parameters
+    ----------
+    name:
+        Name of the molecule
+    embeds:
+        Type embeddings for each atom, of shape `(n_atoms,)`
+    coords:
+        Cartesian coordinates of the molecule, of shape `(n_frames, n_atoms, 3)`
+    forces:
+        Cartesian forces of the molecule, of shape `(n_frames, n_atoms, 3)`
+    """
 
     def __init__(
         self,
@@ -133,11 +155,15 @@ class MolData:
         coords: np.ndarray,
         forces: np.ndarray,
     ):
-        # TODO: check input consistency (e.g., number of CG beads and frames)
         self._name = name
         self._embeds = embeds
         self._coords = coords
         self._forces = forces
+
+        assert (
+            len(self._embeds) == self._coords.shape[1] == self._forces.shape[1]
+        )
+        assert self._coords.shape == self._forces.shape
 
     @property
     def name(self):
@@ -172,6 +198,15 @@ class MolData:
 
 
 class MetaSet:
+    """Set of MolData instances for molecules with similar characterstics
+
+    Parameters
+    ----------
+    name:
+        Name of the metaset
+
+    """
+
     def __init__(self, name):
         self.name = name
         self._mol_dataset = []
@@ -280,7 +315,10 @@ class MetaSet:
         self._update_info()
 
     def trim_down_to(self, target_n_samples, random_seed=42, verbose=True):
-        """Trimming all datasets randomly to reach the target number of samples"""
+        """Trimming all datasets randomly to reach the target number of samples.
+        MolData attributes of the MetaSet are permanently subsampled by this
+        method.
+        """
         if target_n_samples > self.n_total_samples or target_n_samples <= 0:
             raise ValueError("Target number of samples invalid")
         elif target_n_samples == self.n_total_samples:
@@ -364,9 +402,15 @@ class MetaSet:
 
 
 class Partition:
-    """Contain several metasets for a certain purpose, e.g., training."""
+    """Contain several metasets for a certain purpose, e.g., training.
 
-    def __init__(self, name):
+    Parameters
+    ----------
+    name:
+        name of the partition
+    """
+
+    def __init__(self, name: str):
         self.name = name
         self._metasets = {}
         self._sample_ready = False
@@ -469,9 +513,22 @@ class Partition:
 
 
 class H5Dataset:
-    """The top-level class for handling multiple datasets contained in a HDF5 file."""
+    """The top-level class for handling multiple datasets contained in a HDF5 file.
 
-    def __init__(self, h5_file_path, partition_options, loading_options):
+    Parameters
+    ----------
+    h5_file_path:
+        Path to the hdf5 file containing the dataset(s)
+    partition_options:
+        Dictionary of partition names mapping to collections of metaset information
+    loading_options:
+        Dictionary of options specifying how hdf5 attrs/datasets are named
+        within hd5 groups
+    """
+
+    def __init__(
+        self, h5_file_path: str, partition_options: Dict, loading_options: Dict
+    ):
         self._h5_path = h5_file_path
         self._h5_root = h5py.File(h5_file_path, "r")
         self._metaset_entries = {}
@@ -487,6 +544,7 @@ class H5Dataset:
 
     def _create_partitions(self, partition_options, loading_options):
         ## TODO: sanity check of the given dictionary
+
         hdf_key_mapping = loading_options.get("hdf_key_mapping")
         parallel = loading_options.get(
             "parallel",
@@ -608,3 +666,50 @@ class H5PartitionDataLoader:
 
     def __len__(self):
         return min([len(s) for s in self._samplers])
+
+
+class H5MetasetDataLoader:
+    """Load batches from one Metaset. For kwargs/options, see
+    https://pytorch.org/docs/stable/data.html?highlight=dataset#torch.utils.data.Dataset
+
+
+    Parameters
+    -----------
+    metaset:
+        Dataset object for a single set of molecules
+    batch_size:
+        Size of the batches to draw from the metaset
+    """
+
+    def __init__(
+        self,
+        metaset: torch.utils.data.Dataset,
+        batch_size: int,
+        collater_fn: PyGCollater = PyGCollater(None, None),
+        shuffle: bool = True,
+        pin_memory: bool = False,
+    ):
+        self._metaset = metaset
+        if shuffle:
+            sampler = torch.utils.data.RandomSampler(metaset)
+        else:
+            sampler = torch.utils.data.SequentialSampler(metaset)
+        self._sampler = torch.utils.data.BatchSampler(sampler, batch_size, True)
+        self._collater_fn = collater_fn
+        self._pin_memory = pin_memory
+
+    def __iter__(self):
+        self._sampler_iter = iter(self._sampler)
+        return self
+
+    def __next__(self):
+        batch_samples = tuple(
+            (self._metaset[i] for i in next(self._sampler_iter))
+        )
+        output = self._collater_fn(batch_samples)
+        if self._pin_memory:
+            output = output.pin_memory()
+        return output
+
+    def __len__(self):
+        return len(self._sampler)

@@ -2,7 +2,7 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.cli import instantiate_class
 from pytorch_lightning.utilities.finite_checks import detect_nan_parameters
-from typing import Optional
+from typing import Optional, Tuple
 from copy import deepcopy
 
 from ..data import AtomicData
@@ -88,19 +88,49 @@ class PLModel(pl.LightningModule):
         # instead of checking it after every training step, which is costly
         detect_nan_parameters(self.model)
 
+    def validation_epoch_end(self, validation_step_outputs):
+        # we calculate the epochal validation loss that is compatible with
+        # the original loss calculation for combined metasets (which is still used for training)
+        # i.e., a weighted mean with batch size for each metaset as weight
+        with torch.no_grad():
+            out = torch.tensor(
+                validation_step_outputs
+            )  # shape (N_metasets, N_batches, 2)
+            out = (
+                out[:, :, 0]
+                * out[:, :, 1]
+                / out[:, :, 1].sum(axis=0, keepdim=True)
+            )
+            out = out.sum(axis=0)  # shape (N_batches,)
+            out = out.mean()
+        # in ddp this will be run separately on different processes
+        # therefore we need to synchronize (sync_dist=True)
+        self.log(
+            f"validation_loss",
+            out,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+            prog_bar=True,
+        )
+
     def training_step(self, data: AtomicData, batch_idx: int) -> torch.Tensor:
-        loss = self.step(data, "training")
+        loss, _ = self.step(data, "training")
         return loss
 
-    def validation_step(self, data: AtomicData, batch_idx) -> torch.Tensor:
-        loss = self.step(data, "validation")
-        return loss
+    def validation_step(
+        self, data: AtomicData, batch_idx, dataloader_idx=0
+    ) -> Tuple[torch.Tensor, int]:
+        loss, batch_size = self.step(data, "validation")
+        return loss, batch_size
 
-    def test_step(self, data: AtomicData, batch_idx) -> torch.Tensor:
-        loss = self.step(data, "test")
-        return loss
+    def test_step(
+        self, data: AtomicData, batch_idx, dataloader_idx=0
+    ) -> Tuple[torch.Tensor, int]:
+        loss, batch_size = self.step(data, "test")
+        return loss, batch_size
 
-    def step(self, data: AtomicData, stage: str) -> torch.Tensor:
+    def step(self, data: AtomicData, stage: str) -> Tuple[torch.Tensor, int]:
         with torch.set_grad_enabled(stage == "train" or self.derivative):
             data = self.model(data)
         data.out.update(**data.out[self.model.name])
@@ -110,14 +140,14 @@ class PLModel(pl.LightningModule):
         self.log(
             f"{stage}_loss",
             loss,
-            on_step=True,
+            on_step=(stage == "train"),
             on_epoch=True,
             sync_dist=True,
             prog_bar=True,
             batch_size=batch_size,
         )
 
-        return loss
+        return loss, batch_size
 
     def get_model(self) -> torch.nn.Module:
         return deepcopy(self.model)
