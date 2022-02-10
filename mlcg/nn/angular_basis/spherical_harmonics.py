@@ -116,7 +116,7 @@ class SphericalHarmonics(torch.nn.Module):
         if isinstance(irreps_out, o3.Irreps):
             ls = []
             for mul, (l, p) in irreps_out:
-                if p != input_p**l:
+                if p != input_p ** l:
                     raise ValueError(
                         f"irreps_out `{irreps_out}` passed to SphericalHarmonics asked for an output of l = {l} with parity p = {p}, which is inconsistent with the input parity {input_p} — the output parity should have been p = {input_p**l}"
                     )
@@ -126,7 +126,7 @@ class SphericalHarmonics(torch.nn.Module):
         else:
             ls = list(irreps_out)
 
-        irreps_out = o3.Irreps([(1, (l, input_p**l)) for l in ls]).simplify()
+        irreps_out = o3.Irreps([(1, (l, input_p ** l)) for l in ls]).simplify()
         self.irreps_out = irreps_out
         self._ls_list = ls
 
@@ -1220,7 +1220,7 @@ def _generate_spherical_harmonics(lmax, device=None):  # pragma: no cover
             return p
 
         polynormz = [sub(p, names, polynormz) for p in polynomials]
-        norm = sum(p**2 for p in polynormz) ** 0.5
+        norm = sum(p ** 2 for p in polynormz) ** 0.5
         polynomials = [p / norm for p in polynomials]
         polynormz = [p / norm for p in polynormz]
 
