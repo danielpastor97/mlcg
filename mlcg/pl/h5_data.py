@@ -16,6 +16,29 @@ default_key_mapping = {
 
 
 class H5DataModule(pl.LightningDataModule):
+    """DataModule for datasets stored in HDF5 format
+
+    Parameters
+    ----------
+    h5_file_path:
+        Path to the hdf5 file containing the dataset
+    partition_options:
+        Mapping that defines which molecules are in the train and
+        validation sets
+    loading_options:
+        kwarg dictionary. Specifies the dataset organization of the hdf5
+        file. Eg, for training on delta forces, one would specify:
+
+        .. code::
+
+            loading_options = {"hdf_key_mapping": {
+                "embeds": "attrs:cg_embeds",
+                "coords": "cg_coords"
+                "forces": "cg_delta_forces"
+            }
+
+        where the keys are the names values are the attrs/datasets of an hdf5 group.
+    """
     def __init__(
         self,
         h5_file_path: str = "",
@@ -124,7 +147,7 @@ class H5DataModule(pl.LightningDataModule):
     def part_dataloader(self, part_name):
         part = self._h5d.partition(part_name)
         if part_name == "train":
-            comb_loader = H5PartitionDataLoader(part)
+            combined_loader = H5PartitionDataLoader(part)
         else:
             loaders = []
             for (metaset_name, batch_size) in part.batch_sizes.items():
@@ -133,10 +156,10 @@ class H5DataModule(pl.LightningDataModule):
                     H5MetasetDataLoader(metaset, batch_size, shuffle=False)
                 )
             if len(loaders) == 1:
-                comb_loader = loaders[0]
+                combined_loader = loaders[0]
             else:
-                comb_loader = tuple(loaders)
-        return comb_loader
+                combined_loader = tuple(loaders)
+        return combined_loader
 
     def teardown(self, stage):
         # clean up after fit or test
