@@ -11,7 +11,7 @@ No cross validation concerns for the moment
 we process everything in the sorted key order, so as to keep consistency over different runs/processes/machines
 For each Metaset
   - if it only contains single molecule, then split the underlying data into train-val sets according to the ratio
-  - if it contains multiple molecules, then split on the level of molecules, 
+  - if it contains multiple molecules, then split on the level of molecules,
     (so that one molecule can only be in *either* train or val set, and the *total number of samples* is roughly according to the desired split)
 """
 
@@ -110,14 +110,21 @@ def multimol_split(
         for the train and validation sets respectively.
     """
 
-    if not all([opt == None for opt in [train_names, val_names]]):
+    is_all_none = all(
+        [isinstance(opt, type(None)) for opt in [train_names, val_names]]
+    )
+    is_all_numpy = all(
+        [isinstance(opt, np.ndarray) for opt in [train_names, val_names]]
+    )
+
+    if not is_all_none and not is_all_numpy:
         raise ValueError(
-            "train_names = {} but val_names = {}. They must be both None or both not None".format(
-                train_names, test_names
+            "train_names = {} but val_names = {}. They must be both None or both np.ndarray".format(
+                train_names, val_names
             )
         )
 
-    if all([opt == None for opt in [train_names, val_names]]):
+    if is_all_none:
         _check_props(proportions)
         mol_names = np.array(sorted(mol_count_dict))
         mol_frames = np.array([mol_count_dict[n] for n in mol_names])
@@ -175,7 +182,12 @@ def multimol_split(
                 msg += f"- `{part_name}`: {n_frames_part} ({n_frames_part / n_frames * 100.:.1f}%)\n"
             print(msg)
 
-    if all([opt != None for opt in [train_names, val_names]]):
+        split_mols["train"] = _sanitize_strings(split_mols["train"])
+        split_mols["val"] = _sanitize_strings(split_mols["val"])
+        return split_mols
+
+    if is_all_numpy:
+        split_mols = {}
         mol_names = np.array(sorted(mol_count_dict))
 
         # check to make sure there are no unknown molecules not found
@@ -196,7 +208,7 @@ def multimol_split(
             )
 
         # Warnings about leaky sets and set coverage
-        if set(train_names).intersection(val_names) != 0:
+        if len(set(train_names).intersection(val_names)) != 0:
             warnings.warn(
                 "Overlap detected between train and val molecule names."
             )
@@ -205,12 +217,12 @@ def multimol_split(
                 "Split portions do not cover the entire set of molecule names."
             )
 
-        split_mols["train"] = train_names
-        split_mols["test"] = test_names
-    return split_mols
+        split_mols["train"] = _sanitize_strings(train_names)
+        split_mols["val"] = _sanitize_strings(val_names)
+        return split_mols
 
 
-def n_fold_multi_mol_split(
+def n_fold_multimol_split(
     mol_count_dict: Dict[str, int],
     k: int = 5,
     shuffle: bool = True,
@@ -238,7 +250,7 @@ def n_fold_multi_mol_split(
         Dictionary of splits for each fold
     """
 
-    mol_names = np.array(sorted(mol_count))
+    mol_names = np.array(sorted(mol_count_dict))
     folder = KFold(n_splits=k, shuffle=shuffle, random_state=random_state)
     k_fold_splits = {}
     for i, (train_idx, val_idx) in enumerate(folder.split(mol_names)):
@@ -248,3 +260,20 @@ def n_fold_multi_mol_split(
             mol_count_dict, train_names=train_names, val_names=val_names
         )
     return k_fold_splits
+
+
+def _sanitize_strings(array: np.ndarray) -> List[str]:
+    """Helper function to santize numpy arrays of strings
+    for YAML representation
+
+    Parameters
+    ----------
+    array:
+        Numpy array of strings
+
+    Returns
+    -------
+        List of strings
+    """
+    sanitized = [str(element) for element in array]
+    return sanitized

@@ -1,34 +1,38 @@
+import sys
 import numpy, h5py
-from mlcg.datasets import multimol_split, n_fold_multi_mol_split
+from mlcg.datasets.split_utils import multimol_split, n_fold_multimol_split
 import argparse
+from mlcg.utils import load_yaml, dump_yaml
 from ruamel.yaml import YAML
+
+yaml = YAML(pure="true", typ="safe")
+yaml.default_flow_style = False
 
 
 def prepare_molecule_dictionary(h5_file):
     f = h5py.File(h5_file)
 
-    mol_dict = {}
-    subset_names = list[f.keys()]
-    for name in subset_names:
-        for k in f[name]:
-            mol_dict[k] = f["name"][k].attrs["N_frames"]
-    return mol_dict
+    mol_dicts = {}
+    for name in f.keys():
+        mol_dict = {}
+        for k in f[name].keys():
+            mol_dict[k] = f[name][k].attrs["N_frames"]
+        mol_dicts[name] = mol_dict
+    return mol_dicts
 
 
 def parse_cli():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-h5",
         "--h5path",
         type=str,
         default="/import/a12/users/nickc/mlcg_delta_datasets/dihedral_1_6_res_exclusion/combined_dihedral_1_6_res_exclusion.h5",
         help="path to the h5 dataset",
     )
     parser.add_argument(
-        "-o",
         "--out",
         type=str,
-        default="./partions.yaml",
+        default="./my_partions.yaml",
         help="filename where the splits will be saved in YAML format",
     )
     parser.add_argument(
@@ -50,29 +54,45 @@ def parse_cli():
         type=list,
         help="For non-KFold splitting, this list gives [train_proportion, validation_proportion]",
     )
+    parser.add_argument(
+        "--verbose",
+        default=False,
+        type=bool,
+        help="Display additional information about splits",
+    )
 
-    return parser.parse_args()
+    return parser
 
 
 if __name__ == "__main__":
-    args = parse_cli()
-    yaml = YAML()
+    parser = parse_cli()
+    args = parser.parse_args()
 
-    mol_dict = prepare_molecule_dictionary(args.h5path)
+    if len(sys.argv) == 1:
+        parser.print_help()
+        exit()
 
-    if args.kfsplits != None:
-        k_fold_splits = n_fold_multi_mol_split(
-            mol_dict, k=args.kfsplits, shuffle=True, random_state=seed
-        )
-        with open(args.outfile, "wb") as yfile:
-            yaml.dump(k_fold_splits, yfile)
+    mol_dicts = prepare_molecule_dictionary(args.h5path)
+    verbose = args.verbose
 
-    else:
-        splits = multimol_split(
-            mol_dict,
-            proportions=args.proportions,
-            random_seed=args.seed,
-            verbose=verbose,
-        )
-        with open(args.outfile, "wb") as yfile:
-            yaml.dump(splits, yfile)
+    output = {}
+    for name in mol_dicts.keys():
+        mol_dict = mol_dicts[name]
+        if args.kfsplits != None:
+            splits = n_fold_multimol_split(
+                mol_dict, k=args.kfsplits, shuffle=True, random_state=seed
+            )
+        else:
+            if len(args.proportions) != 2:
+                raise ValueError(
+                    "Proportions must be two entries: train and validation."
+                )
+            props = {"train": args.proportions[0], "val": args.proportions[1]}
+            splits = multimol_split(
+                mol_dict,
+                proportions=props,
+                random_seed=args.seed,
+                verbose=verbose,
+            )
+        output[name] = splits
+    dump_yaml(args.out, output)
