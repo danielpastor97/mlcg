@@ -6,7 +6,7 @@ import torch.distributed as dist
 import pytorch_lightning as pl
 from ruamel.yaml import YAML
 
-from ..datasets import H5Dataset, H5PartitionDataLoader
+from ..datasets import H5Dataset, H5PartitionDataLoader, H5MetasetDataLoader
 
 default_key_mapping = {
     "embeds": "attrs:cg_embeds",
@@ -16,6 +16,31 @@ default_key_mapping = {
 
 
 class H5DataModule(pl.LightningDataModule):
+    r"""DataModule for datasets stored in HDF5 format
+
+    Parameters
+    ----------
+    h5_file_path:
+        Path to the hdf5 file containing the dataset
+    partition_options:
+        Mapping that defines which molecules are in the train and
+        validation sets. See `mlcg.datasets.h5_dataset.py`.
+    loading_options:
+        kwarg dictionary. Specifies the dataset organization of the hdf5
+        file. Eg, for training on delta forces, one would specify:
+
+        .. code-block::
+
+            loading_options = {"hdf_key_mapping": {
+                "embeds": "attrs:cg_embeds",
+                "coords": "cg_coords"
+                "forces": "cg_delta_forces"
+            }
+
+        where the keys are the names values are the attrs/datasets of an hdf5 group.
+        See `mlcg.datasets.h5_dataset.py`.
+    """
+
     def __init__(
         self,
         h5_file_path: str = "",
@@ -65,6 +90,9 @@ class H5DataModule(pl.LightningDataModule):
             "world_size": num_replicas,
         }
         # load the hdf5 file
+        print(
+            f"Loading samples for rank ({rank}/{num_replicas})...", flush=True
+        )
         self._h5d = H5Dataset(
             self._h5_file_path, self._part_options, self._process_load_options
         )
@@ -120,8 +148,20 @@ class H5DataModule(pl.LightningDataModule):
 
     def part_dataloader(self, part_name):
         part = self._h5d.partition(part_name)
-        comb_loader = H5PartitionDataLoader(part)
-        return comb_loader
+        if part_name == "train":
+            combined_loader = H5PartitionDataLoader(part)
+        else:
+            loaders = []
+            for (metaset_name, batch_size) in part.batch_sizes.items():
+                metaset = part.get_metaset(metaset_name)
+                loaders.append(
+                    H5MetasetDataLoader(metaset, batch_size, shuffle=False)
+                )
+            if len(loaders) == 1:
+                combined_loader = loaders[0]
+            else:
+                combined_loader = tuple(loaders)
+        return combined_loader
 
     def teardown(self, stage):
         # clean up after fit or test
