@@ -142,7 +142,7 @@ val:
       - cath_2dkzA01
       stride: 100
   batch_sizes:
-    OPEP: 37
-    CATH: 8
+    OPEP: 93
+    CATH: 20
   subsample_random_seed: 42
   max_epoch_samples:
