@@ -146,7 +146,7 @@ class LangevinSimulation(_Simulation):
         self,
         data: AtomicData,
         forces: torch.Tensor,
-        potential: torch.tensor,
+        potential: torch.Tensor,
         t: int,
     ):
         """Utilities to store saved values of coordinates and, if relevant,

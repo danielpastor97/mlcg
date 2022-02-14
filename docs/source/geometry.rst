@@ -10,7 +10,7 @@ These classes and functions may be used to define, manipulate, and analyze CG to
 
 .. autoclass:: mlcg.geometry.topology.Atom
 .. autoclass:: mlcg.geometry.topology.Topology
-    :member:
+    :members:
 .. autofunction:: mlcg.geometry.topology.add_chain_bonds
 .. autofunction:: mlcg.geometry.topology.add_chain_angles
 .. autofunction:: mlcg.geometry.topology.get_connectivity_matrix

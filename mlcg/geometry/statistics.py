@@ -10,8 +10,8 @@ from ._symmetrize import _symmetrise_map, _flip_map
 
 
 def _get_all_unique_keys(
-    unique_types: torch.tensor, order: int
-) -> torch.tensor:
+    unique_types: torch.Tensor, order: int
+) -> torch.Tensor:
     """Helper function for returning all unique, symmetrised atom type keys
 
     Parameters
@@ -35,8 +35,8 @@ def _get_all_unique_keys(
 
 
 def _get_bin_centers(
-    feature: torch.tensor, nbins: int, b_min: float, b_max: float
-) -> torch.tensor:
+    feature: torch.Tensor, nbins: int, b_min: float, b_max: float
+) -> torch.Tensor:
     """Returns bin centers for histograms.
 
     Parameters
@@ -129,10 +129,10 @@ def compute_statistics(
 
                 ...
 
-                "p" : torch.tensor of shape [n_bins], containing the normalized bin counts
+                "p" : torch.Tensor of shape [n_bins], containing the normalized bin counts
                     of the of the 1-D feature corresponding to the atom_type group
                     (*specific_types) = (specific_types[0], specific_types[1], ...)
-                "p_bin": : torch.tensor of shape [n_bins] containing the bin center values
+                "p_bin": : torch.Tensor of shape [n_bins] containing the bin center values
                 "V" : torch.tensor of shape [n_bins], containing the emperically estimated
                     free energy curve according to a direct Boltzmann inversion of the
                     normalized probability distribution for the feature.

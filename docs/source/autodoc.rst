@@ -58,10 +58,10 @@ Datasets
 .. automodule:: mlcg.datasets.chignolin
    :members:
 
-.. automodule:: mlcg.datasets.alanine_dipeptide.py
+.. automodule:: mlcg.datasets.alanine_dipeptide
    :members:
 
-.. automodule:: mlcg.datasets.h5_dataset.py
+.. automodule:: mlcg.datasets.h5_dataset
    :members:
 
 Neighbor List

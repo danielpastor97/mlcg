@@ -12,7 +12,7 @@ may find the class `StandardSchNet` to be helpful in getting started quickly.
 .. autoclass:: mlcg.nn.StandardSchNet
 .. autoclass:: mlcg.nn.schnet.SchNet
 .. autoclass:: mlcg.nn.schnet.InteractionBlock
-.. autoclass:: mlcg.nn.CFConv
+.. autoclass:: mlcg.nn.schnet.CFConv
 
 Radial Basis Functions
 ----------------------

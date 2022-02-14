@@ -210,7 +210,7 @@ class Topology(object):
         self.dihedrals[2].append(idx3)
         self.dihedrals[3].append(idx4)
 
-    def bonds_from_edge_index(self, edge_index: torch.tensor):
+    def bonds_from_edge_index(self, edge_index: torch.Tensor):
         """Overwrites the internal bond list with the bonds
         defined in the supplied bond edge_index
 
@@ -224,7 +224,7 @@ class Topology(object):
 
         self.bonds = tuple(edge_index.numpy().tolist())
 
-    def angles_from_edge_index(self, edge_index: torch.tensor):
+    def angles_from_edge_index(self, edge_index: torch.Tensor):
         """Overwrites the internal angle list with the angles
         defined in the supplied angle edge_index
 
@@ -238,7 +238,7 @@ class Topology(object):
 
         self.angles = tuple(edge_index.numpy().tolist())
 
-    def dihedrals_from_edge_index(self, edge_index: torch.tensor):
+    def dihedrals_from_edge_index(self, edge_index: torch.Tensor):
         """Overwrites the internal dihedral list with the dihedral
         defined in the supplied dihedral edge_index
 
@@ -254,7 +254,7 @@ class Topology(object):
 
         self.dihedrals = tuple(edge_index.numpy().tolist())
 
-    def impropers_from_edge_index(self, edge_index: torch.tensor):
+    def impropers_from_edge_index(self, edge_index: torch.Tensor):
         """Overwrites the internal improper list with the improper
         defined in the supplied improper edge_index
 
@@ -575,7 +575,7 @@ def add_chain_dihedrals(topology: Topology) -> None:
 
 def get_n_pairs(
     connectivity_matrix: torch.Tensor, n: int = 3, unique: bool = True
-) -> torch.tensor:
+) -> torch.Tensor:
     """This function uses networkx to identify those pairs
     that are exactly n atoms away. Paths are found using Dijkstra's algorithm.
 
@@ -657,7 +657,7 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.Tensor:
 
 def get_improper_paths(
     connectivity_matrix: torch.Tensor, unique: bool = True
-) -> torch.tensor:
+) -> torch.Tensor:
     """This function returns all paths defining an improper dihedral
 
             k

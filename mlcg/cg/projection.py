@@ -28,7 +28,7 @@ def build_cg_matrix(
     cg_mapping:
         Mapping dictionary with the following structure:
 
-        .. code_block:: python
+        .. code-block:: python
 
             {
                 (residue name, atom name) : (compound name, type, mass)
