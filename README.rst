@@ -8,7 +8,6 @@ mlcg-tools
 
 This repository collects a set of tools to apply machine learning techniques to coarse grain atomic systems.
 
-.. end-intro
 
 Installation
 ------------
@@ -27,6 +26,7 @@ CLI
 The models defined in this library can be convinietly trained using the pytorch-lightning
 `cli <https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_cli.html>`_ utilities.
 
+.. end-intro
 
 .. start-doc
 
