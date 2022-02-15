@@ -62,7 +62,7 @@ def build_cg_topology(
         )
         if cg_name is None:
             continue
-        cg_topo.add_atom(cg_type, cg_name, at.resname)
+        cg_topo.add_atom(cg_type, cg_name, at.resname, at.resid.index)
 
     if special_terminal:
         cg_topo.names[0] += "-terminal"
