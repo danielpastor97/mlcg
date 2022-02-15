@@ -16,9 +16,9 @@ class MockDataset(object):
     to test mlcg.datasets.utils.write_PDB
     """
 
-    def __init__(self, data, topology):
+    def __init__(self, data, topology_dict):
         self.data = data
-        self.topologies = topology
+        self.topologies = topology_dict
 
 
 def test_mdtraj_dump():
@@ -64,8 +64,9 @@ def test_mdtraj_dump():
             pos=torch.tensor(md_pdb.xyz.reshape(n_atoms, 3)),
             atom_types=torch.tensor(types),
         )
-
-        dataset = MockDataset(data, mlcg_topo)
+        data.name = ["ala2"]
+        topology_dict = {"ala2": mlcg_topo}
+        dataset = MockDataset(data, topology_dict)
         mlcg_coords = dataset.data.pos.detach().numpy().reshape(1, n_atoms, 3)
         write_PDB(dataset, fout=osp.join(temp_dir, "mlcg_pdb.pdb"))
         new_md_pdb = md.load(osp.join(temp_dir, "mlcg_pdb.pdb"))
