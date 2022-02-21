@@ -7,7 +7,7 @@ from sklearn.model_selection import KFold
 np.random.seed(15677)
 
 # 100 randomly named molecules and frame numbers
-mol_names = np.array([str(i) for i in range(1, 101)])
+mol_names = np.array(["{:04d}".format(i) for i in range(0, 100)])
 mol_dict = {name: np.random.randint(10, high=50) for name in mol_names}
 
 # test 3-fold cross validation sets over molecule names
@@ -26,7 +26,6 @@ def test_named_split():
     )
     assert set(split_dict["train"]) == set(train_lists[0])
     assert set(split_dict["val"]) == set(val_lists[0])
-    print(split_dict)
 
 
 def test_named_split_error_raise():
@@ -46,6 +45,7 @@ def test_named_split_warning():
             train_names=train_lists[0],
             val_names=np.append(val_lists[0], train_lists[0][0]),
         )
+
     # coverage
     with pytest.warns(UserWarning):
         multimol_split(
