@@ -145,7 +145,7 @@ class ShiftedCosineCutoff(_OneSidedCutoff):
     .. math::
 
         0.5 + 0.5  \cos{ \left[ \pi \left( \frac{r_{ij} - r_{high} +
-        \sigma}{\sigma}\right]\right)} 
+        \sigma}{\sigma}\right]\right)}
 
     where :math:`\sigma` is the smoothing width.
 
