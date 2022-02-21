@@ -22,7 +22,12 @@ def prepare_molecule_dictionary(h5_file):
 
 
 def parse_cli():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Tool for splitting pre-generated H5 datasets with potentially multiple molecules. "
+        "See mlcg.datasets.H5Dataset for more information. If you have not generated an h5 "
+        "file from NumPy files yet, please use save_h5.py. You can also generate partitions "
+        "using explore_h5_dataset.ipynb."
+    )
     parser.add_argument(
         "--h5path",
         type=str,
