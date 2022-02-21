@@ -25,6 +25,9 @@ class AlanineDataset(InMemoryDataset):
     r"""Dataset for training a CG model of the alanine-dipeptide protein following a Cα + 1 C\beta CG mapping
 
     Alanine Dipeptide CG structure:
+
+    .. code-block::
+
                 CB(3)
                   |
           N(1) - CA(2) - C(4)
@@ -81,7 +84,7 @@ class AlanineDataset(InMemoryDataset):
         )
 
         self.data, self.slices = torch.load(self.processed_paths[0])
-        self.topologies = torch.load(self.processed_paths[1])
+        self.topologies = {"ala2": torch.load(self.processed_paths[1])}
         self.prior_models = torch.load(self.processed_paths[2])
 
     @property
@@ -179,6 +182,7 @@ class AlanineDataset(InMemoryDataset):
                 masses=masses,
                 neighborlist=prior_nls,
                 traj_id=0,
+                name="ala2",
                 frame_id=i,
             )
 

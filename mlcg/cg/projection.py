@@ -105,33 +105,26 @@ def build_cg_topology(
     angles: Optional[Callable] = add_chain_angles,
     dihedrals: Optional[Callable] = add_chain_dihedrals,
 ):
-    """Function for building a coarse grain topology
-    from a high resolution topology and a coarse grain mapping
+    r"""Takes an `mlcg.geometry.topology.Topology` instance and returns another
+    `mlcg.geometry.topology.Topology` instance conditioned on the supplied
+    CG mapping
 
     Parameters
     ----------
     topology:
-        Topology of the high resolution system
+       Original MLCG topology before coarse graining
     cg_mapping:
-        Ordered dictionary mapping each CG atom index (with respect to the
-        CG topology) to a list containing the CG atom name, CG atom type
-        and the CG atom mass
+       A suitable CG mapping. See mclg.cg._mapping.py for examples.
     special_termini:
-        If True, special types will be reserved for the first and
-        last CG atoms
+       If True, the first and last CG atoms recieve their own special
+       types
     bonds:
-        Function that assigns bonds to the coarse grain topology
+       Function to enumerate and define bonds in the final CG topology
     angles:
-        Function that assigns angles to the coarse grain topology
-
-    Returns
-    -------
-    cg_topo:
-        Coarse grain topology
+       Function to enumerate and define angles in the final CG topology
+    dihedrals:
+       Function to enumerate and define dihedrals in the final CG topology
     """
-    if cg_mapping == None:
-        cg_mapping = CA_MAP
-
     cg_topo = Topology()
     for at in topology.atoms:
         (cg_name, cg_type, _) = cg_mapping.get(
@@ -139,7 +132,7 @@ def build_cg_topology(
         )
         if cg_name is None:
             continue
-        cg_topo.add_atom(cg_type, cg_name, at.resname)
+        cg_topo.add_atom(cg_type, cg_name, at.resname, at.resid)
 
     if special_terminal:
         cg_topo.names[0] += "-terminal"

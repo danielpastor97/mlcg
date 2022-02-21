@@ -48,7 +48,7 @@ class ChignolinDataset(InMemoryDataset):
         )
         self.data, self.slices = torch.load(self.processed_paths[0])
         self.prior_models = torch.load(self.processed_paths[3])
-        self.topologies = torch.load(self.processed_paths[2])
+        self.topologies = {"cln": torch.load(self.processed_paths[2])}
 
     def download(self):
         # Download to `self.raw_dir`.
@@ -145,6 +145,7 @@ class ChignolinDataset(InMemoryDataset):
                     masses=masses,
                     neighborlist=prior_nls,
                     traj_id=i_traj,
+                    name="cln",
                     frame_id=i_frame,
                 )
 
