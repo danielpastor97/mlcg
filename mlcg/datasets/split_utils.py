@@ -74,9 +74,13 @@ def multimol_split(
     val_names: Union[np.ndarray, None] = None,
     verbose: bool = False,
 ) -> Dict[str, List[str]]:
-    """Function for splitting molecules into training and validation sets. The assignment
+    r"""Function for splitting molecules into training and validation sets. The assignment
     of frames to either the train or validation set is done molecule-wise. That is, a given
-    molecule's data is either all in the train set, or all in the validation set.
+    molecule's data is either all in the train set, or all in the validation set. The partitioning
+    of molecules into either the train or test set is done such that the proportion of total train
+    frames against the total validation frames matches the supplied train:validation propportions.
+    The user can override this by specifically passing both `train_names` and `val_names` for their
+    own preferred molecular split.
 
     Parameters
     ----------
@@ -90,7 +94,10 @@ def multimol_split(
 
             proportions = {'train': 0.8, 'val': 0.2}
 
-        Proportions are taken molecule-wise, not frame-wise.
+        Proportions are taken molecule-wise. If `train_names` and `val_names` are not specified,
+        then the molecule splits are made such that the number of train frames and validation frames
+        also match the desired the proportion. Users should check to see if their molecular splits
+        make sense if they have molecules with vastly different numbers of frames.
 
     random_seed:
         Seeds the shuffling of molecule names prior to splitting.
@@ -185,7 +192,6 @@ def multimol_split(
                 n_frames_part = get_part_prop(part_name, count=True)
                 msg += f"- `{part_name}`: {n_frames_part} ({n_frames_part / n_frames * 100.:.1f}%)\n"
             print(msg)
-
         split_mols["train"] = _sanitize_strings(split_mols["train"])
         split_mols["val"] = _sanitize_strings(split_mols["val"])
         return split_mols
