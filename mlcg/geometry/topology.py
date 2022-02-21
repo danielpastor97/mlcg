@@ -32,6 +32,10 @@ class Atom(NamedTuple):
     name: Optional[str] = None
     #: name of the residue containing the atom
     resname: Optional[str] = None
+    #: number of the resid containing the atom
+    resid: Optional[int] = None
+    #: partial charge of the atom
+    charge: Optional[float] = None
 
 
 class Topology(object):
@@ -43,6 +47,10 @@ class Topology(object):
     names: List[str]
     #: name of the residue containing the atoms
     resnames: List[str]
+    #: number of the resid containing the atoms
+    resids: List[int]
+    #: charge of the atoms
+    charges: List[int]
     #: list of bonds between the atoms. Defines the bonded topology.
     bonds: Tuple[List[int], List[int]]
     #: list of angles formed by triplets of atoms
@@ -57,20 +65,39 @@ class Topology(object):
         self.types = []
         self.names = []
         self.resnames = []
+        self.resids = []
+        self.charges = []
         self.bonds = ([], [])
         self.angles = ([], [], [])
         self.dihedrals = ([], [], [], [])
         self.impropers = ([], [], [], [])
 
-    def add_atom(self, type: int, name: str, resname: Optional[str] = None):
+    def add_atom(
+        self,
+        type: int,
+        name: str,
+        resname: Optional[str] = None,
+        resid: Optional[int] = None,
+        charge: Optional[float] = None,
+    ):
         self.types.append(type)
         self.names.append(name)
         self.resnames.append(resname)
+        self.resids.append(resid)
+        self.charges.append(charge)
 
     @property
     def atoms(self):
-        for type, name, resname in zip(self.types, self.names, self.resnames):
-            yield Atom(type=type, name=name, resname=resname)
+        for type, name, resname, resid, charge in zip(
+            self.types, self.names, self.resnames, self.resids, self.charges
+        ):
+            yield Atom(
+                type=type,
+                name=name,
+                resname=resname,
+                resid=resid,
+                charge=charge,
+            )
 
     @property
     def n_atoms(self) -> int:
@@ -305,7 +332,8 @@ class Topology(object):
                 self.angles[2].pop(to_pop)
 
     def to_mdtraj(self) -> mdtraj.Topology:
-        """Convert to mdtraj format
+        """Convert to mdtraj format. If the topology does not have a resids
+        attribute, the resids will be written incrementally for each atom.
 
         Returns
         -------
@@ -327,8 +355,14 @@ class Topology(object):
             else:
                 element = Element.getBySymbol(self.names[i_at])
 
-            residue = topo.add_residue(self.resnames[i_at], chain)
+            if self.resids == None:
+                residue = topo.add_residue(self.resnames[i_at], chain=chain)
+            else:
+                residue = topo.add_residue(
+                    self.resnames[i_at], chain=chain, resSeq=self.resids[i_at]
+                )
             topo.add_atom(self.names[i_at], element, residue)
+
         for idx in range(len(self.bonds[0])):
             idx1, idx2 = self.bonds[0][idx], self.bonds[1][idx]
             a1, a2 = topo.atom(idx1), topo.atom(idx2)
@@ -355,7 +389,12 @@ class Topology(object):
         ), f"Does not support multiple chains but {topology.n_chains}"
         topo = Topology()
         for at in topology.atoms:
-            topo.add_atom(at.element.atomic_number, at.name, at.residue.name)
+            topo.add_atom(
+                at.element.atomic_number,
+                at.name,
+                at.residue.name,
+                at.residue.index,
+            )
         for at1, at2 in topology.bonds:
             topo.add_bond(at1.index, at2.index)
         return topo
