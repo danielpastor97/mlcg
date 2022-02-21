@@ -75,10 +75,6 @@ def build_cg_topology(
        Function to enumerate and define dihedrals in the final CG topology
     """
     cg_topo = Topology()
-    print(cg_topo)
-    print(cg_topo.atoms)
-    for at in topology.atoms:
-        print(at.name, at.resname, at.resid)
     for at in topology.atoms:
         (cg_name, cg_type, _) = cg_mapping.get(
             (at.resname, at.name), (None, None, None)
