@@ -87,8 +87,8 @@ class CosineCutoff(_Cutoff):
 
     .. math::
 
-        0.5 \times \left( \cos{ \left( \pi \left(2 \frac{r_{ij} - r_{low}}{r_{high}
-         - r_{low}} + 1.0 \right)\right)} + 1.0 \right)
+        0.5 \cos{ \left[ \pi \left(2 \frac{r_{ij} - r_{low}}{r_{high}
+         - r_{low}} + 1.0 \right]\right)} + 0.5
 
     """
 
