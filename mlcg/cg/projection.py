@@ -55,7 +55,7 @@ def build_cg_topology(
     angles: Optional[Callable] = add_chain_angles,
     dihedrals: Optional[Callable] = add_chain_dihedrals,
 ):
-    """ Takes an MLCG topology and returns another MLCG topology
+    """Takes an MLCG topology and returns another MLCG topology
     conditioned on a CG mapping
 
     Parameters
