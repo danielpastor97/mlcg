@@ -74,7 +74,9 @@ def multimol_split(
     val_names: Union[np.ndarray, None] = None,
     verbose: bool = False,
 ) -> Dict[str, List[str]]:
-    """Function for splitting molecules into training and validation sets
+    """Function for splitting molecules into training and validation sets. The assignment
+    of frames to either the train or validation set is done molecule-wise. That is, a given
+    molecule's data is either all in the train set, or all in the validation set.
 
     Parameters
     ----------
@@ -84,9 +86,11 @@ def multimol_split(
         Dictionary mapping 'train' and 'val' sets to their proportions of the full set.
         E.g.) a 5:1 train:test split would be given as:
 
-    .. code::
+        .. code::
 
-        proportions = {'train': 0.8, 'val': 0.2}
+            proportions = {'train': 0.8, 'val': 0.2}
+
+        Proportions are taken molecule-wise, not frame-wise.
 
     random_seed:
         Seeds the shuffling of molecule names prior to splitting.
