@@ -55,14 +55,37 @@ def build_cg_topology(
     angles: Optional[Callable] = add_chain_angles,
     dihedrals: Optional[Callable] = add_chain_dihedrals,
 ):
+    """ Takes an MLCG topology and returns another MLCG topology
+    conditioned on a CG mapping
+
+    Parameters
+    ----------
+    topology:
+       Original MLCG topology before coarse graining
+    cg_mapping:
+       A suitable CG mapping. See mclg.cg._mapping.py for examples.
+    special_termini:
+       If True, the first and last CG atoms recieve their own special
+       types
+    bonds:
+       Function to enumerate and define bonds in the final CG topology
+    angles:
+       Function to enumerate and define angles in the final CG topology
+    dihedrals:
+       Function to enumerate and define dihedrals in the final CG topology
+    """
     cg_topo = Topology()
+    print(cg_topo)
+    print(cg_topo.atoms)
+    for at in topology.atoms:
+        print(at.name, at.resname, at.resid)
     for at in topology.atoms:
         (cg_name, cg_type, _) = cg_mapping.get(
             (at.resname, at.name), (None, None, None)
         )
         if cg_name is None:
             continue
-        cg_topo.add_atom(cg_type, cg_name, at.resname, at.resid.index)
+        cg_topo.add_atom(cg_type, cg_name, at.resname, at.resid)
 
     if special_terminal:
         cg_topo.names[0] += "-terminal"
