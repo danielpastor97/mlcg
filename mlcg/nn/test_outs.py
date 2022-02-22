@@ -21,7 +21,12 @@ from mlcg.data.atomic_data import AtomicData
 standard_cutoff = CosineCutoff(cutoff_lower=0, cutoff_upper=5)
 standard_basis = GaussianBasis(cutoff=standard_cutoff)
 
-schnet = StandardSchNet(standard_basis, standard_cutoff, [128])
+schnet = StandardSchNet(standard_basis, standard_cutoff, [10],
+                        hidden_channels=10,
+                        embedding_size=10,
+                        num_filters=10,
+                        num_interactions=1,
+                        max_num_neighbors=1000,)
 schnet_force_model = GradientsOut(schnet, targets=[FORCE_KEY]).double()
 
 
