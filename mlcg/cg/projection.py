@@ -14,9 +14,59 @@ from ..geometry.topology import (
 
 def build_cg_matrix(
     topology: Topology,
-    cg_mapping: Dict[Tuple[str, str], Tuple[str, int, int]] = CA_MAP,
+    cg_mapping: Dict[Tuple[str, str], Tuple[str, int, int]] = None,
     special_terminal: bool = True,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, OrderedDict]:
+    r"""Function for producing coarse grain types, masses, and
+    mapping matrices using a slicing strategy and a predetermined
+    set of atoms to retain at the coarse grain resolution.
+
+    Parameters
+    ----------
+    topology:
+        System topology instance
+    cg_mapping:
+        Mapping dictionary with the following structure:
+
+        .. code-block:: python
+
+            {
+                (residue name, atom name) : (compound name, type, mass)
+                ...
+            }
+
+        Eg, a row for an alanine carbon alpha atom would be:
+
+        .. code-block:: python
+
+            {
+                ("ALA", "CA") : ("CA_A", 1, 12)
+                ...
+            }
+
+    special_termini:
+        If True, special types will be reserved for the first and
+        last CG atoms
+
+    Returns
+    -------
+    cg_types:
+        Array of CG atom types
+    cg_masses:
+        Array of CG masses
+    cg_matrix:
+        One-hot transformation matrix of shape (n_high_res_atoms, n_cg_atoms)
+        that maps atoms for the high resolution repesentation to the coarse
+        grain representation
+    cg_mapping_:
+        Ordered dictionary mapping each CG atom index (with respect to the
+        CG topology) to a list containing the CG atom name, CG atom type
+        and the CG atom mass
+    """
+
+    if cg_mapping == None:
+        cg_mapping = CA_MAP
+
     cg_mapping_ = OrderedDict()
     n_atoms = topology.n_atoms
     for i_at, at in enumerate(topology.atoms):
@@ -49,14 +99,15 @@ def build_cg_matrix(
 
 def build_cg_topology(
     topology: Topology,
-    cg_mapping: Dict[Tuple[str, str], Tuple[str, int, int]] = CA_MAP,
+    cg_mapping: Dict[Tuple[str, str], Tuple[str, int, int]] = None,
     special_terminal: bool = True,
     bonds: Optional[Callable] = add_chain_bonds,
     angles: Optional[Callable] = add_chain_angles,
     dihedrals: Optional[Callable] = add_chain_dihedrals,
 ):
-    """Takes an MLCG topology and returns another MLCG topology
-    conditioned on a CG mapping
+    r"""Takes an `mlcg.geometry.topology.Topology` instance and returns another
+    `mlcg.geometry.topology.Topology` instance conditioned on the supplied
+    CG mapping
 
     Parameters
     ----------

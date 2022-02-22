@@ -2,7 +2,7 @@ import torch
 from torch_scatter import scatter
 from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit
-from typing import Final, Optional
+from typing import Final, Optional, Dict
 from math import pi
 
 from ..geometry.topology import Topology
@@ -11,14 +11,50 @@ from ..geometry.internal_coordinates import (
     compute_angles,
     compute_torsions,
 )
+from ..data.atomic_data import AtomicData
 
 
 class _Prior(object):
+    """Abstract prior class"""
+
     def __init__(self) -> None:
         super(_Prior, self).__init__()
 
 
 class Harmonic(torch.nn.Module, _Prior):
+    r"""1-D Harmonic prior interaction for feature :math:`x` of the form:
+
+    .. math::
+
+        U_{\text{Harmonic}}(x) = \frac{k}{2}\left( x - x_0 \right)^2
+
+    where :math:`k` is a harmonic/spring constant describing the interaction
+    strength and :math:`x_0` is the equilibrium value of the feature :math:`x`.
+
+    Parameters
+    ----------
+    statistics:
+        Dictionary of interaction parameters for each type of atom pair/triple,
+        where the keys are tuples of interacting bead types and the
+        corresponding values define the interaction parameters. These
+        Can be hand-designed or taken from the output of
+        `mlcg.geometry.statistics.compute_statistics`, but must minimally
+        contain the following information for each key:
+
+        .. code-block:: python
+
+            tuple(*specific_types) : {
+                "k" : torch.Tensor scalar that describes the strength of the
+                    harmonic interaction.
+                "x_0" : torch.Tensor scalar that describes the mean feature
+                    value.
+                ...
+
+                }
+
+        The keys can be tuples of 2 or 3 atom type integers.
+    """
+
     _order_map = {
         "bonds": 2,
         "angles": 3,
@@ -32,7 +68,7 @@ class Harmonic(torch.nn.Module, _Prior):
         "dihedrals": compute_torsions,
     }
 
-    def __init__(self, statistics, name) -> None:
+    def __init__(self, statistics: Dict, name: str) -> None:
         super(Harmonic, self).__init__()
         keys = torch.tensor(list(statistics.keys()), dtype=torch.long)
         self.allowed_interaction_keys = list(statistics.keys())
@@ -52,11 +88,34 @@ class Harmonic(torch.nn.Module, _Prior):
         self.register_buffer("x_0", x_0)
         self.register_buffer("k", k)
 
-    def data2features(self, data):
+    def data2features(self, data: AtomicData) -> torch.Tensor:
+        """Computes features for the harmonic interaction from
+        an AtomicData instance)
+        """
         mapping = data.neighbor_list[self.name]["index_mapping"]
         return Harmonic.compute_features(data.pos, mapping, self.name)
 
-    def forward(self, data):
+    def forward(self, data: AtomicData) -> AtomicData:
+        """Forward pass through the harmonic interaction.
+
+        Parameters
+        ----------
+        data:
+            Input AtomicData instance that possesses an appropriate
+            neighbor list containing both an 'index_mapping'
+            field and a 'mapping_batch' field for accessing
+            beads relevant to the interaction and scattering
+            the interaction energies onto the correct example/structure
+            respectively.
+
+        Returns
+        -------
+        data:
+            Updated AtomicData instance with the 'out' field
+            populated with the predicted energies for each
+            example/structure
+        """
+
         mapping = data.neighbor_list[self.name]["index_mapping"]
         mapping_batch = data.neighbor_list[self.name]["mapping_batch"]
         interaction_types = [
@@ -76,10 +135,39 @@ class Harmonic(torch.nn.Module, _Prior):
 
     @staticmethod
     def compute(x, x0, k, V0):
+        """Method defining the harmonic interaction"""
         return k * (x - x0) ** 2 + V0
 
     @staticmethod
-    def fit_from_potential_estimates(bin_centers_nz, dG_nz):
+    def fit_from_potential_estimates(
+        bin_centers_nz: torch.Tensor, dG_nz: torch.Tensor
+    ) -> Dict:
+        r"""Method for fitting interaction parameters from data
+
+        Parameters
+        ----------
+        bin_centers:
+            Bin centers from a discrete histgram used to estimate the energy
+            through logarithmic inversion of the associated Boltzmann factor
+        dG_nz:
+            The value of the energy :math:`U` as a function of the bin
+            centers, as retrived via:
+
+            ..math::
+
+                U(x) = -\frac{1}{\beta}\log{ \left( p(x)\right)}
+
+            where :math:`\beta` is the inverse thermodynamic temperature and
+            :math:`p(x)` is the normalized probability distribution of
+            :math:`x`.
+
+        Returns
+        -------
+        stat:
+            Dictionary of interaction parameters as retrived through
+            `scipy.optimize.curve_fit`
+        """
+
         # remove noise by discarding signals
         integral = torch.tensor(
             float(trapezoid(dG_nz.cpu().numpy(), bin_centers_nz.cpu().numpy()))
@@ -103,13 +191,36 @@ class Harmonic(torch.nn.Module, _Prior):
         return stat
 
     @staticmethod
-    def neighbor_list(topology: Topology, type: str) -> None:
+    def neighbor_list(topology: Topology, type: str) -> Dict:
+        """Method for computing a neighbor list from a topology
+        and a chosen feature type.
+
+        Parameters
+        ----------
+        topology:
+            A Topology instance with defined features relevant to the
+            feature type chosen for the neighbor list.
+        type:
+            A string describing the type of features. Must be one of
+            :code:`["bonds", "angles"]`
+
+        Returns
+        -------
+        neighbor_list:
+            Neighborlist of the chosen feature according to the
+            supplied topology
+        """
+
         assert type in Harmonic._compute_map
         nl = topology.neighbor_list(type)
         return {type: nl}
 
 
 class HarmonicBonds(Harmonic):
+    """Wrapper class for quickly computing bond priors
+    (order 2 Harmonic priors)
+    """
+
     name: Final[str] = "bonds"
     _order = 2
 
@@ -126,6 +237,10 @@ class HarmonicBonds(Harmonic):
 
 
 class HarmonicAngles(Harmonic):
+    """Wrapper class for quickly computing angle priors
+    (order 3 Harmonic priors)
+    """
+
     name: Final[str] = "angles"
     _order = 2
 
@@ -160,10 +275,39 @@ class HarmonicImpropers(Harmonic):
 
 
 class Repulsion(torch.nn.Module, _Prior):
+    r"""1-D power law repulsion prior for feature :math:`x` of the form:
+
+    .. math::
+
+        U_{ \textnormal{Repulsion}}(x) = (\sigma/x)^6
+
+    where :math:`\sigma` is the excluded volume.
+
+    Parameters
+    ----------
+    statistics:
+        Dictionary of interaction parameters for each type of atom pair,
+        where the keys are tuples of interacting bead types and the
+        corresponding values define the interaction parameters. These
+        Can be hand-designed or taken from the output of
+        `mlcg.geometry.statistics.compute_statistics`, but must minimally
+        contain the following information for each key:
+
+        .. code-block:: python
+
+            tuple(*specific_types) : {
+                "sigma" : torch.Tensor scalar that describes the excluded
+                    volume of the two interacting atoms.
+                ...
+
+                }
+        The keys can be tuples of 2 integer atom types.
+    """
+
     name: Final[str] = "repulsion"
     _neighbor_list_name = "fully connected"
 
-    def __init__(self, statistics) -> None:
+    def __init__(self, statistics: Dict) -> None:
         super(Repulsion, self).__init__()
         keys = torch.tensor(list(statistics.keys()), dtype=torch.long)
         self.allowed_interaction_keys = list(statistics.keys())
@@ -178,11 +322,34 @@ class Repulsion(torch.nn.Module, _Prior):
             sigma[key] = statistics[key]["sigma"]
         self.register_buffer("sigma", sigma)
 
-    def data2features(self, data):
+    def data2features(self, data: AtomicData) -> torch.Tensor:
+        """Computes features for the harmonic interaction from
+        an AtomicData instance)
+        """
         mapping = data.neighbor_list[self.name]["index_mapping"]
         return Repulsion.compute_features(data.pos, mapping)
 
-    def forward(self, data):
+    def forward(self, data: AtomicData) -> AtomicData:
+        """Forward pass through the repulsion interaction.
+
+        Parameters
+        ----------
+        data:
+            Input AtomicData instance that possesses an appropriate
+            neighbor list containing both an 'index_mapping'
+            field and a 'mapping_batch' field for accessing
+            beads relevant to the interaction and scattering
+            the interaction energies onto the correct example/structure
+            respectively.
+
+        Returns
+        -------
+        data:
+            Updated AtomicData instance with the 'out' field
+            populated with the predicted energies for each
+            example/structure
+        """
+
         mapping = data.neighbor_list[self.name]["index_mapping"]
         mapping_batch = data.neighbor_list[self.name]["mapping_batch"]
         interaction_types = [
@@ -200,11 +367,40 @@ class Repulsion(torch.nn.Module, _Prior):
 
     @staticmethod
     def compute(x, sigma):
+        """Method defining the repulsion interaction"""
         rr = (sigma / x) * (sigma / x)
         return rr * rr * rr
 
     @staticmethod
-    def fit_from_potential_estimates(bin_centers_nz, dG_nz):
+    def fit_from_potential_estimates(
+        bin_centers_nz: torch.Tensor, dG_nz: torch.Tensor
+    ) -> torch.Tensor:
+        """Method for fitting interaction parameters from data
+
+        Parameters
+        ----------
+        bin_centers:
+            Bin centers from a discrete histgram used to estimate the energy
+            through logarithmic inversion of the associated Boltzmann factor
+        dG_nz:
+            The value of the energy :math:`U` as a function of the bin
+            centers, as retrived via:
+
+            ..math::
+
+                U(x) = -\frac{1}{\beta}\log{ \left( p(x)\right)}
+
+            where :math:`\beta` is the inverse thermodynamic temperature and
+            :math:`p(x)` is the normalized probability distribution of
+            :math:`x`.
+
+        Returns
+        -------
+        stat:
+            Dictionary of interaction parameters as retrived through
+            `scipy.optimize.curve_fit`
+        """
+
         delta = bin_centers_nz[1] - bin_centers_nz[0]
         sigma = bin_centers_nz[0] - 0.5 * delta
         stat = {"sigma": sigma}
@@ -212,6 +408,22 @@ class Repulsion(torch.nn.Module, _Prior):
 
     @staticmethod
     def neighbor_list(topology: Topology) -> dict:
+        """Method for computing a neighbor list from a topology
+        and a chosen feature type.
+
+        Parameters
+        ----------
+        topology:
+            A Topology instance with a defined fully-connected
+            set of edges.
+
+        Returns
+        -------
+        neighbor_list:
+            Neighborlist of the fully-connected distances
+            according to the supplied topology
+        """
+
         return {
             Repulsion.name: topology.neighbor_list(
                 Repulsion._neighbor_list_name

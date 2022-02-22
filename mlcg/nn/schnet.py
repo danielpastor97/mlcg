@@ -15,10 +15,8 @@ from ._module_init import init_xavier_uniform
 
 class SchNet(torch.nn.Module):
     r"""PyTorch Geometric implementation of SchNet
-    Code adapted from `[PT_geom_schnet]_`  which is based on the architecture
+    Code adapted from [PT_geom_schnet]_  which is based on the architecture
     described in [Schnet]_ .
-
-    https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/models/schnet.html
 
     Parameters
     ----------
@@ -227,7 +225,7 @@ class InteractionBlock(torch.nn.Module):
 
 
 class CFConv(MessagePassing):
-    r"""Forward pass through the interaction block.
+    r"""Continuous filter convolutions for `SchNet`.
 
     Parameters
     ----------
@@ -243,7 +241,7 @@ class CFConv(MessagePassing):
         Number of filters
     aggr:
         Aggregation scheme for continuous filter output. For all options,
-        see https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class
+        see `here <https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class>`.
     """
 
     def __init__(
@@ -363,8 +361,8 @@ class StandardSchNet(SchNet):
         :obj:`max_num_neighbors`, returned neighbors are picked randomly.
     aggr:
         Aggregation scheme for continuous filter output. For all options,
-        see
-         `aggr <https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class>`_
+        see `here <https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class>`_
+        for more options.
 
     """
 

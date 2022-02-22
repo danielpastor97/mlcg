@@ -17,7 +17,7 @@ TODO: describe the data structure and its use.
    :members:
 
 
-Coarse graining utilities
+Coarse Graining Utilities
 -------------------------
 
 TODO: document the CG mapping format.
@@ -58,10 +58,10 @@ Datasets
 .. automodule:: mlcg.datasets.chignolin
    :members:
 
-.. automodule:: mlcg.datasets.alanine_dipeptide.py
+.. automodule:: mlcg.datasets.alanine_dipeptide
    :members:
 
-.. automodule:: mlcg.datasets.h5_dataset.py
+.. automodule:: mlcg.datasets.h5_dataset
    :members:
 
 Neighbor List

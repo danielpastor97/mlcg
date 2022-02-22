@@ -9,18 +9,38 @@ import numpy as np
 from ..data._keys import FORCE_KEY
 
 
-def chunker(seq: Sequence, size: int):
+def chunker(seq: Sequence, size: int) -> Sequence:
+    """Helper function for working with chunks of a specified size
+    for a given sequence"""
     return (seq[pos : pos + size] for pos in range(0, len(seq), size))
 
 
 def remove_baseline_forces(
     data_list: List[AtomicData], models: Dict[str, torch.nn.Module]
-):
+) -> List[AtomicData]:
     """Compute the forces on the input :obj:`data_list` with the :obj:`models`
     and remove them from the reference forces contained in :obj:`data_list`.
     The computation of the forces is done on the whole :obj:`data_list` at once
     so it should not be too large.
+
+    Parameters
+    ----------
+    data_list:
+        Uncollated list of AtomicData instances that contain the full
+        reference forces
+    models:
+        Pytorch ModuleDict containing models that compute prior/baseline
+        forces
+
+    Returns
+    -------
+    data_list:
+        Uncollated list of AtomicData instances, where the value of the
+        'forces' field is now the delta forces (original forces minus
+        the baseline/prior forces). An additional field 'baseline' forces
+        is added, whose value is equal to the baseline/prior forces
     """
+
     n_frame = len(data_list)
     dataloader = DataLoader(data_list, batch_size=n_frame)
     baseline_forces = []

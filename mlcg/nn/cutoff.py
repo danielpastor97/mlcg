@@ -1,3 +1,4 @@
+from typing import Union
 import torch
 import torch.nn as nn
 import numpy as np
@@ -86,8 +87,8 @@ class CosineCutoff(_Cutoff):
 
     .. math::
 
-        0.5 \times ( \cos{ ( \pi (2 \frac{r_{ij} - r_{low}}{r_{high}
-         - r_{low}} + 1.0))} + 1.0 )
+        0.5 \cos{ \left[ \pi \left(2 \frac{r_{ij} - r_{low}}{r_{high}
+         - r_{low}} + 1.0 \right]\right)} + 0.5
 
     """
 
@@ -139,17 +140,29 @@ class CosineCutoff(_Cutoff):
 
 
 class ShiftedCosineCutoff(_OneSidedCutoff):
-    r"""Class of Behler cosine cutoff.
+    r"""Class of Behler cosine cutoff with an additional smoothing parameter.
 
     .. math::
-        sdf
 
-    Args:
-        cutoff (float, optional): cutoff radius.
+        0.5 + 0.5  \cos{ \left[ \pi \left( \frac{r_{ij} - r_{high} +
+        \sigma}{\sigma}\right]\right)}
+
+    where :math:`\sigma` is the smoothing width.
+
+    Parameters
+    ----------
+    cutoff:
+        cutoff radius
+    smooth_width:
+        parameter that controls the extent of smoothing in the cutoff envelope.
 
     """
 
-    def __init__(self, cutoff=5.0, smooth_width=0.5):
+    def __init__(
+        self,
+        cutoff: Union[int, float] = 5.0,
+        smooth_width: Union[int, float] = 0.5,
+    ):
         super(ShiftedCosineCutoff, self).__init__()
         self.cutoff_upper = cutoff
         self.smooth_width = smooth_width
