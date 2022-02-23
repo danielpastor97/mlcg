@@ -26,10 +26,12 @@ class Harmonic(torch.nn.Module, _Prior):
 
     .. math::
 
-        U_{\text{Harmonic}}(x) = \frac{k}{2}\left( x - x_0 \right)^2
+        U_{\text{Harmonic}}(x) = k\left( x - x_0 \right)^2
 
     where :math:`k` is a harmonic/spring constant describing the interaction
     strength and :math:`x_0` is the equilibrium value of the feature :math:`x`.
+    A an optimizable constant energy offset is added during the prior parameter
+    fitting.
 
     Parameters
     ----------
@@ -436,9 +438,33 @@ class Dihedral(torch.nn.Module, _Prior):
     Prior that constrains dihedral planar angles using
     the following energy ansatz:
 
-    .. math:
+    .. math::
 
-        V(\theta) = \sum_n^{n_deg} k1_n \sin{(n\theta)} + k2_n\cos{(n\theta)}
+        V(\theta) = \sum_n^{n_{deg}} k1_n \sin{(n\theta)} + k2_n\cos{(n\theta)}
+
+    where :math:`n_{deg}` is the maximum number of terms to take in the sinusoidal series,
+    and :math:`k1_n` and :math:`k2_n` are coefficients for each term number :math:`n`.
+
+    Parameters
+    ----------
+    statistics:
+        Dictionary of interaction parameters for each type of atom quadruple,
+        where the keys are tuples of interacting bead types and the
+        corresponding values define the interaction parameters. These
+        Can be hand-designed or taken from the output of
+        `mlcg.geometry.statistics.compute_statistics`, but must minimally
+        contain the following information for each key:
+
+        .. code-block:: python
+
+            tuple(*specific_types) : {
+                "k1s" : torch.Tensor that contains all k1 coefficients
+                "k2s" : torch.Tensor that contains all k2 coefficients
+                ...
+
+                }
+
+        The keys must be tuples of 4 atoms.
 
     """
 
