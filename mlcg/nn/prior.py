@@ -438,7 +438,7 @@ class Dihedral(torch.nn.Module, _Prior):
     Prior that constrains dihedral planar angles using
     the following energy ansatz:
 
-    .. math:
+    .. math::
 
         V(\theta) = \sum_n^{n_deg} k1_n \sin{(n\theta)} + k2_n\cos{(n\theta)}
 
