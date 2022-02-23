@@ -443,7 +443,7 @@ class Dihedral(torch.nn.Module, _Prior):
         V(\theta) = \sum_n^{n_{deg}} k1_n \sin{(n\theta)} + k2_n\cos{(n\theta)}
 
     where :math:`n_{deg}` is the maximum number of terms to take in the sinusoidal series,
-    and $k1_n$ and $k2_n$ are coefficients for each term number $n$.
+    and :math:`k1_n` and :math:`k2_n` are coefficients for each term number :math:`n`.
 
     Parameters
     ----------
