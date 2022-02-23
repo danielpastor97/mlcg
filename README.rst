@@ -8,13 +8,11 @@ mlcg-tools
 
 This repository collects a set of tools to apply machine learning techniques to coarse grain atomic systems.
 
-.. end-intro
 
 Installation
 ------------
 .. start-install
-
-Some special installs that are one well handled by requirements.txt::
+The dependencies are defined in `requirements.txt` but some packages are not well handled by pip. So start by installing `pytorch <https://pytorch.org/>`_ and `pytorch-geometric <https://pytorch-geometric.readthedocs.io/en/latest/>`_ with conda, e.g.::
 
     conda install pytorch cudatoolkit=11.3 -c pytorch
     conda install pyg -c pyg -c conda-forge
@@ -27,6 +25,7 @@ CLI
 The models defined in this library can be convinietly trained using the pytorch-lightning
 `cli <https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_cli.html>`_ utilities.
 
+.. end-intro
 
 .. start-doc
 

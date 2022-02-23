@@ -4,6 +4,7 @@ from torch_geometric.data import InMemoryDataset
 from torch_geometric.data.collate import collate
 import mdtraj
 import pickle
+from typing import List, Tuple
 
 from ..utils import tqdm, download_url
 from ..geometry.topology import Topology
@@ -16,12 +17,13 @@ from ..nn import (
     Repulsion,
     GradientsOut,
 )
+from ..nn.prior import _Prior
 from .utils import remove_baseline_forces, chunker
 
 
 class AlanineDataset(InMemoryDataset):
     r"""Dataset for training a CG model of the alanine-dipeptide protein following a Cα + 1 C\beta CG mapping
-    
+
     Alanine Dipeptide CG structure:
 
     .. code-block::
@@ -47,7 +49,7 @@ class AlanineDataset(InMemoryDataset):
     Inputs:
         root :
             Location for AlanineDataset to be downloaded and processed
-        stride : 
+        stride :
             Stride length over dataset
 
     Default priors:
@@ -109,7 +111,7 @@ class AlanineDataset(InMemoryDataset):
         topology: Topology,
         cg_mapping: dict,
         cg_topo: Topology,
-    ) -> [AtomicData, dict, torch.nn.ModuleDict]:
+    ) -> Tuple[AtomicData, dict, torch.nn.ModuleDict]:
         """Method to make collated AtomicData object, slices, and baseline models
 
         Parameters
@@ -226,7 +228,7 @@ class AlanineDataset(InMemoryDataset):
 
     def make_priors(
         self,
-        priors_cls: list,
+        priors_cls: List[_Prior],
         cg_topo: Topology,
     ) -> dict:
         """Method to make prior neighbor lists
@@ -382,7 +384,7 @@ class AlanineDataset(InMemoryDataset):
     def make_baseline_models(
         data: AtomicData,
         beta: float,
-        priors_cls: list,
+        priors_cls: List[_Prior],
     ) -> torch.nn.ModuleDict:
         """Method to make all baseline models
 

@@ -2,8 +2,8 @@ import torch
 
 
 def _symmetrise_distance_interaction(
-    unique_interaction_types: torch.tensor,
-) -> torch.tensor:
+    unique_interaction_types: torch.Tensor,
+) -> torch.Tensor:
     """Distance based interactions are symmetric w.r.t. the direction hence
     the need for only considering interactions (a,b) with a < b.
     """
@@ -15,8 +15,8 @@ def _symmetrise_distance_interaction(
 
 
 def _symmetrise_angle_interaction(
-    unique_interaction_types: torch.tensor,
-) -> torch.tensor:
+    unique_interaction_types: torch.Tensor,
+) -> torch.Tensor:
     """For angles defined as::
 
       2---3
@@ -36,8 +36,8 @@ def _symmetrise_angle_interaction(
 
 
 def _symmetrise_dihedral_interaction(
-    unique_interaction_types: torch.tensor,
-) -> torch.tensor:
+    unique_interaction_types: torch.Tensor,
+) -> torch.Tensor:
     """For dihedrals defined as::
       2---3---4
      /

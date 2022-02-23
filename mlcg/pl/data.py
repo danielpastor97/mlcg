@@ -111,7 +111,6 @@ class DataModule(pl.LightningDataModule):
         )
 
         self.train_dataset = [dataset[ii] for ii in self.idx_train]
-
         self.val_dataset = [dataset[ii] for ii in self.idx_val]
         self.test_dataset = [dataset[ii] for ii in self.idx_test]
 

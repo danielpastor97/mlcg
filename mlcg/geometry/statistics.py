@@ -10,8 +10,8 @@ from ._symmetrize import _symmetrise_map, _flip_map
 
 
 def _get_all_unique_keys(
-    unique_types: torch.tensor, order: int
-) -> torch.tensor:
+    unique_types: torch.Tensor, order: int
+) -> torch.Tensor:
     """Helper function for returning all unique, symmetrised atom type keys
 
     Parameters
@@ -35,8 +35,8 @@ def _get_all_unique_keys(
 
 
 def _get_bin_centers(
-    feature: torch.tensor, nbins: int, b_min: float, b_max: float
-) -> torch.tensor:
+    feature: torch.Tensor, nbins: int, b_min: float, b_max: float
+) -> torch.Tensor:
     """Returns bin centers for histograms.
 
     Parameters
@@ -123,65 +123,69 @@ def compute_statistics(
         the `TargetPrior`. The following key/value pairs are common across all `TargetPrior`
         choices:
 
+        .. code-block:: python
+
             (*specific_types) : {
-                "p" : torch.tensor of shape [n_bins], containing the normalized bin counts
+
+                ...
+
+                "p" : torch.Tensor of shape [n_bins], containing the normalized bin counts
                     of the of the 1-D feature corresponding to the atom_type group
                     (*specific_types) = (specific_types[0], specific_types[1], ...)
-                "p_bin: : torch.tensor of shape [n_bins] containing the bin center values
+                "p_bin": : torch.Tensor of shape [n_bins] containing the bin center values
                 "V" : torch.tensor of shape [n_bins], containing the emperically estimated
-                    free energy curve according to a directly Boltzmann inversion:
-
-                        .. math::
-
-                            V = -\frac{1}{\beta}\log{\left( p \right)}
-
+                    free energy curve according to a direct Boltzmann inversion of the
+                    normalized probability distribution for the feature.
                 "V_bin" : torch_tensor of shape [n_bins], containing the bin center values
+            }
 
-        Other sub-key/value pairs apart from those enumerated above, may appear depending
-        on the chosen `TargetPrior`. For example, if `TargetPrior` is `HarmonicBonds`, there
-        will also be keys/values associated with estimated bond constants and means.
+        where `...` indicates other sub-key/value pairs apart from those enumerated above,
+        which may appear depending on the chosen `TargetPrior`. For example,
+        if `TargetPrior` is `HarmonicBonds`, there will also be keys/values associated with
+        estimated bond constants and means.
 
     Example
     -------
-    ```
-    my_data = AtomicData(
-        out={},
-        pos=[769600, 3],
-        atom_types=[769600],
-        n_atoms=[20800],
-        neighbor_list={
-            bonds={
-              tag=[20800],
-              order=[20800],
-              index_mapping=[2, 748800],
-              cell_shifts=[20800],
-              rcut=[20800],
-              self_interaction=[20800]
+
+    .. code-block:: python
+
+        my_data = AtomicData(
+            out={},
+            pos=[769600, 3],
+            atom_types=[769600],
+            n_atoms=[20800],
+            neighbor_list={
+                bonds={
+                  tag=[20800],
+                  order=[20800],
+                  index_mapping=[2, 748800],
+                  cell_shifts=[20800],
+                  rcut=[20800],
+                  self_interaction=[20800]
+                },
+                angles={
+                  tag=[20800],
+                  order=[20800],
+                  index_mapping=[3, 977600],
+                  cell_shifts=[20800],
+                  rcut=[20800],
+                  self_interaction=[20800]
+                }
             },
-            angles={
-              tag=[20800],
-              order=[20800],
-              index_mapping=[3, 977600],
-              cell_shifts=[20800],
-              rcut=[20800],
-              self_interaction=[20800]
-            }
-        },
-        batch=[769600],
-        ptr=[20801]
-    )
+            batch=[769600],
+            ptr=[20801]
+        )
 
-    angle_stats = bond_stats = compute_statistics(my_data,
-         'bonds', beta=beta,
-         TargetPrior=HarmonicBonds
-    )
-    dihedral_stats = compute_statistics(my_data,
-                                        'dihedrals',
-                                        beta=beta,
-                                        TargetPrior=Dihedral
-    )
+        angle_stats = bond_stats = compute_statistics(my_data,
+             'bonds', beta=beta,
+             TargetPrior=HarmonicBonds
+        )
+        dihedral_stats = compute_statistics(my_data,
+                                            'dihedrals',
+                                            beta=beta,
+                                            TargetPrior=Dihedral
+        )
 
-    ```
 
     """
     if target_fit_kwargs == None:

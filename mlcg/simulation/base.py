@@ -474,7 +474,7 @@ class _Simulation(object):
         self,
         data: AtomicData,
         forces: torch.Tensor,
-        potential: torch.tensor,
+        potential: torch.Tensor,
         t: int,
     ):
         """Utility to store saved values of coordinates and, if relevant,

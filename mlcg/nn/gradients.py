@@ -1,5 +1,5 @@
 import torch
-from typing import Sequence, Any, List, Union
+from typing import Sequence, Any, List
 from ..data.atomic_data import AtomicData
 from ..data._keys import *
 
@@ -13,6 +13,34 @@ class SumOut(torch.nn.Module):
         Dictionary of predictors models keyed by their name attribute
     targets:
         List of prediction targets that will be pooled
+
+    Example
+    -------
+    To combine SchNet force predictions with prior interactions:
+
+    .. code-block:: python
+
+        import torch
+        from mlcg.nn import (StandardSchNet, HarmonicBonds, HarmonicAngles,
+                             GradientsOut, SumOut, CosineCutoff,
+                             GaussianBasis)
+        from mlcg.data._keys import FORCE_KEY, ENERGY_KEY
+
+        bond_terms = GradientsOut(HarmonicBonds(bond_stats), FORCE_KEY)
+        angle_terms = GradientsOut(HarmonicAngles(angle_stats), FORCE_KEY)
+        cutoff = CosineCutoff()
+        rbf = GaussianBasis(cutoff)
+        energy_network = StandardSchNet(cutoff, rbf, [128])
+        force_network = GradientsOut(energy_model, FORCE_KEY)
+
+        models = torch.nn.ModuleDict{
+                     "bonds": bond_terms,
+                     "angles": angle_terms,
+                     "SchNet": force_network
+                 }
+        full_model = SumOut(models, targets=[ENERGY_KEY, FORCE_KEY])
+
+
     """
 
     def __init__(
@@ -87,7 +115,7 @@ class SumOut(torch.nn.Module):
     def neighbor_list(self, **kwargs):
         nl = {}
         for _, model in self.models.items():
-            nl.update(**model.neighbor_list(**kwargs))
+            nl.updat(**model.neighbor_list(**kwargs))
         return nl
 
 
@@ -103,16 +131,14 @@ class GradientsOut(torch.nn.Module):
 
     Example
     -------
-        To preduct forces from an energy model, one woule supply a model that
+        To predict forces from an energy model, one would supply a model that
         predicts a scalar atom property (an energy) and specify the FORCE_KEY
         in the targets.
     """
 
-    _targets = [FORCE_KEY, ENERGY_KEY]
+    _targets = {FORCE_KEY: ENERGY_KEY}
 
-    def __init__(
-        self, model: torch.nn.Module, targets: Union[List[str], str] = FORCE_KEY
-    ):
+    def __init__(self, model: torch.nn.Module, targets: str = FORCE_KEY):
         super(GradientsOut, self).__init__()
         self.model = model
         self.name = self.model.name

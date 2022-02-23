@@ -24,7 +24,17 @@ from ._symmetrize import (
 
 
 class Atom(NamedTuple):
-    """Define an atom"""
+    """Define an atom
+
+    Attributes
+    ----------
+    type: int
+        Atom type/integer label
+    name: Optional[str] = None
+        Atom name
+    resname: Optional[str] = None
+        Name of the residue containing the atom
+    """
 
     #: type of the atom
     type: int
@@ -39,7 +49,7 @@ class Atom(NamedTuple):
 
 
 class Topology(object):
-    """Define the topology of an isolated protein."""
+    """Topology of an isolated protein."""
 
     #: types of the atoms
     types: List[int]
@@ -168,8 +178,10 @@ class Topology(object):
 
         Parameters
         ----------
-        idx:
-            index of the atoms bonded together
+        idx1:
+            The index of the first atom in the bond
+        idx2:
+            The index of the second atom in the bond
         """
         self.bonds[0].append(idx1)
         self.bonds[1].append(idx2)
@@ -181,7 +193,17 @@ class Topology(object):
           2---3
          /
         1
+
+        Parameters
+        ----------
+        idx1:
+            The index of the first atom defining the angle
+        idx2:
+            The index of the central atom defining the angle
+        idx3:
+            The index of the last atom defining the angle
         """
+
         self.angles[0].append(idx1)
         self.angles[1].append(idx2)
         self.angles[2].append(idx3)
@@ -197,13 +219,25 @@ class Topology(object):
             2-----3
            /
           1
+
+        Parameters
+        ----------
+        idx1:
+            The index of the first atom defining the dihedral
+        idx2:
+            The index of the second atom defining the dihedral
+        idx3:
+            The index of the third atom defining the dihedral
+        idx3:
+            The index of the last atom defining the dihedral
         """
+
         self.dihedrals[0].append(idx1)
         self.dihedrals[1].append(idx2)
         self.dihedrals[2].append(idx3)
         self.dihedrals[3].append(idx4)
 
-    def bonds_from_edge_index(self, edge_index: torch.tensor):
+    def bonds_from_edge_index(self, edge_index: torch.Tensor):
         """Overwrites the internal bond list with the bonds
         defined in the supplied bond edge_index
 
@@ -217,7 +251,7 @@ class Topology(object):
 
         self.bonds = tuple(edge_index.numpy().tolist())
 
-    def angles_from_edge_index(self, edge_index: torch.tensor):
+    def angles_from_edge_index(self, edge_index: torch.Tensor):
         """Overwrites the internal angle list with the angles
         defined in the supplied angle edge_index
 
@@ -231,7 +265,7 @@ class Topology(object):
 
         self.angles = tuple(edge_index.numpy().tolist())
 
-    def dihedrals_from_edge_index(self, edge_index: torch.tensor):
+    def dihedrals_from_edge_index(self, edge_index: torch.Tensor):
         """Overwrites the internal dihedral list with the dihedral
         defined in the supplied dihedral edge_index
 
@@ -247,7 +281,7 @@ class Topology(object):
 
         self.dihedrals = tuple(edge_index.numpy().tolist())
 
-    def impropers_from_edge_index(self, edge_index: torch.tensor):
+    def impropers_from_edge_index(self, edge_index: torch.Tensor):
         """Overwrites the internal improper list with the improper
         defined in the supplied improper edge_index
 
@@ -502,7 +536,7 @@ class Topology(object):
 
 def get_connectivity_matrix(
     topology: Topology, directed: bool = False
-) -> torch.tensor:
+) -> torch.Tensor:
     """Produces a full connectivity matrix from the graph structure
     implied by Topology.bonds
 
@@ -510,17 +544,17 @@ def get_connectivity_matrix(
     ----------
     topology:
         Topology for which a connectivity matrix will be constructed
+    directed:
+        If True, an asymmetric connectivity matrix will be returned
+        correspending to a directed graph. If false, the connectivity
+        matrix will be symmetric and the corresponding graph will be
+        undirected.
 
     Returns
     -------
     connectivity_matrix:
         Torch tensor of shape (n_atoms, n_atoms) representing the
         connectivity/adjacency matrix from the bonded graph.
-    directed:
-        If True, an asymmetric connectivity matrix will be returned
-        correspending to a directed graph. If false, the connectivity
-        matrix will be symmetric and the corresponding graph will be
-        undirected.
     """
 
     if len(topology.bonds[0]) == 0 and len(topology.bonds[1]) == 0:
@@ -541,7 +575,14 @@ def add_chain_bonds(topology: Topology) -> None:
     """Add bonds to the topology assuming a chain-like pattern, i.e. atoms are
     linked together following their insertion order.
     A four atoms chain will are linked like: `1-2-3-4`.
+
+    Parameters
+    ----------
+    topology:
+        Topology instance to which the bonds should be added
+
     """
+
     for i in range(topology.n_atoms - 1):
         topology.add_bond(i, i + 1)
 
@@ -550,7 +591,14 @@ def add_chain_angles(topology: Topology) -> None:
     """Add angles to the topology assuming a chain-like pattern, i.e. angles are
     defined following the insertion order of the atoms in the topology.
     A four atoms chain `1-2-3-4` will fine the angles: `1-2-3, 2-3-4`.
+
+    Parameters
+    ----------
+    topology:
+        Topology instance to which the angles should be added
+
     """
+
     for i in range(topology.n_atoms - 2):
         topology.add_angle(i, i + 1, i + 2)
 
@@ -566,7 +614,7 @@ def add_chain_dihedrals(topology: Topology) -> None:
 
 def get_n_pairs(
     connectivity_matrix: torch.Tensor, n: int = 3, unique: bool = True
-) -> torch.tensor:
+) -> torch.Tensor:
     """This function uses networkx to identify those pairs
     that are exactly n atoms away. Paths are found using Dijkstra's algorithm.
 
@@ -604,7 +652,7 @@ def get_n_pairs(
     return pairs
 
 
-def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
+def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.Tensor:
     """This function use networkx to grab all connected paths defined
     by n connecting edges. Paths are found using Dijkstra's algorithm.
 
@@ -648,7 +696,7 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.tensor:
 
 def get_improper_paths(
     connectivity_matrix: torch.Tensor, unique: bool = True
-) -> torch.tensor:
+) -> torch.Tensor:
     """This function returns all paths defining an improper dihedral
 
             k

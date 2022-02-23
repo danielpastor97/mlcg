@@ -3,9 +3,6 @@ import pytest
 from mlcg.nn.radial_basis import GaussianBasis, ExpNormalBasis, RIGTOBasis
 from mlcg.nn.cutoff import IdentityCutoff, CosineCutoff, ShiftedCosineCutoff
 
-data = torch.randn(100, 3)
-linear_data = torch.linspace(0, 10, 100)
-
 
 @pytest.mark.parametrize(
     "basis_type", [GaussianBasis, ExpNormalBasis, RIGTOBasis]

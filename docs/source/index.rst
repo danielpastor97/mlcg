@@ -18,14 +18,20 @@ Welcome to mlcg-tools's documentation!
 
 
 Contents
-----------
+--------
 
 .. toctree::
    :maxdepth: 2
 
+   data
+   geometry
+   neighbor_list
+   coarse_graining
+   datasets
+   priors
+   models
    training
    simulation
-   autodoc
    dev/dev
    bibliography
 
