@@ -26,10 +26,12 @@ class Harmonic(torch.nn.Module, _Prior):
 
     .. math::
 
-        U_{\text{Harmonic}}(x) = \frac{k}{2}\left( x - x_0 \right)^2
+        U_{\text{Harmonic}}(x) = k\left( x - x_0 \right)^2
 
     where :math:`k` is a harmonic/spring constant describing the interaction
     strength and :math:`x_0` is the equilibrium value of the feature :math:`x`.
+    A an optimizable constant energy offset is added during the prior parameter
+    fitting.
 
     Parameters
     ----------
