@@ -114,22 +114,22 @@ class Topology(object):
         """Number of atoms in the topology."""
         return len(self.types)
 
-    def types2torch(self, device: str = "cpu"):
+    def types2torch(self, device: str = "cpu") -> torch.Tensor:
         return torch.tensor(self.types, dtype=torch.long, device=device)
 
-    def bonds2torch(self, device: str = "cpu"):
+    def bonds2torch(self, device: str = "cpu") -> torch.Tensor:
         return torch.tensor(self.bonds, dtype=torch.long, device=device)
 
-    def angles2torch(self, device: str = "cpu"):
+    def angles2torch(self, device: str = "cpu") -> torch.Tensor:
         return torch.tensor(self.angles, dtype=torch.long, device=device)
 
-    def dihedrals2torch(self, device: str = "cpu"):
+    def dihedrals2torch(self, device: str = "cpu") -> torch.Tensor:
         return torch.tensor(self.dihedrals, dtype=torch.long, device=device)
 
-    def impropers2torch(self, device: str = "cpu"):
+    def impropers2torch(self, device: str = "cpu") -> torch.Tensor:
         return torch.tensor(self.impropers, dtype=torch.long, device=device)
 
-    def fully_connected2torch(self, device: str = "cpu"):
+    def fully_connected2torch(self, device: str = "cpu") -> torch.Tensor:
         ids = torch.arange(self.n_atoms)
         mapping = torch.cartesian_prod(ids, ids).t()
         mapping = mapping[:, mapping[0] != mapping[1]]
@@ -145,6 +145,11 @@ class Topology(object):
             "dihedrals", "fully connected"]).
         device:
             device upon which the neighborlist is returned
+
+        Returns
+        -------
+        Dict:
+            Neighborlist dictionary
         """
         allowed_types = [
             "bonds",
@@ -173,7 +178,7 @@ class Topology(object):
         )
         return nl
 
-    def add_bond(self, idx1: int, idx2: int):
+    def add_bond(self, idx1: int, idx2: int) -> None:
         """Define a bond between two atoms.
 
         Parameters
@@ -186,13 +191,15 @@ class Topology(object):
         self.bonds[0].append(idx1)
         self.bonds[1].append(idx2)
 
-    def add_angle(self, idx1: int, idx2: int, idx3: int):
-        """Define an angle between three atoms. `idx2` represent the apex of
-        the angles::
+    def add_angle(self, idx1: int, idx2: int, idx3: int) -> None:
+        r"""Define an angle between three atoms. `idx2` represents the
+        apex/central angles:
 
-          2---3
-         /
-        1
+        .. code::
+
+              2---3
+             /
+            1
 
         Parameters
         ----------
@@ -208,17 +215,19 @@ class Topology(object):
         self.angles[1].append(idx2)
         self.angles[2].append(idx3)
 
-    def add_dihedral(self, idx1: int, idx2: int, idx3: int, idx4: int):
-        """
+    def add_dihedral(self, idx1: int, idx2: int, idx3: int, idx4: int) -> None:
+        r"""
         The dihedral angle formed by a quadruplet of indices (1,2,3,4) is
         difined around the axis connecting index 2 and 3 (i.e., the angle
-        between the planes spanned by indices (1,2,3) and (2,3,4))::
+        between the planes spanned by indices (1,2,3) and (2,3,4)):
 
-                  4
-                  |
-            2-----3
-           /
-          1
+        .. code::
+
+                     4
+                     |
+               2-----3
+              /
+             1
 
         Parameters
         ----------
@@ -237,7 +246,7 @@ class Topology(object):
         self.dihedrals[2].append(idx3)
         self.dihedrals[3].append(idx4)
 
-    def bonds_from_edge_index(self, edge_index: torch.Tensor):
+    def bonds_from_edge_index(self, edge_index: torch.Tensor) -> None:
         """Overwrites the internal bond list with the bonds
         defined in the supplied bond edge_index
 
@@ -251,7 +260,7 @@ class Topology(object):
 
         self.bonds = tuple(edge_index.numpy().tolist())
 
-    def angles_from_edge_index(self, edge_index: torch.Tensor):
+    def angles_from_edge_index(self, edge_index: torch.Tensor) -> None:
         """Overwrites the internal angle list with the angles
         defined in the supplied angle edge_index
 
@@ -265,7 +274,7 @@ class Topology(object):
 
         self.angles = tuple(edge_index.numpy().tolist())
 
-    def dihedrals_from_edge_index(self, edge_index: torch.Tensor):
+    def dihedrals_from_edge_index(self, edge_index: torch.Tensor) -> None:
         """Overwrites the internal dihedral list with the dihedral
         defined in the supplied dihedral edge_index
 
@@ -281,7 +290,7 @@ class Topology(object):
 
         self.dihedrals = tuple(edge_index.numpy().tolist())
 
-    def impropers_from_edge_index(self, edge_index: torch.Tensor):
+    def impropers_from_edge_index(self, edge_index: torch.Tensor) -> None:
         """Overwrites the internal improper list with the improper
         defined in the supplied improper edge_index
 
@@ -297,9 +306,13 @@ class Topology(object):
 
         self.impropers = tuple(edge_index.numpy().tolist())
 
-    def remove_bond(self, bond_removal_list):
-        """Method to remove bonds given list of bonds to be removed.
+    def remove_bond(self, bond_removal_list) -> None:
+        r"""Method to remove bonds given list of bonds to be removed.
         The changes are made in place to the Topology.bonds attribute.
+
+        .. warning::
+
+            The order of the removal list matters, e.g., [1,2] and [2,1] are treated differently.
 
         Parameters
         ----------
@@ -309,12 +322,6 @@ class Topology(object):
                 where index1 and index are the indices of the first and second atom involved in bonding,
                 respectively.
 
-
-        Notes
-        -----
-        - The order of the removal list matters, e.g., [1,2] and [2,1] are treated differently
-
-        TO DO: Include feature to reorder removal_list elements as [i,j] such that i<j
         """
         for bond in bond_removal_list:
             index1 = bond[0]
@@ -329,9 +336,13 @@ class Topology(object):
                 self.bonds[0].pop(to_pop)
                 self.bonds[1].pop(to_pop)
 
-    def remove_angle(self, angle_removal_list):
-        """Method to remove angles given list of angles to be removed. The changes
+    def remove_angle(self, angle_removal_list) -> None:
+        r"""Method to remove angles given list of angles to be removed. The changes
         are made in place to the Topology.angles attribute.
+
+        .. warning::
+
+            The order of the removal list matters, e.g., [1,2,3] and [3,2,1] are treated differently
 
         Parameters
         ----------
@@ -340,12 +351,6 @@ class Topology(object):
             Format: [[index1, index2, index3], ..., [index1, index2, index3]]
                 where index1, index2, index3 are the indices of the first, second, and third
                 atom involved in angle formation, respectively.
-
-        Notes
-        -----
-        - The order of the removal list matters, e.g., [1,2,3] and [3,2,1] are treated differently
-
-        TO DO: Include feature to reorder removal_list elements as [i,j,k] such that i<k
         """
 
         for angle in angle_removal_list:
@@ -366,13 +371,13 @@ class Topology(object):
                 self.angles[2].pop(to_pop)
 
     def to_mdtraj(self) -> mdtraj.Topology:
-        """Convert to mdtraj format. If the topology does not have a resids
+        r"""Convert to mdtraj format. If the topology does not have a resids
         attribute, the resids will be written incrementally for each atom.
 
         Returns
         -------
-        topo:
-            MDTraj topology instance from Topology
+        mdtraj.Topology:
+            MDTraj topology instance from mlcg Topology
         """
 
         topo = mdtraj.Topology()
@@ -382,7 +387,6 @@ class Topology(object):
                 self.names[i_at].strip().upper()
                 not in Element._elements_by_symbol
             ):
-                # TODO:change the default mass and radius to something more meaningful
                 element = Element(
                     self.types[i_at], self.names[i_at], self.names[i_at], 10, 2
                 )
@@ -404,8 +408,8 @@ class Topology(object):
         return topo
 
     @staticmethod
-    def from_mdtraj(topology):
-        """Build topology from an existing mdtraj topology.
+    def from_mdtraj(topology) -> "Topology":
+        r"""Build topology from an existing mdtraj topology.
 
         Parameters
         ----------
@@ -414,7 +418,7 @@ class Topology(object):
 
         Returns
         -------
-        topo:
+        Topology:
             Topology instance created from the input MDTraj topology
         """
 
@@ -434,8 +438,12 @@ class Topology(object):
         return topo
 
     @staticmethod
-    def from_ase(mol: Atoms, unique=True):
-        """Build topology from an ASE Atoms instance
+    def from_ase(mol: Atoms, unique=True) -> "Topology":
+        r"""Build topology from an ASE Atoms instance
+
+        .. warning::
+
+            The minimum image convention is applied to build the topology.
 
         Parameters
         ----------
@@ -446,12 +454,9 @@ class Topology(object):
             resulting Topology object. If False, all redundant (backwards)
             bonds and angles will be added as well.
 
-        .. warning::
-            The minimum image convention is applied to build the topology.
-
         Returns
         -------
-        topo:
+        Topology:
             Topology instance based on the ASE input
         """
 
@@ -484,7 +489,7 @@ class Topology(object):
         return topo
 
     @staticmethod
-    def from_file(filename: str):
+    def from_file(filename: str) -> "Topology":
         """Uses mdtraj reader to read the input topology."""
         topo = mdtraj.load(filename).topology
         return Topology.from_mdtraj(topo)
@@ -495,7 +500,7 @@ class Topology(object):
         layout_kwargs: Dict = None,
         drawing_kwargs: Dict = None,
     ) -> None:
-        """Use NetworkX to draw the current molecular topology.
+        r"""Use NetworkX to draw the current molecular topology.
         by default, node labels correspond to atom types.
 
         Parameters
@@ -552,7 +557,7 @@ def get_connectivity_matrix(
 
     Returns
     -------
-    connectivity_matrix:
+    torch.Tensor:
         Torch tensor of shape (n_atoms, n_atoms) representing the
         connectivity/adjacency matrix from the bonded graph.
     """
@@ -572,7 +577,7 @@ def get_connectivity_matrix(
 
 
 def add_chain_bonds(topology: Topology) -> None:
-    """Add bonds to the topology assuming a chain-like pattern, i.e. atoms are
+    r"""Add bonds to the topology assuming a chain-like pattern, i.e. atoms are
     linked together following their insertion order.
     A four atoms chain will are linked like: `1-2-3-4`.
 
@@ -588,7 +593,7 @@ def add_chain_bonds(topology: Topology) -> None:
 
 
 def add_chain_angles(topology: Topology) -> None:
-    """Add angles to the topology assuming a chain-like pattern, i.e. angles are
+    r"""Add angles to the topology assuming a chain-like pattern, i.e. angles are
     defined following the insertion order of the atoms in the topology.
     A four atoms chain `1-2-3-4` will fine the angles: `1-2-3, 2-3-4`.
 
@@ -604,7 +609,7 @@ def add_chain_angles(topology: Topology) -> None:
 
 
 def add_chain_dihedrals(topology: Topology) -> None:
-    """Add dihedrals to the topology assuming a chain-like pattern, i.e. dihedrals are
+    r"""Add dihedrals to the topology assuming a chain-like pattern, i.e. dihedrals are
     defined following the insertion order of the atoms in the topology.
     A four atoms chain `1-2-3-4` will find the dihedral: `1-2-3-4`.
     """
@@ -615,7 +620,7 @@ def add_chain_dihedrals(topology: Topology) -> None:
 def get_n_pairs(
     connectivity_matrix: torch.Tensor, n: int = 3, unique: bool = True
 ) -> torch.Tensor:
-    """This function uses networkx to identify those pairs
+    r"""This function uses networkx to identify those pairs
     that are exactly n atoms away. Paths are found using Dijkstra's algorithm.
 
     Parameters
@@ -631,7 +636,7 @@ def get_n_pairs(
 
     Returns
     -------
-    pairs:
+    torch.Tensor:
         Edge index tensor of shape (2, n_pairs)
     """
     graph = nx.Graph(connectivity_matrix.numpy())
@@ -652,8 +657,10 @@ def get_n_pairs(
     return pairs
 
 
-def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.Tensor:
-    """This function use networkx to grab all connected paths defined
+def get_n_paths(
+    connectivity_matrix: torch.Tensor, n: int = 3, unique: bool = True
+) -> torch.Tensor:
+    r"""This function use networkx to grab all connected paths defined
     by n connecting edges. Paths are found using Dijkstra's algorithm.
 
     Parameters
@@ -668,7 +675,7 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.Tensor:
 
     Returns
     -------
-    final_paths:
+    torch.Tensor:
         Path index tensor of shape (n, n_pairs)
     """
 
@@ -697,13 +704,15 @@ def get_n_paths(connectivity_matrix, n=3, unique=True) -> torch.Tensor:
 def get_improper_paths(
     connectivity_matrix: torch.Tensor, unique: bool = True
 ) -> torch.Tensor:
-    """This function returns all paths defining an improper dihedral
+    r"""This function returns all paths defining an improper dihedral
+
+    .. code::
 
             k
             |
         i - j - l
 
-    where the order of connected nodes is given as [i,k,l,j] - i.e., the
+    where the order of connected nodes is given as `[i,k,l,j]` - i.e., the
     central node is reported last.
 
     Parameters
@@ -715,7 +724,7 @@ def get_improper_paths(
 
     Returns
     -------
-    final_paths:
+    torch.Tensor:
         Path index tensor of shape (4, n_impropers)
     """
 
@@ -738,10 +747,10 @@ def get_improper_paths(
 
 
 def _grab_atom_index_by_name(
-    top: mdtraj.Topology, atom_selection=None
+    topology: mdtraj.Topology, atom_selection: Optional[np.ndarray] = None
 ) -> np.ndarray:
     """
-    Helper function to select atoms indices based on atom names according to mdtraj scheme
+    rHelper function to select atoms indices based on atom names according to mdtraj scheme
         Some useful examples of possible :obj:`atom_selection` for (improper) dihedrals:
             Impropers: (Central atom must go last)
                 GAMMA1_ATOMS = ["N", "CB", "C", "CA"]
@@ -750,19 +759,29 @@ def _grab_atom_index_by_name(
                 PHI_ATOMS = ["-C", "N", "CA", "C"]
                 PSI_ATOMS = ["N", "CA", "C", "+N"]
                 OMEGA_ATOMS = ["CA", "C", "+N", "+CA"]
+    Parameters
+    ----------
+    topology:
+        MDTraj topology instance
+    atom_selection:
+        Array of MDtraj atom names to select
 
+    Returns
+    -------
+    np.ndarray:
+        Atom indices according to name
     """
 
-    if hasattr(top, "topology"):
+    if hasattr(topology, "topology"):
         warnings.warn(
             "Passing a Trajectory object. Please pass a Topology object",
             DeprecationWarning,
         )
-        top = top.topology
+        topology = topology.topology
 
     if atom_selection is not None:
         improper_atoms = mdtraj.geometry.dihedral._atom_sequence(
-            top, atom_selection
+            topology, atom_selection
         )[1]
     else:
         improper_atoms = None
@@ -770,32 +789,35 @@ def _grab_atom_index_by_name(
 
 
 def _residue_mapping_dictionary(
-    top: mdtraj.Topology, atom_indices=None
+    topology: mdtraj.Topology, atom_indices=None
 ) -> Dict:
-    """
+    r"""
     Helper function to assign each set of atom_indices to a specific residue type
-    Inputs:
-        top:
-            mdtraj topology object
-        atom_indices:
-            np.ndarray (n_instances,n_atoms).
-            A row is a specific interaction and where each column are the atoms involved in it.
 
-    Outputs:
-        residue_dictionary:
-            dict. k,v = residue, atom_indices
+    Parameters
+    ----------
+        topology:
+                mdtraj topology object
+        atom_indices:
+                np.ndarray (n_instances,n_atoms).
+                A row is a specific interaction and where each column are the atoms involved in it.
+
+    Returns
+    -------
+    Dict:
+        Dictionary that maps residues to atom indices within them
     """
     from collections import defaultdict
 
-    if hasattr(top, "topology"):
+    if hasattr(topology, "topology"):
         warnings.warn(
             "Passing a Trajectory object. Please pass a Topology object",
             DeprecationWarning,
         )
-        top = top.topology
+        topology = topology.topology
 
     residue_dictionary = defaultdict(list)
-    resids = np.array([atom.residue.name for atom in top.atoms])
+    resids = np.array([atom.residue.name for atom in topology.atoms])
     for i in range(atom_indices.shape[0]):
         group = atom_indices[i]
         res_group = resids[group]

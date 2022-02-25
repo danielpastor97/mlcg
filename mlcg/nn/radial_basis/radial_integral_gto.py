@@ -116,7 +116,7 @@ class RIGTOBasis(_RadialBasis):
 
 
 def fit_splined_radial_integrals(nmax, lmax, rc, sigma, cutoff, mesh_size):
-    c = 0.5 / sigma**2
+    c = 0.5 / sigma ** 2
     length, channels = mesh_size, nmax * lmax
 
     dists = np.linspace(0, rc + 1e-6, length)
@@ -188,14 +188,14 @@ def gto(rcut, nmax, r):
     norms = np.array([gto_norm(n, rcut, nmax) for n in range(nmax)])
     res = np.zeros((r.shape[0], nmax))
     for n in range(nmax):
-        res[:, n] = norms[n] * np.power(r, n + 1) * np.exp(-ds[n] * r**2)
+        res[:, n] = norms[n] * np.power(r, n + 1) * np.exp(-ds[n] * r ** 2)
     res = res @ ortho
     return res
 
 
 def ri_gto(n, l, rij, c, d, norm):
     res = (
-        exp(-c * rij**2)
+        exp(-c * rij ** 2)
         * (gamma(0.5 * (l + n + 3)) / gamma(l + 1.5))
         * power(c * rij, l)
         * power(c + d, -0.5 * (l + n + 3))

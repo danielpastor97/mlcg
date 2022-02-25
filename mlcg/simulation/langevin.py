@@ -175,7 +175,7 @@ class LangevinSimulation(_Simulation):
 
         if self.save_energies:
             kes = 0.5 * torch.sum(
-                torch.sum(masses[:, :, None] * v_new**2, dim=2), dim=1
+                torch.sum(masses[:, :, None] * v_new ** 2, dim=2), dim=1
             )
             self.kinetic_energies[save_ind, :] = kes
 

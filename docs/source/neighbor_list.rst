@@ -7,6 +7,7 @@ The neighbor lists are dictionaries containing meta-data (user defined `tag`, `b
 Neighbor List Utilities
 -----------------------
 These utilities are meant to format and validate neighbor list dictionaries.
+
 .. autofunction:: mlcg.neighbor_list.neighbor_list.make_neighbor_list
 .. autofunction:: mlcg.neighbor_list.neighbor_list.atom_data2neighbor_list
 .. autofunction:: mlcg.neighbor_list.neighbor_list.validate_neighborlist

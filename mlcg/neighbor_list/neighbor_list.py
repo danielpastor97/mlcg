@@ -24,6 +24,11 @@ def atomic_data2neighbor_list(
         The maximum number of neighbors to return for each atom in :obj:`data`.
         If the number of actual neighbors is greater than
         :obj:`max_num_neighbors`, returned neighbors are picked randomly.
+
+    Returns
+    -------
+    Dict:
+        Neighborlist dictionary
     """
     rcut = float(rcut)
     idx_i, idx_j, cell_shifts, _ = torch_neighbor_list(
@@ -75,6 +80,11 @@ def make_neighbor_list(
         cutoff radius used to compute the connectivity
     self_interaction:
         whether the mapping includes self referring mappings, e.g. mappings where `i` == `j`.
+
+    Returns
+    -------
+    Dict:
+        Neighborlist dictionary
     """
 
     return dict(
@@ -93,7 +103,18 @@ class _EmptyField:
 
 
 def validate_neighborlist(inp: Dict) -> bool:
-    """Tool to validate that the neighborlist dictionary has the required fields"""
+    """Tool to validate that the neighborlist dictionary has the required fields
+
+    Parameters
+    ----------
+    inp:
+        Input neighborlist to be validated
+
+    Returns
+    -------
+    bool:
+        True if the supplied neighborlist is valid, false otherwise
+    """
     validator = {
         "tag": [str],
         "order": [int],
