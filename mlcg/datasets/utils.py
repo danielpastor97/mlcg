@@ -283,7 +283,7 @@ def _format_83(f):
 
 
 def write_PSF(
-    dataset: torch_geometric.data.Dataset,
+    dataset: InMemoryDataset,
     fout: str = "cg.psf",
     charges: Optional[np.ndarray] = None,
 ):
