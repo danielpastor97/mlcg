@@ -1,7 +1,7 @@
 import torch
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import InMemoryDataset
-from typing import Dict, List, Sequence, Union, TextIO, Optional
+from typing import Dict, List, Sequence, Union, TextIO, Optional, Tuple
 from mlcg.data.atomic_data import AtomicData
 import mdtraj as md
 import numpy as np
