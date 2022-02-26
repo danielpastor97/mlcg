@@ -96,6 +96,10 @@ class PLModel(pl.LightningModule):
             out = torch.tensor(
                 validation_step_outputs
             )  # shape (N_metasets, N_batches, 2)
+            # if metasets are not used, or if just one metaset is used,
+            # adjust the shape accordingly:
+            if len(out.shape) != 3:
+                out = out.view(1, *out.shape)
             out = (
                 out[:, :, 0]
                 * out[:, :, 1]
