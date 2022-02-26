@@ -50,15 +50,15 @@ def build_cg_matrix(
 
     Returns
     -------
-    cg_types:
+    np.ndarray:
         Array of CG atom types
-    cg_masses:
+    np.ndarray:
         Array of CG masses
-    cg_matrix:
+    np.ndarray:
         One-hot transformation matrix of shape (n_high_res_atoms, n_cg_atoms)
         that maps atoms for the high resolution repesentation to the coarse
         grain representation
-    cg_mapping_:
+    OrderedDict:
         Ordered dictionary mapping each CG atom index (with respect to the
         CG topology) to a list containing the CG atom name, CG atom type
         and the CG atom mass
@@ -104,7 +104,7 @@ def build_cg_topology(
     bonds: Optional[Callable] = add_chain_bonds,
     angles: Optional[Callable] = add_chain_angles,
     dihedrals: Optional[Callable] = add_chain_dihedrals,
-):
+) -> Topology:
     r"""Takes an `mlcg.geometry.topology.Topology` instance and returns another
     `mlcg.geometry.topology.Topology` instance conditioned on the supplied
     CG mapping
@@ -124,6 +124,11 @@ def build_cg_topology(
        Function to enumerate and define angles in the final CG topology
     dihedrals:
        Function to enumerate and define dihedrals in the final CG topology
+
+    Returns
+    -------
+    Topology:
+        CG topoology
     """
     cg_topo = Topology()
     for at in topology.atoms:

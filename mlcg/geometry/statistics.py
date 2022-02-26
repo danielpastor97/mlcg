@@ -23,7 +23,7 @@ def _get_all_unique_keys(
 
     Returns
     -------
-    unique_sym_keys:
+    torch.Tensor:
        Tensor of unique atom types, symmetrised
     """
     # get all combinations of size order between the elements of unique_types
@@ -54,8 +54,8 @@ def _get_bin_centers(
 
     Returns
     -------
-    bin_centers:
-        The locaations of the bin centers
+    torch.Tensor:
+        torch tensor containing the locaations of the bin centers
     """
 
     if b_min >= b_max:
@@ -118,7 +118,7 @@ def compute_statistics(
 
     Returns
     -------
-    statistics:
+    Dict:
         Dictionary of gathered statistics and estimated parameters based on
         the `TargetPrior`. The following key/value pairs are common across all `TargetPrior`
         choices:
@@ -294,9 +294,10 @@ def fit_baseline_models(
 
     Returns
     -------
-    models, statistics:
-        The list of parametrized priors and a dictionary containing their coresponding statistics;
-        see `compute_statistics` for more detailed information.
+    nn.Module:
+        The list of parametrized priors
+    Dict:
+        Corresponding statistsics for prior fits
     """
 
     statistics = {}

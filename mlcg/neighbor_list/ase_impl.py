@@ -26,11 +26,11 @@ def ase_neighbor_list(
 
     Returns
     -------
-    i:
+    torch.Tensor:
         first atom indices, of shape (n_atoms)
-    j:
+    torch.Tensor:
         second atom index, of shape (n_atoms)
-    periodic_distance_shift:
+    torch.Tensor:
         Dot product of the periodic shift vectors with the system unit cell vectors
     """
 

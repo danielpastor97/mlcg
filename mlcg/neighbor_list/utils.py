@@ -22,7 +22,7 @@ def ase2data(
 
     Returns
     -------
-    data:
+    Data:
         Pytorch geometric Data instance containing the following fields:
 
     .. code-block:python

@@ -93,6 +93,16 @@ class Harmonic(torch.nn.Module, _Prior):
     def data2features(self, data: AtomicData) -> torch.Tensor:
         """Computes features for the harmonic interaction from
         an AtomicData instance)
+
+        Parameters
+        ----------
+        data:
+            Input `AtomicData` instance
+
+        Returns
+        -------
+        torch.Tensor:
+            Tensor of computed features
         """
         mapping = data.neighbor_list[self.name]["index_mapping"]
         return Harmonic.compute_features(data.pos, mapping, self.name)
@@ -112,7 +122,7 @@ class Harmonic(torch.nn.Module, _Prior):
 
         Returns
         -------
-        data:
+        AtomicData:
             Updated AtomicData instance with the 'out' field
             populated with the predicted energies for each
             example/structure
@@ -165,7 +175,7 @@ class Harmonic(torch.nn.Module, _Prior):
 
         Returns
         -------
-        stat:
+        Dict:
             Dictionary of interaction parameters as retrived through
             `scipy.optimize.curve_fit`
         """
@@ -208,7 +218,7 @@ class Harmonic(torch.nn.Module, _Prior):
 
         Returns
         -------
-        neighbor_list:
+        Dict:
             Neighborlist of the chosen feature according to the
             supplied topology
         """
@@ -327,7 +337,18 @@ class Repulsion(torch.nn.Module, _Prior):
     def data2features(self, data: AtomicData) -> torch.Tensor:
         """Computes features for the harmonic interaction from
         an AtomicData instance)
+
+        Parameters
+        ----------
+        data:
+            Input `AtomicData` instance
+
+        Returns
+        -------
+        torch.Tensor:
+            Tensor of computed features
         """
+
         mapping = data.neighbor_list[self.name]["index_mapping"]
         return Repulsion.compute_features(data.pos, mapping)
 
@@ -346,7 +367,7 @@ class Repulsion(torch.nn.Module, _Prior):
 
         Returns
         -------
-        data:
+        AtomicData:
             Updated AtomicData instance with the 'out' field
             populated with the predicted energies for each
             example/structure
@@ -398,7 +419,7 @@ class Repulsion(torch.nn.Module, _Prior):
 
         Returns
         -------
-        stat:
+        torch.Tensor:
             Dictionary of interaction parameters as retrived through
             `scipy.optimize.curve_fit`
         """
@@ -409,7 +430,7 @@ class Repulsion(torch.nn.Module, _Prior):
         return stat
 
     @staticmethod
-    def neighbor_list(topology: Topology) -> dict:
+    def neighbor_list(topology: Topology) -> Dict:
         """Method for computing a neighbor list from a topology
         and a chosen feature type.
 
@@ -421,7 +442,7 @@ class Repulsion(torch.nn.Module, _Prior):
 
         Returns
         -------
-        neighbor_list:
+        Dict:
             Neighborlist of the fully-connected distances
             according to the supplied topology
         """
@@ -472,7 +493,7 @@ class Dihedral(torch.nn.Module, _Prior):
     _order = 4
     _neighbor_list_name = "dihedrals"
 
-    def __init__(self, statistics, n_degs=6) -> None:
+    def __init__(self, statistics: Dict, n_degs: int = 6) -> None:
         super(Dihedral, self).__init__()
         keys = torch.tensor(list(statistics.keys()), dtype=torch.long)
         self.allowed_interaction_keys = list(statistics.keys())
@@ -498,11 +519,44 @@ class Dihedral(torch.nn.Module, _Prior):
         self.register_buffer("k1s", k1)
         self.register_buffer("k2s", k2)
 
-    def data2features(self, data):
+    def data2features(self, data: AtomicData) -> torch.Tensor:
+        """Computes features for the harmonic interaction from
+        an AtomicData instance)
+
+        Parameters
+        ----------
+        data:
+            Input `AtomicData` instance
+
+        Returns
+        -------
+        torch.Tensor:
+            Tensor of computed features
+        """
         mapping = data.neighbor_list[self.name]["index_mapping"]
         return Dihedral.compute_features(data.pos, mapping)
 
-    def forward(self, data):
+    def forward(self, data: AtomicData) -> AtomicData:
+        """Forward pass through the dihedral interaction.
+
+        Parameters
+        ----------
+        data:
+            Input AtomicData instance that possesses an appropriate
+            neighbor list containing both an 'index_mapping'
+            field and a 'mapping_batch' field for accessing
+            beads relevant to the interaction and scattering
+            the interaction energies onto the correct example/structure
+            respectively.
+
+        Returns
+        -------
+        AtomicData:
+            Updated AtomicData instance with the 'out' field
+            populated with the predicted energies for each
+            example/structure
+        """
+
         mapping = data.neighbor_list[self.name]["index_mapping"]
         mapping_batch = data.neighbor_list[self.name]["mapping_batch"]
         interaction_types = [
@@ -534,6 +588,7 @@ class Dihedral(torch.nn.Module, _Prior):
 
     @staticmethod
     def compute(theta, k1s, k2s):
+        """Method computing the dihedral interaction"""
         V = 0.00
         for ii, (k1, k2) in enumerate(zip(k1s, k2s)):
             V += k1 * torch.sin(ii * theta) + k2 * torch.cos(ii * theta)
@@ -612,7 +667,7 @@ class Dihedral(torch.nn.Module, _Prior):
         dG_nz: torch.Tensor,
         n_degs: int = 6,
         constrain_deg: Optional[int] = None,
-    ):
+    ) -> Dict:
         """
         Loop over n_degs basins and use either the AIC criterion
         or a prechosen degree to select best fit. Parameter fitting
@@ -634,6 +689,7 @@ class Dihedral(torch.nn.Module, _Prior):
 
         Returns
         -------
+        Dict:
             Statistics dictionary with fitted interaction parameters
         """
 
