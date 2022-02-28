@@ -33,14 +33,14 @@ def torch_neighbor_list(
 
     Returns
     -------
-    idx_i:
+    torch.Tensor:
         The atom indices of the first atoms in each neighbor pair
-    idx_j:
+    torch.Tensor:
         The atom indices of the second atoms in each neighbor pair
-    cell_shifts:
+    torch.Tensor:
         The cell shifts associated with minimum image distances
         in the presence of periodic boundary conditions
-    self_interaction_mask:
+    torch.Tensor:
         Mask for excluding self interactions
     """
 
@@ -183,11 +183,11 @@ def torch_neighbor_list_no_pbc(
 
     Returns
     -------
-    edges_i:
+    torch.Tensor:
         The first atoms in each edge
-    edges_j:
+    torch.Tensor:
         The second atoms in each edge
-    self_interaction_mask:
+    torch.Tensor:
         Boolean tensor identifying self_interacting edges
     """
 
@@ -261,11 +261,11 @@ def torch_neighbor_list_pbc(
 
     Returns
     -------
-    edges_i:
+    torch.Tensor:
         The first atoms in each edge
-    edges_j:
+    torch.Tensor:
         The second atoms in each edge
-    self_interaction_mask:
+    torch.Tensor:
         Boolean tensor identifying self_interacting edges
     """
 
@@ -313,7 +313,7 @@ def torch_neighbor_list_pbc(
     return idx_i, idx_j, cell_shifts, self_interaction_mask
 
 
-def wrap_positions(data: Data, eps=1e-7) -> None:
+def wrap_positions(data: Data, eps: float = 1e-7) -> None:
     """Wrap positions to unit cell.
 
     Returns positions changed by a multiple of the unit cell vectors to

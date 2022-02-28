@@ -78,7 +78,7 @@ class CosineCutoff(_Cutoff):
 
     .. math::
 
-        \cos{\left( r_{ij} \times \pi / r_{high})\right)} + 1.0
+        \cos{\left( r_{ij} \times \pi / r_{high}\right)} + 1.0
 
     NOTE: The behavior of the cutoff is qualitatively different for lower
     cutoff values greater than zero when compared to the zero lower cutoff
@@ -88,7 +88,7 @@ class CosineCutoff(_Cutoff):
     .. math::
 
         0.5 \cos{ \left[ \pi \left(2 \frac{r_{ij} - r_{low}}{r_{high}
-         - r_{low}} + 1.0 \right]\right)} + 0.5
+         - r_{low}} + 1.0 \right)\right]} + 0.5
 
     """
 
@@ -145,7 +145,7 @@ class ShiftedCosineCutoff(_OneSidedCutoff):
     .. math::
 
         0.5 + 0.5  \cos{ \left[ \pi \left( \frac{r_{ij} - r_{high} +
-        \sigma}{\sigma}\right]\right)}
+        \sigma}{\sigma}\right)\right]}
 
     where :math:`\sigma` is the smoothing width.
 

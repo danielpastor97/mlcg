@@ -14,6 +14,9 @@ Dataset & Simulation References
 
 .. [CHARM22Star] Piana, S., et al. Biophys J. 100. 47-49. (2001).
 
+.. [AMBER_ff_99SB_ILDN] Hornak, V. et al. `Comparison of multiple Amber force fields and development of improved protein backbone parameters <https://onlinelibrary.wiley.com/doi/10.1002/prot.21123>`_ . Proteins: Structure, Function, and Bioinformatics, 65(3), 712–725. (2006).
+
+
 CGnet References
 ----------------
 

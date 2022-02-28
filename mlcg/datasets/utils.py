@@ -1,7 +1,7 @@
 import torch
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import InMemoryDataset
-from typing import Dict, List, Sequence, Union
+from typing import Dict, List, Sequence, Union, TextIO, Optional, Tuple
 from mlcg.data.atomic_data import AtomicData
 import mdtraj as md
 import numpy as np
@@ -34,7 +34,7 @@ def remove_baseline_forces(
 
     Returns
     -------
-    data_list:
+    List[AtomicData]:
         Uncollated list of AtomicData instances, where the value of the
         'forces' field is now the delta forces (original forces minus
         the baseline/prior forces). An additional field 'baseline' forces
@@ -170,14 +170,20 @@ def write_PDB(
 
 
 def _write_header(
-    file, unitcell_lengths=None, unitcell_angles=None, write_metadata=True
+    file: TextIO,
+    unitcell_lengths: Optional[Tuple] = None,
+    unitcell_angles: Optional[Tuple] = None,
+    write_metadata: bool = True,
 ):
     """Write out the header for a PDB file.
+
     Parameters
     ----------
-    unitcell_lengths : {tuple, None}
+    file:
+        Python file object
+    unitcell_lengths:
         The lengths of the three unitcell vectors, ``a``, ``b``, ``c``
-    unitcell_angles : {tuple, None}
+    unitcell_angles:
         The angles between the three unitcell vectors, ``alpha``,
         ``beta``, ``gamma``
     """
@@ -205,7 +211,16 @@ def _write_header(
     )
 
 
-def _write_footer(file, topology=None):
+def _write_footer(file: TextIO, topology: Optional[md.Topology] = None):
+    """Write out the footer for a PDB file
+
+    Parameters
+    ----------
+    file:
+        Python file object
+    topology:
+        MDTraj topology instance
+    """
 
     conectBonds = []
     if topology is not None:
@@ -270,9 +285,22 @@ def _format_83(f):
     )
 
 
-def write_PSF(dataset, fout="cg.psf", charges=None):
+def write_PSF(
+    dataset: InMemoryDataset,
+    fout: str = "cg.psf",
+    charges: Optional[np.ndarray] = None,
+):
     """
     Write out charmm format psf file from AtomicData object
+
+    Parameters
+    ----------
+    dataset:
+        Mlcg dataset containing the molecule from which a PSF will be extracted
+    fout:
+        Output filename
+    charges:
+        Array of charges
     """
     with open(fout, "w") as file:
         file.write("PSF \n")
