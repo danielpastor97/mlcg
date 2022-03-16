@@ -2,6 +2,7 @@ import os.path as osp
 import torch
 import pytorch_lightning.utilities.cli as plc
 from torch_geometric.data.makedirs import makedirs
+import torch_optimizer as optim
 
 
 class LightningCLI(plc.LightningCLI):
@@ -30,6 +31,9 @@ class LightningCLI(plc.LightningCLI):
                 torch.optim.Adagrad,
                 torch.optim.Adadelta,
                 torch.optim.LBFGS,
+                optim.Lamb,
+                optim.NovoGrad,
+                optim.Yogi,
             ),
             link_to="model.optimizer",
         )
