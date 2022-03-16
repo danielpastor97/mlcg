@@ -39,8 +39,11 @@ class PLModel(pl.LightningModule):
             `scheduler.step()`. 1 corresponds to updating the learning
             rate after every epoch/step.
         sam:
-            dictionary containing the SAM parameters "adaptive" and "rho" (see
-            https://github.com/davda54/sam for more details)
+            dictionary containing the parameters ::
+
+                `{"use_sam": False,"adaptive":True,"rho":0.5}` "adaptive" and "rho"
+
+            (see https://github.com/davda54/sam for more details)
     """
 
     def __init__(
@@ -68,9 +71,11 @@ class PLModel(pl.LightningModule):
         if sam is None:
             self.use_sam = False
         else:
-            self.use_sam = True
+            self.use_sam = sam.get("use_sam", False)
             self.adaptive = sam.get('adaptive', False)
             self.rho = sam.get('rho', 0.05)
+            
+        if self.use_sam:
             self.automatic_optimization = False
 
         self.derivative = False
