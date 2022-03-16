@@ -9,7 +9,14 @@ from ..data import AtomicData
 from ..data._keys import N_ATOMS_KEY
 from ..nn import Loss, GradientsOut
 from ._fix_hparams_saving import yaml
+from .sam import SAM
 
+
+def get_class_from_str(class_path):
+    class_module, class_name = class_path.rsplit(".", 1)
+    module = __import__(class_module, fromlist=[class_name])
+    args_class = getattr(module, class_name)
+    return args_class
 
 class PLModel(pl.LightningModule):
     """PL interface to train with models defined in :ref:`mlcg.nn`.
@@ -31,6 +38,9 @@ class PLModel(pl.LightningModule):
             How many epochs/steps should pass between calls to
             `scheduler.step()`. 1 corresponds to updating the learning
             rate after every epoch/step.
+        sam:
+            dictionary containing the SAM parameters "adaptive" and "rho" (see
+            https://github.com/davda54/sam for more details)
     """
 
     def __init__(
@@ -41,6 +51,7 @@ class PLModel(pl.LightningModule):
         lr_scheduler: Optional[dict] = None,
         monitor: Optional[str] = None,
         step_frequency: int = 1,
+        sam: Optional[dict] = None,
     ) -> None:
         """ """
 
@@ -54,19 +65,35 @@ class PLModel(pl.LightningModule):
         self.monitor = monitor
         self.step_frequency = step_frequency
 
+        if sam is None:
+            self.use_sam = False
+        else:
+            self.use_sam = True
+            self.adaptive = sam.get('adaptive', False)
+            self.rho = sam.get('rho', 0.05)
+            self.automatic_optimization = False
+
         self.derivative = False
         for module in self.modules():
             if isinstance(module, GradientsOut):
                 self.derivative = True
 
     def configure_optimizers(self) -> dict:
-        optimizer = instantiate_class(
-            self.model.parameters(), init=self.optimizer
-        )
+        if self.use_sam:
+            base_opt = get_class_from_str(self.optimizer['class_path'])
+            optimizer = SAM(self.model.parameters(), base_opt,
+                             adaptive=self.adaptive,rho=self.rho,
+                            **self.optimizer['init_args'])
+        else:
+            optimizer = instantiate_class(
+                self.model.parameters(), init=self.optimizer
+            )
+
         optim_config = {"optimizer": optimizer}
 
         if self.lr_scheduler is not None:
             scheduler = instantiate_class(optimizer, self.lr_scheduler)
+
             optim_config.update(
                 lr_scheduler=scheduler,
             )
@@ -77,6 +104,7 @@ class PLModel(pl.LightningModule):
                 )
 
         return optim_config
+
 
     def on_epoch_start(self):
         # this can avoid growing VRAM usage after 1 epoch
@@ -119,8 +147,22 @@ class PLModel(pl.LightningModule):
         )
 
     def training_step(self, data: AtomicData, batch_idx: int) -> torch.Tensor:
-        loss, _ = self.step(data, "training")
-        return loss
+        if self.use_sam:
+            optimizer = self.optimizers()
+            # first forward-backward pass
+            loss, _ = self.step(data, "training")
+            self.manual_backward(loss)
+            optimizer.first_step(zero_grad=True)
+
+            # second forward-backward pass
+            loss_2, _ = self.step(data, "training_2")
+            self.manual_backward(loss_2)
+            optimizer.second_step(zero_grad=True)
+
+            return loss
+        else:
+            loss, _ = self.step(data, "training")
+            return loss
 
     def validation_step(
         self, data: AtomicData, batch_idx, dataloader_idx=0
