@@ -18,6 +18,7 @@ def get_class_from_str(class_path):
     args_class = getattr(module, class_name)
     return args_class
 
+
 class PLModel(pl.LightningModule):
     """PL interface to train with models defined in :ref:`mlcg.nn`.
 
@@ -72,9 +73,9 @@ class PLModel(pl.LightningModule):
             self.use_sam = False
         else:
             self.use_sam = sam.get("use_sam", False)
-            self.adaptive = sam.get('adaptive', False)
-            self.rho = sam.get('rho', 0.05)
-            
+            self.adaptive = sam.get("adaptive", False)
+            self.rho = sam.get("rho", 0.05)
+
         if self.use_sam:
             self.automatic_optimization = False
 
@@ -85,10 +86,14 @@ class PLModel(pl.LightningModule):
 
     def configure_optimizers(self) -> dict:
         if self.use_sam:
-            base_opt = get_class_from_str(self.optimizer['class_path'])
-            optimizer = SAM(self.model.parameters(), base_opt,
-                             adaptive=self.adaptive,rho=self.rho,
-                            **self.optimizer['init_args'])
+            base_opt = get_class_from_str(self.optimizer["class_path"])
+            optimizer = SAM(
+                self.model.parameters(),
+                base_opt,
+                adaptive=self.adaptive,
+                rho=self.rho,
+                **self.optimizer["init_args"],
+            )
         else:
             optimizer = instantiate_class(
                 self.model.parameters(), init=self.optimizer
@@ -109,7 +114,6 @@ class PLModel(pl.LightningModule):
                 )
 
         return optim_config
-
 
     def on_epoch_start(self):
         # this can avoid growing VRAM usage after 1 epoch
