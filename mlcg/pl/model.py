@@ -42,7 +42,7 @@ class PLModel(pl.LightningModule):
         sam:
             dictionary containing the parameters ::
 
-                `{"use_sam": False,"adaptive":True,"rho":0.5}` "adaptive" and "rho"
+                `{"use_sam": False,"adaptive":True,"rho":0.5}`
 
             (see https://github.com/davda54/sam for more details)
     """
