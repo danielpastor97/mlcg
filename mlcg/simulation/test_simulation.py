@@ -241,6 +241,14 @@ def test_simulation_run(
             [1.0],
             {},
         ),
+        (
+            ASE_prior_model,
+            get_initial_data,
+            True,
+            PTSimulation,
+            [1.0, [1.67, 1.42, 1.28], 100],
+            {},
+        ),
     ],
     indirect=["ASE_prior_model", "get_initial_data"],
 )
