@@ -2,7 +2,7 @@
 # Authors: Brooke Husic, Nick Charron, Jiang Wang
 # Contributors: Dominik Lemm, Andreas Kraemer
 
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Callable
 import torch
 import numpy as np
 
@@ -75,6 +75,13 @@ class _Simulation(object):
         is not None and log_type is 'write'. This provides the base file name;
         for numpy outputs, '_coords_000.npy' or similar is added. For log
         outputs, '_log.txt' is added.
+        subroutine :
+                Optional subroutine to run at at the interval specified by
+                subroutine_interval after simulation updates. The subroutine should
+        take only the internal collated `AtomicData` instance as an argument.
+        subroutine_interval :
+                Specifies the interval, in simulation steps, between successive calls to
+                the subroutine, if specified.
 
     """
 
@@ -92,6 +99,8 @@ class _Simulation(object):
         log_interval: Optional[int] = None,
         log_type: str = "write",
         filename: Optional[str] = None,
+        subroutine: Optional[Callable] = None,
+        subroutine_interval: Optional[int] = None,
     ):
         self.model = None
         self.initial_data = None
@@ -120,6 +129,9 @@ class _Simulation(object):
             )
         self.random_seed = random_seed
         self._simulated = False
+
+        self.subroutine = subroutine
+        self.subroutine_interval = subroutine_interval
 
     def attach_model(self, model: torch.nn.Module):
         """setup the model to use in the simulation
@@ -162,6 +174,17 @@ class _Simulation(object):
             Also an attribute; stores the simulation coordinates at the
             save_interval
         """
+        if self.subroutine != None and self.subroutine_interval == None:
+            raise ValueError(
+                "subroutine {} specified, but subroutine_interval is ambiguous.".format(
+                    self.subroutine
+                )
+            )
+        if self.subroutine_interval != None and self.subroutine == None:
+            raise ValueError(
+                "subroutine interval specified, but subroutine is ambiguous."
+            )
+
         self._set_up_simulation(overwrite)
         data = deepcopy(self.initial_data)
         data.to(self.device)
@@ -192,6 +215,10 @@ class _Simulation(object):
                 if self.log_interval is not None:
                     if int((t + 1) % self.log_interval) == 0:
                         self.log((t + 1) // self.save_interval)
+
+            if self.subroutine != None:
+                if (t + 1) % self.subroutine_interval == 0:
+                    data = self.subroutine(data)
 
             # reset data outputs to collect the new forces/energies
             data.out = {}

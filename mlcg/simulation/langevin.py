@@ -311,13 +311,13 @@ class PTSimulation(LangevinSimulation):
     friction:
          Scalar friction to use for Langevin updates
     tepmeratures:
-         List of temperatures in Kelvins for each of the thermodynamic replicas
+         List of inverse temperatures for each of the thermodynamic replicas
     """
 
     def __init__(
         self,
         friction: float = 1e-3,
-        temperatures: List[float] = [300, 350, 400],
+        betas: List[float] = [1.67, 1.42, 1.32],
         exchange_interval: int = 100,
         **kwargs,
     ):
@@ -326,7 +326,26 @@ class PTSimulation(LangevinSimulation):
         assert all([beta > 0.00 for beta in betas])
         self.betas = betas
         self.n_replicas = len(self.betas)
-        self.exchange_interval = exchange_interval
+
+        if self.subroutine != None:
+            warnings.warn(
+                "subroutine is already specified as {}. This is now being reassigned to {}.".format(
+                    self.subroutine, self.detect_and_exchange_replicas
+                )
+            )
+            self.subroutine = self.detect_and_exchange_replicas
+        else:
+            self.subroutine = self.detect_and_exchange_replicas
+
+        if self.subroutine_interval != None:
+            warnings.warn(
+                "subroutine interval is already specified as {}. This is now being reassigned to {}.".format(
+                    self.subroutine_interval, subroutine_interval
+                )
+            )
+            self.subroutine_interval = exchange_interval
+        else:
+            self.subroutine_interval = exchange_interval
 
     def attach_configurations(self, configurations: List[AtomicData]):
         """Attaches the configurations at each of the temperatures defined for
@@ -348,7 +367,6 @@ class PTSimulation(LangevinSimulation):
         self.n_sims = len(new_configurations)
         self.n_atoms = len(new_configurations[0].atom_types)
         self.n_dims = new_configurations[0].pos.shape[1]
-        self.n_indep = self.n_sims
 
         # Setup possible even/odd pair exchanges
         self._propose_even_pairs = True
@@ -362,14 +380,14 @@ class PTSimulation(LangevinSimulation):
         pair_a = []
         pair_b = []
         for pair in even_pairs:
-            pair_a.append(torch.arange(self._n_indep) + pair[0] * self._n_indep)
-            pair_b.append(torch.arange(self._n_indep) + pair[1] * self._n_indep)
+            pair_a.append(torch.arange(self.n_sims) + pair[0] * self.n_sims)
+            pair_b.append(torch.arange(self.n_sims) + pair[1] * self.n_sims)
         self._even_pairs = [np.concatenate(pair_a), np.concatenate(pair_b)]
         pair_a = []
         pair_b = []
         for pair in odd_pairs:
-            pair_a.append(torch.arange(self._n_indep) + pair[0] * self._n_indep)
-            pair_b.append(torch.arange(self._n_indep) + pair[1] * self._n_indep)
+            pair_a.append(torch.arange(self.n_sims) + pair[0] * self.n_sims)
+            pair_b.append(torch.arange(self.n_sims) + pair[1] * self.n_sims)
         self._odd_pairs = [torch.cat(pair_a), torch.cat(pair_b)]
 
     def get_replica_info(self, replica_num: int = 0) -> Dict:
@@ -395,7 +413,7 @@ class PTSimulation(LangevinSimulation):
         ):
             raise ValueError("Please provide a valid replica number.")
         indices = torch.arange(
-            replica_num * self._n_indep, (replica_num + 1) * self._n_indep
+            replica_num * self.n_sims, (replica_num + 1) * self.n_sims
         )
         return {
             "beta": self._betas[replica_num],
@@ -447,20 +465,10 @@ class PTSimulation(LangevinSimulation):
 
         p_pair = torch.exp((u_a - u_b) * (betas_a - betas_b))
         approved = torch.rand(len(p_pair)) < p_pair
-        # print("Exchange rate: %.2f%%" % (approved.sum() / len(pair_a) * 100.))
         self._replica_exchange_attempts += len(pair_a)
         self._replica_exchange_approved += torch.sum(approved).numpy()
         pairs_for_exchange = {"a": pair_a[approved], "b": pair_b[approved]}
         return pairs_for_exchange
-
-    def _get_velo_scaling_factors(self, indices_old, indices_new):
-        """Velocity scaling factor for Langevin simulation:
-        \sqrt(t_new/t_old)
-        """
-        return torch.sqrt(
-            self._betas_for_simulation[indices_old]
-            / self._betas_for_simulation[indices_new]
-        )
 
     def _perform_exchange(
         self, data: AtomicData, pairs_for_exchange: Dict
@@ -515,82 +523,24 @@ class PTSimulation(LangevinSimulation):
         data[VELOCITY_KEY] = v_changed
         return data
 
-    def simulate(self, overwrite: bool = False) -> np.ndarray:
-        """Generates independent simulations.
+    def detect_and_exchange_replicas(self, data: AtomicData) -> AtomicData:
+        """Subroutine for replica exchange: Modifies the internal coordinates and velocities
+        according to the algorithm specified by `reform`:
+
+        https://github.com/noegroup/reform
+
         Parameters
         ----------
-        overwrite :
-            Set to True if you wish to overwrite any saved simulation data
+        data:
+            Current `AtomicData` instance containing all replicas, their coordinates, velocities,
+            potential energies, and beta values
+
         Returns
         -------
-        simulated_coords :
-            Shape [n_simulations, n_frames, n_atoms, n_dimensions]
-            Also an attribute; stores the simulation coordinates at the
-            save_interval
+        data:
+            Updated `AtomicData` instance containing potentially exchanged replicas.
         """
-        self._set_up_simulation(overwrite)
-        data = deepcopy(self.initial_data)
-        data.to(self.device)
-        _, forces = self.calculate_potential_and_forces(data)
-        for t in tqdm(range(self.n_timesteps), desc="Simulation timestep"):
-            # step forward in time
-            data, potential, forces = self.timestep(data, forces)
 
-            # save to arrays if relevant
-            if (t + 1) % self.save_interval == 0:
-
-                # save arrays
-                self.save(
-                    data=data,
-                    forces=forces,
-                    potential=potential,
-                    t=t,
-                )
-
-                # write numpys to file if relevant; this can be indented here because
-                # it only happens when time points are also recorded
-                if self.export_interval is not None:
-                    if (t + 1) % self.export_interval == 0:
-                        self.write((t + 1) // self.save_interval)
-
-                # log if relevant; this can be indented here because
-                # it only happens when time when time points are also recorded
-                if self.log_interval is not None:
-                    if int((t + 1) % self.log_interval) == 0:
-                        self.log((t + 1) // self.save_interval)
-
-            # Detect and perform replica exchange
-            if (t + 1) % self.exchange_interval == 0:
-                pairs_for_exchange = self._detect_exchange(data)
-
-                x_new = x_new.detach().requires_grad_(True).to(self.device)
-                potential_new, _ = self.calculate_potential_and_forces(x_new)
-                potential_new = potential_new.detach().cpu().numpy()[:, 0]
-                pairs_for_exchange = self._detect_exchange(potential_new)
-                x_new, v_new = self._perform_exchange(
-                    pairs_for_exchange, x_new, v_new
-                )
-            # reset data outputs to collect the new forces/energies
-            data.out = {}
-
-        # if relevant, save the remainder of the simulation
-        if self.export_interval is not None:
-            if int(t + 1) % self.export_interval > 0:
-                self.write(t + 1)
-
-        # if relevant, log that simulation has been completed
-        if self.log_interval is not None:
-            printstring = "Done simulating ({})".format(time.asctime())
-            if self.log_type == "print":
-                print(printstring)
-            elif self.log_type == "write":
-                printstring += "\n"
-                file = open(self._log_file, "a")
-                file.write(printstring)
-                file.close()
-
-        self.reshape_output()
-
-        self._simulated = True
-
-        return self.simulated_coords
+        pairs_for_exchange = self._detect_exchange(data)
+        data = self._perform_exchange(data, pairs_for_exchange)
+        return data
