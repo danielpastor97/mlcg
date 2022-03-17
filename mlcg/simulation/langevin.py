@@ -306,21 +306,21 @@ OverdampedSimulation.__doc__ += _Simulation.__doc__
 
 class PTSimulation(LangevinSimulation):
     """Parallel tempering simulation using a Langevin update scheme.
-    For thoeretical details on (overdamped) Langevin integration schemes,
-    see help(cgnet.network.Simulation).
     For thoeretical details on replica exchange/parallel tempering, see
     https://github.com/noegroup/reform.
-    Note that currently we only implement parallel tempering for Langevin
-    dynamics, so please make sure you provide correct parameters for that.
+    Note that currently we only implement parallel tempering for Langevin dynamics.
     Be aware that the output will contain information (e.g., coordinates)
     for all replicas.
 
     Parameters
     ----------
     friction:
-         Scalar friction to use for Langevin updates
-    tepmeratures:
-         List of inverse temperatures for each of the thermodynamic replicas
+        Scalar friction to use for Langevin updates
+    betas:
+        List of inverse temperatures for each of the thermodynamic replicas
+    exchange_interval:
+        Specifies teh number of simulation steps to take before attempting
+        replica exchange.
     """
 
     def __init__(
