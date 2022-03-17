@@ -16,6 +16,14 @@ from ..utils import tqdm
 from ..data.atomic_data import AtomicData
 from ..data._keys import ENERGY_KEY, FORCE_KEY, MASS_KEY, VELOCITY_KEY
 
+KBOLTZMANN = 1.38064852e-23
+AVOGADRO = 6.022140857e23
+JPERKCAL = 4184
+
+def calc_beta_from_temperature(temp):
+    """Converts a single or a list of temperature(s) in Kelvin
+    to inverse temperature(s) in mol/kcal."""
+    return JPERKCAL/KBOLTZMANN/AVOGADRO/np.array(temp)
 
 class _Simulation(object):
     """

@@ -17,6 +17,8 @@ MASS_KEY: Final[str] = "masses"
 NEIGHBOR_LIST_KEY: Final[str] = "neighbor_list"
 #: metadata about the structures
 TAG_KEY: Final[str] = "tag"
+#: inverse temperature
+BETA_KEY: Final[str] = "beta"
 
 #: A [n_edge, 3] tensor of direction vectors associated to edges
 DIRECTION_VECTORS_KEY: Final[str] = "direction_vectors"
