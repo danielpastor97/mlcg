@@ -1,4 +1,4 @@
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Dict
 import torch
 import numpy as np
 import warnings
@@ -289,6 +289,7 @@ class OverdampedSimulation(_Simulation):
         potential, forces = self.calculate_potential_and_forces(data)
         return data, potential, forces
 
+
 # pipe the doc from the base class into the child class so that it's properly
 # displayed by sphinx
 OverdampedSimulation.__doc__ += _Simulation.__doc__
@@ -298,11 +299,11 @@ class PTSimulation(LangevinSimulation):
     """Parallel tempering simulation using a Langevin update scheme.
     For thoeretical details on (overdamped) Langevin integration schemes,
     see help(cgnet.network.Simulation).
-    For thoeretical details on replica exchange/parallel tempering, see 
+    For thoeretical details on replica exchange/parallel tempering, see
     https://github.com/noegroup/reform.
-    Note that currently we only implement parallel tempering for Langevin 
+    Note that currently we only implement parallel tempering for Langevin
     dynamics, so please make sure you provide correct parameters for that.
-    Be aware that the output will contain information (e.g., coordinates) 
+    Be aware that the output will contain information (e.g., coordinates)
     for all replicas.
 
     Parameters
@@ -313,7 +314,13 @@ class PTSimulation(LangevinSimulation):
          List of temperatures in Kelvins for each of the thermodynamic replicas
     """
 
-    def __init__(self, friction:float=1e-3, temperatures:List[float]=[300,350,400], exchange_interval:int=100, **kwargs):
+    def __init__(
+        self,
+        friction: float = 1e-3,
+        temperatures: List[float] = [300, 350, 400],
+        exchange_interval: int = 100,
+        **kwargs,
+    ):
         super(PTSimulation, self).__init__(friction=friction, **kwargs)
 
         assert all([beta > 0.00 for beta in betas])
@@ -321,8 +328,7 @@ class PTSimulation(LangevinSimulation):
         self.n_replicas = len(self.betas)
         self.exchange_interval = exchange_interval
 
-
-    def attach_configurations(self, configurations:List[AtomicData]):
+    def attach_configurations(self, configurations: List[AtomicData]):
         """Attaches the configurations at each of the temperatures defined for
         parallel tempering simulations"""
         # copy the configurations across each beta/temperature
@@ -334,9 +340,11 @@ class PTSimulation(LangevinSimulation):
 
         # collate the final datalist
         self.validate_data_list(new_configurations)
-        self.initial_data = self.collate(new_configurations).to(device=self.device)
+        self.initial_data = self.collate(new_configurations).to(
+            device=self.device
+        )
 
-        #counted across all replicas
+        # counted across all replicas
         self.n_sims = len(new_configurations)
         self.n_atoms = len(new_configurations[0].atom_types)
         self.n_dims = new_configurations[0].pos.shape[1]
@@ -364,7 +372,7 @@ class PTSimulation(LangevinSimulation):
             pair_b.append(torch.arange(self._n_indep) + pair[1] * self._n_indep)
         self._odd_pairs = [torch.cat(pair_a), torch.cat(pair_b)]
 
-    def get_replica_info(self, replica_num:int=0)->Dict:
+    def get_replica_info(self, replica_num: int = 0) -> Dict:
         """Returns information for the specified replica after the
         parallel tempering simulation has completed
 
@@ -380,15 +388,21 @@ class PTSimulation(LangevinSimulation):
             desired replica
         """
 
-        if type(replica_num) is not int or replica_num < 0 or \
-           replica_num >= self.n_replicas:
-            raise ValueError('Please provide a valid replica number.')
-        indices = torch.arange(replica_num * self._n_indep,
-                            (replica_num + 1) * self._n_indep)
-        return {"beta": self._betas[replica_num],
-                "indices_in_the_output": indices}
+        if (
+            type(replica_num) is not int
+            or replica_num < 0
+            or replica_num >= self.n_replicas
+        ):
+            raise ValueError("Please provide a valid replica number.")
+        indices = torch.arange(
+            replica_num * self._n_indep, (replica_num + 1) * self._n_indep
+        )
+        return {
+            "beta": self._betas[replica_num],
+            "indices_in_the_output": indices,
+        }
 
-    def _get_proposed_pairs(self)-> List[torch.Tensor]:
+    def _get_proposed_pairs(self) -> List[torch.Tensor]:
         """Proposes the even and odd exchange pairs alternatively.
 
         Returns
@@ -396,7 +410,7 @@ class PTSimulation(LangevinSimulation):
         torch.Tensor:
             pair_a, all possible even/odd pairs across all of the simulations/replicas
         torch.Tensor:
-            pair_b, all possible 
+            pair_b, all possible
         """
         if self._propose_even_pairs:
             self._propose_even_pairs = False
@@ -404,7 +418,6 @@ class PTSimulation(LangevinSimulation):
         else:
             self._propose_even_pairs = True
             return self._odd_pairs
-
 
     def _detect_exchange(self, data: AtomicData) -> Dict:
         """Proposes and checks pairs to be exchanged for parallel tempering.
@@ -429,25 +442,29 @@ class PTSimulation(LangevinSimulation):
         u_a, u_b = data.out[ENERGY_KEY][pair_a], data.out[ENERGY_KEY][pair_b]
         betas_a, betas_b = data[BETA_KEY][pair_a], data[BETA_KEY][pair_b]
 
-        #u_a, u_b = potentials[pair_a], potentials[pair_b]
-        #betas_a, betas_b = self._betas_x[pair_a], self._betas_x[pair_b]
+        # u_a, u_b = potentials[pair_a], potentials[pair_b]
+        # betas_a, betas_b = self._betas_x[pair_a], self._betas_x[pair_b]
 
         p_pair = torch.exp((u_a - u_b) * (betas_a - betas_b))
         approved = torch.rand(len(p_pair)) < p_pair
-        #print("Exchange rate: %.2f%%" % (approved.sum() / len(pair_a) * 100.))
+        # print("Exchange rate: %.2f%%" % (approved.sum() / len(pair_a) * 100.))
         self._replica_exchange_attempts += len(pair_a)
         self._replica_exchange_approved += torch.sum(approved).numpy()
         pairs_for_exchange = {"a": pair_a[approved], "b": pair_b[approved]}
         return pairs_for_exchange
 
     def _get_velo_scaling_factors(self, indices_old, indices_new):
-        """Velocity scaling factor for Langevin simulation: 
+        """Velocity scaling factor for Langevin simulation:
         \sqrt(t_new/t_old)
         """
-        return torch.sqrt(self._betas_for_simulation[indices_old] /
-                          self._betas_for_simulation[indices_new])
+        return torch.sqrt(
+            self._betas_for_simulation[indices_old]
+            / self._betas_for_simulation[indices_new]
+        )
 
-    def _perform_exchange(self, data: AtomicData, pairs_for_exchange:Dict)-> AtomicData:
+    def _perform_exchange(
+        self, data: AtomicData, pairs_for_exchange: Dict
+    ) -> AtomicData:
         """Exchanges the coordinates and velcities for those pairs marked for exchange
 
         Parameters
@@ -474,8 +491,8 @@ class PTSimulation(LangevinSimulation):
         batch_pair_b_cond = 0
         for idx_a, idx_b in zip(pair_a, pair_b):
             # cumulative bitwise OR to grab corresponding pair batch index
-            batch_pair_a_cond |= (data.batch == idx_a)
-            batch_pair_b_cond |= (data.batch == idx_b)
+            batch_pair_a_cond |= data.batch == idx_a
+            batch_pair_b_cond |= data.batch == idx_b
 
         # exchange coordinates
         x_changed = data.pos.detach().clone()
@@ -486,10 +503,12 @@ class PTSimulation(LangevinSimulation):
         betas_a = data[BETA_KEY][pair_a]
         betas_b = data[BETA_KEY][pair_b]
 
-        vscale_a_to_b = torch.sqrt(betas_b/betas_a)
-        vscale_b_to_a = torch.sqrt(betas_a/betas_b)
+        vscale_a_to_b = torch.sqrt(betas_b / betas_a)
+        vscale_b_to_a = torch.sqrt(betas_a / betas_b)
         v_changed = data[VELOCITY_KEY].detach().clone()
-        v_changed[batch_pair_a_cond] = data.velocities[batch_pair_b_cond] * vscale_a_to_b
+        v_changed[batch_pair_a_cond] = (
+            data.velocities[batch_pair_b_cond] * vscale_a_to_b
+        )
         v_changed[batch_pair_b_cond] = vs[batch_pair_a_cond] * vscale_b_to_a
 
         data.pos = x_changed
@@ -544,13 +563,13 @@ class PTSimulation(LangevinSimulation):
             if (t + 1) % self.exchange_interval == 0:
                 pairs_for_exchange = self._detect_exchange(data)
 
-
                 x_new = x_new.detach().requires_grad_(True).to(self.device)
                 potential_new, _ = self.calculate_potential_and_forces(x_new)
                 potential_new = potential_new.detach().cpu().numpy()[:, 0]
                 pairs_for_exchange = self._detect_exchange(potential_new)
-                x_new, v_new = self._perform_exchange(pairs_for_exchange,
-                                                      x_new, v_new)
+                x_new, v_new = self._perform_exchange(
+                    pairs_for_exchange, x_new, v_new
+                )
             # reset data outputs to collect the new forces/energies
             data.out = {}
 
@@ -575,7 +594,3 @@ class PTSimulation(LangevinSimulation):
         self._simulated = True
 
         return self.simulated_coords
-
-
-
-
