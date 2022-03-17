@@ -215,7 +215,7 @@ def test_simulation_run(
     initial_data_list = get_initial_data(
         mol, neighbor_lists, corruptor=None, add_masses=add_masses
     )
-
+    print(sim_class)
     simulation = sim_class(*sim_args, **sim_kwargs)
     simulation.attach_configurations(initial_data_list)
     simulation.attach_model(full_model)

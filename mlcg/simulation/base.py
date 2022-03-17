@@ -75,13 +75,16 @@ class _Simulation(object):
         is not None and log_type is 'write'. This provides the base file name;
         for numpy outputs, '_coords_000.npy' or similar is added. For log
         outputs, '_log.txt' is added.
-        subroutine :
-                Optional subroutine to run at at the interval specified by
-                subroutine_interval after simulation updates. The subroutine should
+    specific_setup :
+        if specified, this function/method is called at the end of _set_up_simulation
+        if additional pre-processing is required.
+    subroutine :
+        Optional subroutine to run at at the interval specified by
+        subroutine_interval after simulation updates. The subroutine should
         take only the internal collated `AtomicData` instance as an argument.
-        subroutine_interval :
-                Specifies the interval, in simulation steps, between successive calls to
-                the subroutine, if specified.
+    subroutine_interval :
+        Specifies the interval, in simulation steps, between successive calls to
+        the subroutine, if specified.
 
     """
 
@@ -99,6 +102,7 @@ class _Simulation(object):
         log_interval: Optional[int] = None,
         log_type: str = "write",
         filename: Optional[str] = None,
+        specific_setup: Optional[Callable] = None,
         subroutine: Optional[Callable] = None,
         subroutine_interval: Optional[int] = None,
     ):
@@ -130,6 +134,7 @@ class _Simulation(object):
         self.random_seed = random_seed
         self._simulated = False
 
+        self.specific_setup = specific_setup
         self.subroutine = subroutine
         self.subroutine_interval = subroutine_interval
 
@@ -230,14 +235,7 @@ class _Simulation(object):
 
         # if relevant, log that simulation has been completed
         if self.log_interval is not None:
-            printstring = "Done simulating ({})".format(time.asctime())
-            if self.log_type == "print":
-                print(printstring)
-            elif self.log_type == "write":
-                printstring += "\n"
-                file = open(self._log_file, "a")
-                file.write(printstring)
-                file.close()
+            self.summary()
 
         self.reshape_output()
 
@@ -259,6 +257,16 @@ class _Simulation(object):
             file = open(self._log_file, "a")
             file.write(printstring)
             file.close()
+
+    def summary(self):
+        """Prints summary information after finishing the simulation"""
+        printstring = "Done simulating ({})".format(time.asctime())
+        if self.log_type == "print":
+            print(printstring)
+        elif self.log_type == "write":
+            printstring += "\n"
+            with open(self._log_file, "a") as lfile:
+                lfile.write(printstring)
 
     def calculate_potential_and_forces(
         self, data: AtomicData
@@ -506,6 +514,10 @@ class _Simulation(object):
                 file = open(self._log_file, "a")
                 file.write(printstring)
                 file.close()
+
+        # Optional/additional simulation setup if necessary
+        if self.specific_setup != None:
+            self.specific_setup()
 
     def save(
         self,

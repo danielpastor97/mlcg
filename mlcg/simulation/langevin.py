@@ -5,7 +5,13 @@ import warnings
 from copy import deepcopy
 
 from ..data.atomic_data import AtomicData
-from ..data._keys import MASS_KEY, VELOCITY_KEY, BETA_KEY
+from ..data._keys import (
+    MASS_KEY,
+    VELOCITY_KEY,
+    BETA_KEY,
+    POSITIONS_KEY,
+    ENERGY_KEY,
+)
 from .base import _Simulation
 
 
@@ -82,9 +88,9 @@ class LangevinSimulation(_Simulation):
         potential:
             potential evaluated at t+1
         """
-        v_old = data.velocities
+        v_old = data[VELOCITY_KEY]
         masses = data.masses
-        x_old = data.pos
+        x_old = data[POSITIONS_KEY]
 
         # B
         v_new = v_old + 0.5 * self.dt * forces / masses[:, None]
@@ -105,11 +111,11 @@ class LangevinSimulation(_Simulation):
         # A
         x_new = x_new + v_new * self.dt * 0.5
 
-        data.pos = x_new
+        data[POSITIONS_KEY] = x_new
         potential, forces = self.calculate_potential_and_forces(data)
         # B
         v_new = v_new + 0.5 * self.dt * forces / masses[:, None]
-        data.velocities = v_new
+        data[VELOCITY_KEY] = v_new
 
         return data, potential, forces
 
@@ -126,11 +132,14 @@ class LangevinSimulation(_Simulation):
 
         if VELOCITY_KEY not in self.initial_data:
             # initialize velocities at zero
-            self.initial_data.velocities = torch.zeros_like(
-                self.initial_data.pos
+            self.initial_data[VELOCITY_KEY] = torch.zeros_like(
+                self.initial_data[POSITIONS_KEY]
             )
 
-        assert self.initial_data.velocities.shape == self.initial_data.pos.shape
+        assert (
+            self.initial_data[VELOCITY_KEY].shape
+            == self.initial_data[POSITIONS_KEY].shape
+        )
 
     def _set_up_simulation(self, overwrite: bool = False):
         """Method to setup up saving and logging options"""
@@ -169,7 +178,7 @@ class LangevinSimulation(_Simulation):
         """
         super().save(data, forces, potential, t)
 
-        v_new = data.velocities.view(-1, self.n_atoms, self.n_dims)
+        v_new = data[VELOCITY_KEY].view(-1, self.n_atoms, self.n_dims)
         masses = data.masses.view(self.n_sims, self.n_atoms)
 
         save_ind = t // self.save_interval
@@ -276,7 +285,7 @@ class OverdampedSimulation(_Simulation):
         potential:
             potential evaluated at t+1
         """
-        x_old = data.pos
+        x_old = data[POSITIONS_KEY]
         noise = torch.randn(size=x_old.size(), generator=self.rng).to(
             self.device
         )
@@ -285,7 +294,7 @@ class OverdampedSimulation(_Simulation):
             + forces * self._dtau
             + np.sqrt(2 * self._dtau / self.beta) * noise
         )
-        data.pos = x_new
+        data[POSITIONS_KEY] = x_new
         potential, forces = self.calculate_potential_and_forces(data)
         return data, potential, forces
 
@@ -321,31 +330,23 @@ class PTSimulation(LangevinSimulation):
         exchange_interval: int = 100,
         **kwargs,
     ):
-        super(PTSimulation, self).__init__(friction=friction, **kwargs)
 
         assert all([beta > 0.00 for beta in betas])
         self.betas = betas
         self.n_replicas = len(self.betas)
 
-        if self.subroutine != None:
-            warnings.warn(
-                "subroutine is already specified as {}. This is now being reassigned to {}.".format(
-                    self.subroutine, self.detect_and_exchange_replicas
-                )
-            )
-            self.subroutine = self.detect_and_exchange_replicas
-        else:
-            self.subroutine = self.detect_and_exchange_replicas
+        super(PTSimulation, self).__init__(
+            friction=friction,
+            specific_setup=self._reset_exchange_stats,
+            subroutine=self.detect_and_exchange_replicas,
+            subroutine_interval=exchange_interval,
+            **kwargs,
+        )
 
-        if self.subroutine_interval != None:
-            warnings.warn(
-                "subroutine interval is already specified as {}. This is now being reassigned to {}.".format(
-                    self.subroutine_interval, subroutine_interval
-                )
-            )
-            self.subroutine_interval = exchange_interval
-        else:
-            self.subroutine_interval = exchange_interval
+    def _reset_exchange_stats(self):
+        """Setup function that resets exchange statistics before running a simulation"""
+        self._replica_exchange_attempts = 0
+        self._replica_exchange_approved = 0
 
     def attach_configurations(self, configurations: List[AtomicData]):
         """Attaches the configurations at each of the temperatures defined for
@@ -354,17 +355,28 @@ class PTSimulation(LangevinSimulation):
         new_configurations = []
         for beta in self.betas:
             for configuration in configurations:
-                configuration[BETA_KEY] = torch.tensor(beta)
-                new_configurations.append(configuration)
+                config = deepcopy(configuration)
+                config[BETA_KEY] = torch.tensor(beta)
+                new_configurations.append(config)
 
         # collate the final datalist
         self.validate_data_list(new_configurations)
         self.initial_data = self.collate(new_configurations).to(
             device=self.device
         )
+        # If not provided, initialize all velocites to zero
+        if VELOCITY_KEY not in self.initial_data:
+            # initialize velocities at zero
+            self.initial_data.velocities = torch.zeros_like(
+                self.initial_data.pos
+            )
+        assert (
+            self.initial_data[VELOCITY_KEY].shape
+            == self.initial_data[POSITIONS_KEY].shape
+        )
 
-        # counted across all replicas
         self.n_sims = len(new_configurations)
+        self.n_indep_sims = len(configurations)
         self.n_atoms = len(new_configurations[0].atom_types)
         self.n_dims = new_configurations[0].pos.shape[1]
 
@@ -380,14 +392,22 @@ class PTSimulation(LangevinSimulation):
         pair_a = []
         pair_b = []
         for pair in even_pairs:
-            pair_a.append(torch.arange(self.n_sims) + pair[0] * self.n_sims)
-            pair_b.append(torch.arange(self.n_sims) + pair[1] * self.n_sims)
+            pair_a.append(
+                torch.arange(self.n_indep_sims) + pair[0] * self.n_indep_sims
+            )
+            pair_b.append(
+                torch.arange(self.n_indep_sims) + pair[1] * self.n_indep_sims
+            )
         self._even_pairs = [np.concatenate(pair_a), np.concatenate(pair_b)]
         pair_a = []
         pair_b = []
         for pair in odd_pairs:
-            pair_a.append(torch.arange(self.n_sims) + pair[0] * self.n_sims)
-            pair_b.append(torch.arange(self.n_sims) + pair[1] * self.n_sims)
+            pair_a.append(
+                torch.arange(self.n_indep_sims) + pair[0] * self.n_indep_sims
+            )
+            pair_b.append(
+                torch.arange(self.n_indep_sims) + pair[1] * self.n_indep_sims
+            )
         self._odd_pairs = [torch.cat(pair_a), torch.cat(pair_b)]
 
     def get_replica_info(self, replica_num: int = 0) -> Dict:
@@ -413,7 +433,8 @@ class PTSimulation(LangevinSimulation):
         ):
             raise ValueError("Please provide a valid replica number.")
         indices = torch.arange(
-            replica_num * self.n_sims, (replica_num + 1) * self.n_sims
+            replica_num * self.n_indep_sims,
+            (replica_num + 1) * self.n_indep_sims,
         )
         return {
             "beta": self._betas[replica_num],
@@ -456,7 +477,6 @@ class PTSimulation(LangevinSimulation):
             Dictionary containing the approved exchanges
         """
         pair_a, pair_b = self._get_proposed_pairs()
-
         u_a, u_b = data.out[ENERGY_KEY][pair_a], data.out[ENERGY_KEY][pair_b]
         betas_a, betas_b = data[BETA_KEY][pair_a], data[BETA_KEY][pair_b]
 
@@ -491,7 +511,6 @@ class PTSimulation(LangevinSimulation):
         """
         pair_a, pair_b = pairs_for_exchange["a"], pairs_for_exchange["b"]
         # exchange the coordinates
-
         # Here we must make swaps in the coordinates and velocities
         # according to to the collated batch attribute
 
@@ -503,23 +522,30 @@ class PTSimulation(LangevinSimulation):
             batch_pair_b_cond |= data.batch == idx_b
 
         # exchange coordinates
-        x_changed = data.pos.detach().clone()
-        x_changed[batch_pair_a_cond] = data.pos[batch_pair_b_cond]
-        x_changed[batch_pair_b_cond] = data.pos[batch_pair_a_cond]
+        x_changed = data[POSITIONS_KEY].detach().clone()
+        x_changed[batch_pair_a_cond] = data[POSITIONS_KEY][batch_pair_b_cond]
+        x_changed[batch_pair_b_cond] = data[POSITIONS_KEY][batch_pair_a_cond]
 
         # scale and exchange the velocities
-        betas_a = data[BETA_KEY][pair_a]
-        betas_b = data[BETA_KEY][pair_b]
+        # reshape the betas for simpler elementwise multiplication
+        betas_a = data[BETA_KEY][pair_a].repeat_interleave(
+            self.n_replicas * self.n_atoms
+        )[:, None]
+        betas_b = data[BETA_KEY][pair_b].repeat_interleave(
+            self.n_replicas * self.n_atoms
+        )[:, None]
 
         vscale_a_to_b = torch.sqrt(betas_b / betas_a)
         vscale_b_to_a = torch.sqrt(betas_a / betas_b)
         v_changed = data[VELOCITY_KEY].detach().clone()
         v_changed[batch_pair_a_cond] = (
-            data.velocities[batch_pair_b_cond] * vscale_a_to_b
+            data[VELOCITY_KEY][batch_pair_b_cond] * vscale_a_to_b
         )
-        v_changed[batch_pair_b_cond] = vs[batch_pair_a_cond] * vscale_b_to_a
+        v_changed[batch_pair_b_cond] = (
+            data[VELOCITY_KEY][batch_pair_a_cond] * vscale_b_to_a
+        )
 
-        data.pos = x_changed
+        data[POSITIONS_KEY] = x_changed
         data[VELOCITY_KEY] = v_changed
         return data
 
@@ -540,7 +566,32 @@ class PTSimulation(LangevinSimulation):
         data:
             Updated `AtomicData` instance containing potentially exchanged replicas.
         """
-
         pairs_for_exchange = self._detect_exchange(data)
         data = self._perform_exchange(data, pairs_for_exchange)
         return data
+
+    def summary(self):
+        attempted = self._replica_exchange_attempts
+        exchanged = self._replica_exchange_approved
+        printstring = "Done simulating ({})".format(time.asctime())
+        printstring += "\nReplica-exchange rate: %.2f%% (%d/%d)" % (
+            exchanged / attempted * 100.0,
+            exchanged,
+            attempted,
+        )
+        printstring += (
+            "\nNote that you can call .get_replica_info"
+            "(#replica) to query the inverse temperature"
+            " and trajectory indices for a given replica."
+        )
+        if self.log_type == "print":
+            print(printstring)
+        elif self.log_type == "write":
+            printstring += "\n"
+            with open(self._log_file, "a") as lfile:
+                lfile.write(printstring)
+
+
+# pipe the doc from the base class into the child class so that it's properly
+# displayed by sphinx
+PTSimulation.__doc__ += _Simulation.__doc__
