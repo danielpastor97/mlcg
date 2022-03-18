@@ -10,6 +10,7 @@ It is currently not compatible with PL scheduler system.
 import torch
 from typing import Callable
 
+
 class SAM(torch.optim.Optimizer):
     def __init__(
         self, params, base_optimizer, rho=0.05, adaptive=False, **kwargs
@@ -24,10 +25,10 @@ class SAM(torch.optim.Optimizer):
 
     @torch.no_grad()
     def first_step(self, zero_grad=False):
-    """Estimates epsilon parameter/weight values around the neighborhood of current weights using 
-    an L2 gradient norm scale and the element-wise scaling normalization operator, adding the result to the 
-    current parameter/weight values.
-    """
+        """
+        Estimates epsilon parameter/weight values around the neighborhood of
+        current weights using an L2 gradient norm scale and the element-wise scaling normalization operator, adding the result to the current parameter/weight values.
+        """
         grad_norm = self._grad_norm()
         for group in self.param_groups:
             scale = group["rho"] / (grad_norm + 1e-12)
@@ -48,10 +49,11 @@ class SAM(torch.optim.Optimizer):
 
     @torch.no_grad()
     def second_step(self, zero_grad=False):
-    """Resets all optimizable parameter/weight data values to their original state before the epsilon
-    climbing that was done in the first step. The base optimizer then takes a step using the original data
-    values together with the epsilon-perturbed gradients.
-    """
+        """Resets all optimizable parameter/weight data values to their
+        original state before the epsilon climbing that was done in the first
+        step. The base optimizer then takes a step using the original data
+        values together with the epsilon-perturbed gradients.
+        """
         for group in self.param_groups:
             for p in group["params"]:
                 if p.grad is None:
@@ -66,13 +68,14 @@ class SAM(torch.optim.Optimizer):
             self.zero_grad()
 
     @torch.no_grad()
-    def step(self, closure: Callable=None):
-    """Compute the two-part full step of SAM optimization. Note that an appropriate closure must
-    be passed to the model that zeroes the gradient, forwards through the model, computes the loss, and
-    returns the loss. For more information, see:
-    
-    https://pytorch.org/docs/stable/optim.html#optimizer-step-closure
-    """
+    def step(self, closure: Callable = None):
+        """Compute the two-part full step of SAM optimization. Note that an
+        appropriate closure must be passed to the model that zeroes the
+        gradient, forwards through the model, computes the loss, and returns
+        the loss. For more information, see:
+
+        https://pytorch.org/docs/stable/optim.html#optimizer-step-closure
+        """
         assert (
             closure is not None
         ), "Sharpness Aware Minimization requires closure, but it was not provided"

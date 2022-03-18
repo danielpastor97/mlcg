@@ -86,7 +86,7 @@ class PLModel(pl.LightningModule):
 
     def configure_optimizers(self) -> dict:
         """Configures and instantiates the optimizer. If `use_sam` is specified, the
-        optimizer will wrapped in an additional sharpness-aware minimization, which 
+        optimizer will wrapped in an additional sharpness-aware minimization, which
         requires an additional backward pass along with the normal base optimizer backward pass.
         """
         if self.use_sam:
