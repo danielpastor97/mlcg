@@ -77,6 +77,7 @@ class SAM(torch.optim.Optimizer):
         self.second_step()
 
     def _grad_norm(self):
+        """Computes the total L2 gradient norm accumulated across all model parameter groups"""
         shared_device = self.param_groups[0]["params"][
             0
         ].device  # put everything on the same device, in case of model parallelism
