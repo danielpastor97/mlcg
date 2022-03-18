@@ -16,3 +16,4 @@ ipython
 pytest
 coverage[toml]
 black[jupyter]
+torch_optimizer
