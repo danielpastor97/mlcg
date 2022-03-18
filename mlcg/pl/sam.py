@@ -58,7 +58,13 @@ class SAM(torch.optim.Optimizer):
             self.zero_grad()
 
     @torch.no_grad()
-    def step(self, closure=None):
+    def step(self, closure: Callable=None):
+    """Compute the two-part full step of SAM optimization. Note that an appropriate closure must
+    be passed to the model that zeroes the gradient, forwards through the model, computes the loss, and
+    returns the loss. For more information, see:
+    
+    https://pytorch.org/docs/stable/optim.html#optimizer-step-closure
+    """
         assert (
             closure is not None
         ), "Sharpness Aware Minimization requires closure, but it was not provided"
