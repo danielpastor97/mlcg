@@ -24,6 +24,10 @@ class SAM(torch.optim.Optimizer):
 
     @torch.no_grad()
     def first_step(self, zero_grad=False):
+    """Estimates epsilon parameter/weight values around the neighborhood of current weights using 
+    an L2 gradient norm scale and the element-wise scaling normalization operator, adding the result to the 
+    current parameter/weight values.
+    """
         grad_norm = self._grad_norm()
         for group in self.param_groups:
             scale = group["rho"] / (grad_norm + 1e-12)
