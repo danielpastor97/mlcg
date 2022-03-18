@@ -48,6 +48,10 @@ class SAM(torch.optim.Optimizer):
 
     @torch.no_grad()
     def second_step(self, zero_grad=False):
+    """Resets all optimizable parameter/weight data values to their original state before the epsilon
+    climbing that was done in the first step. The base optimizer then takes a step using the original data
+    values together with the epsilon-perturbed gradients.
+    """
         for group in self.param_groups:
             for p in group["params"]:
                 if p.grad is None:
