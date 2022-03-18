@@ -8,7 +8,7 @@ It is currently not compatible with PL scheduler system.
 """
 
 import torch
-
+from typing import Callable
 
 class SAM(torch.optim.Optimizer):
     def __init__(
