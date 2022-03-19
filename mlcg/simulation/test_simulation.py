@@ -196,7 +196,7 @@ def test_simulation_device(seed, device):
             get_initial_data,
             True,
             PTSimulation,
-            [1.0, [1.67, 1.42, 1.28], 100],
+            [1.0, [1.67, 1.42, 1.17], 100],
             {},
         ),
     ],

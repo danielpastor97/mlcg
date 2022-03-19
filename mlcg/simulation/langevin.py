@@ -352,7 +352,9 @@ class PTSimulation(LangevinSimulation):
     def timestep(
         self, data: AtomicData, forces: torch.Tensor
     ) -> Tuple[AtomicData, torch.Tensor, torch.Tensor]:
-        """Timestep method for Langevin dynamics
+        """Timestep method for Langevin dynamics. Here, the scale
+        for the noise term is conditioned on the beta values for each respective replica.
+
         Parameters
         ----------
         data:
@@ -379,13 +381,16 @@ class PTSimulation(LangevinSimulation):
         x_new = x_old + v_new * self.dt * 0.5
 
         # O (noise)
-        noise = torch.sqrt(1.0 / self.beta / masses[:, None])
+        noise = torch.sqrt(
+            1.0 / data[BETA_KEY].repeat_interleave(self.n_atoms) / masses
+        )[:, None]
         noise = noise * torch.randn(
             size=x_new.size(),
             dtype=x_new.dtype,
             generator=self.rng,
             device=self.device,
         )
+
         v_new = v_new * self.vscale + self.noisescale * noise
 
         # A
