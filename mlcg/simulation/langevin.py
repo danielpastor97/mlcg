@@ -342,11 +342,62 @@ class PTSimulation(LangevinSimulation):
             subroutine_interval=exchange_interval,
             **kwargs,
         )
+        self._reset_exchange_stats()
 
     def _reset_exchange_stats(self):
         """Setup function that resets exchange statistics before running a simulation"""
         self._replica_exchange_attempts = 0
         self._replica_exchange_approved = 0
+
+    def timestep(
+        self, data: AtomicData, forces: torch.Tensor
+    ) -> Tuple[AtomicData, torch.Tensor, torch.Tensor]:
+        """Timestep method for Langevin dynamics
+        Parameters
+        ----------
+        data:
+            atomic structure at t
+        forces:
+            forces evaluated at t
+        Returns
+        -------
+        data:
+            atomic structure at t+1
+        forces:
+            forces evaluated at t+1
+        potential:
+            potential evaluated at t+1
+        """
+        v_old = data[VELOCITY_KEY]
+        masses = data.masses
+        x_old = data[POSITIONS_KEY]
+
+        # B
+        v_new = v_old + 0.5 * self.dt * forces / masses[:, None]
+
+        # A (position update)
+        x_new = x_old + v_new * self.dt * 0.5
+
+        # O (noise)
+        noise = torch.sqrt(1.0 / self.beta / masses[:, None])
+        noise = noise * torch.randn(
+            size=x_new.size(),
+            dtype=x_new.dtype,
+            generator=self.rng,
+            device=self.device,
+        )
+        v_new = v_new * self.vscale + self.noisescale * noise
+
+        # A
+        x_new = x_new + v_new * self.dt * 0.5
+
+        data[POSITIONS_KEY] = x_new
+        potential, forces = self.calculate_potential_and_forces(data)
+        # B
+        v_new = v_new + 0.5 * self.dt * forces / masses[:, None]
+        data[VELOCITY_KEY] = v_new
+
+        return data, potential, forces
 
     def attach_configurations(self, configurations: List[AtomicData]):
         """Attaches the configurations at each of the temperatures defined for
@@ -480,9 +531,6 @@ class PTSimulation(LangevinSimulation):
         u_a, u_b = data.out[ENERGY_KEY][pair_a], data.out[ENERGY_KEY][pair_b]
         betas_a, betas_b = data[BETA_KEY][pair_a], data[BETA_KEY][pair_b]
 
-        # u_a, u_b = potentials[pair_a], potentials[pair_b]
-        # betas_a, betas_b = self._betas_x[pair_a], self._betas_x[pair_b]
-
         p_pair = torch.exp((u_a - u_b) * (betas_a - betas_b))
         approved = torch.rand(len(p_pair)) < p_pair
         self._replica_exchange_attempts += len(pair_a)
@@ -514,8 +562,8 @@ class PTSimulation(LangevinSimulation):
         # Here we must make swaps in the coordinates and velocities
         # according to to the collated batch attribute
 
-        batch_pair_a_cond = 0
-        batch_pair_b_cond = 0
+        batch_pair_a_cond = False
+        batch_pair_b_cond = False
         for idx_a, idx_b in zip(pair_a, pair_b):
             # cumulative bitwise OR to grab corresponding pair batch index
             batch_pair_a_cond |= data.batch == idx_a
@@ -528,12 +576,12 @@ class PTSimulation(LangevinSimulation):
 
         # scale and exchange the velocities
         # reshape the betas for simpler elementwise multiplication
-        betas_a = data[BETA_KEY][pair_a].repeat_interleave(
-            self.n_replicas * self.n_atoms
-        )[:, None]
-        betas_b = data[BETA_KEY][pair_b].repeat_interleave(
-            self.n_replicas * self.n_atoms
-        )[:, None]
+        betas_a = data[BETA_KEY][pair_a].repeat_interleave(self.n_atoms)[
+            :, None
+        ]
+        betas_b = data[BETA_KEY][pair_b].repeat_interleave(self.n_atoms)[
+            :, None
+        ]
 
         vscale_a_to_b = torch.sqrt(betas_b / betas_a)
         vscale_b_to_a = torch.sqrt(betas_a / betas_b)
