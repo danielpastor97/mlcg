@@ -388,10 +388,10 @@ def test_exchange_and_rescale():
         pairs_for_exchange["a"]
     ]
     swapped_velocities[pairs_for_exchange["a"].numpy()] = (
-        manual_velocities[pairs_for_exchange["b"]] * hot_to_cold_vscale
+        manual_velocities[pairs_for_exchange["b"]] * cold_to_hot_vscale
     )
     swapped_velocities[pairs_for_exchange["b"].numpy()] = (
-        manual_velocities[pairs_for_exchange["a"]] * cold_to_hot_vscale
+        manual_velocities[pairs_for_exchange["a"]] * hot_to_cold_vscale
     )
 
     # Perform exchange

@@ -312,6 +312,9 @@ class PTSimulation(LangevinSimulation):
     Be aware that the output will contain information (e.g., coordinates)
     for all replicas.
 
+    Note: This implementation only allows for replica exchanges between directly
+    adjecent temperatures implied by the user-supplied list of beta values.
+
     Parameters
     ----------
     friction:
@@ -319,14 +322,14 @@ class PTSimulation(LangevinSimulation):
     betas:
         List of inverse temperatures for each of the thermodynamic replicas
     exchange_interval:
-        Specifies teh number of simulation steps to take before attempting
+        Specifies the number of simulation steps to take before attempting
         replica exchange.
     """
 
     def __init__(
         self,
         friction: float = 1e-3,
-        betas: List[float] = [1.67, 1.42, 1.32],
+        betas: List[float] = [1.67, 1.42, 1.17],
         exchange_interval: int = 100,
         **kwargs,
     ):
@@ -406,7 +409,9 @@ class PTSimulation(LangevinSimulation):
 
     def attach_configurations(self, configurations: List[AtomicData]):
         """Attaches the configurations at each of the temperatures defined for
-        parallel tempering simulations"""
+        parallel tempering simulations. If the initial configurations do not contain
+        specified velocities, all velocities will be initialized to zero.
+        """
         # copy the configurations across each beta/temperature
         new_configurations = []
         for beta in self.betas:
@@ -498,7 +503,9 @@ class PTSimulation(LangevinSimulation):
         }
 
     def _get_proposed_pairs(self) -> List[torch.Tensor]:
-        """Proposes the even and odd exchange pairs alternatively.
+        """Proposes the even and odd exchange pairs alternatively each time the
+        _detect_exchange method is called. Exchanges can only happen between direcly adjacent
+        temperatures defined by the user supplied beta series.
 
         Returns
         -------
@@ -516,10 +523,21 @@ class PTSimulation(LangevinSimulation):
 
     def _detect_exchange(self, data: AtomicData) -> Dict:
         """Proposes and checks pairs to be exchanged for parallel tempering.
-        Modified from `reform`. Briefly, a pair excahnge is proposed, and the
+        Modified from `reform`. Briefly, a pair exchange is proposed, and the
         current associated potential energies are used to compute a Boltzmann ratio based
         on the temperature/energy differences. This ratio defines an acceptance threshold
-        aginst which approved exchanges are sampled according to a normal distribution.
+        aginst which approved exchanges are sampled according to a unit uniform distribution.
+        For a pair of configurations :math:`A` and :math:`B`, characterized by the respective
+        potential energies :math:`U_A` and :math:`U_B` the the inverse thermodynamic temperatures
+        :math:`\beta_A` and :math:`\beta_B`, the acceptance rate for exchanging configurations is:
+
+        .. math::
+
+            Acc = \exp{\left( (U_A - U_B) \times (\beta_A - \beta_B) \right)}
+
+        Pairs of candidate configurations undergo exchange if :math:`\rho \sim U(0,1) < Acc`. Note
+        that the exchanged velocities for each configuration must further be rescaled according to the
+        square root of their inverse beta ratios. See _perform_exchange for more details.
 
         Parameters
         ----------
@@ -546,7 +564,15 @@ class PTSimulation(LangevinSimulation):
     def _perform_exchange(
         self, data: AtomicData, pairs_for_exchange: Dict
     ) -> AtomicData:
-        """Exchanges the coordinates and velcities for those pairs marked for exchange
+        """Exchanges the coordinates and velcities for those pairs marked for exchange.
+        Exchanged velocities are rescaled based on ratios of beta values from the two configurations.
+        For a pair of configurations :math:`A` and :math:`B`, characterized by the respective
+        potential energies :math:`U_A` and :math:`U_B` the the inverse thermodynamic temperatures
+        :math:`\beta_A` and :math:`\beta_B`, the the velocity exchange rescaling factor is:
+
+        .. math::
+
+            vscale = \sqrt{\frac{\beta_{old}}{\beta_{new}}}
 
         Parameters
         ----------
@@ -588,8 +614,8 @@ class PTSimulation(LangevinSimulation):
             :, None
         ]
 
-        vscale_a_to_b = torch.sqrt(betas_b / betas_a)
-        vscale_b_to_a = torch.sqrt(betas_a / betas_b)
+        vscale_a_to_b = torch.sqrt(betas_a / betas_b)
+        vscale_b_to_a = torch.sqrt(betas_b / betas_a)
         v_changed = data[VELOCITY_KEY].detach().clone()
         v_changed[batch_pair_a_cond] = (
             data[VELOCITY_KEY][batch_pair_b_cond] * vscale_a_to_b
