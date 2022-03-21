@@ -99,7 +99,10 @@ class LangevinSimulation(_Simulation):
         x_new = x_old + v_new * self.dt * 0.5
 
         # O (noise)
-        noise = torch.sqrt(1.0 / self.beta / masses[:, None])
+        noise = torch.sqrt(
+            1.0 / data[BETA_KEY].repeat_interleave(self.n_atoms) / masses
+        )[:, None]
+
         noise = noise * torch.randn(
             size=x_new.size(),
             dtype=x_new.dtype,
@@ -128,7 +131,14 @@ class LangevinSimulation(_Simulation):
             List of AtomicData instances representing initial structures for
         parallel simulations.
         """
-        super().attach_configurations(configurations)
+        self.validate_data_list(configurations)
+        for configuration in configurations:
+            configuration[BETA_KEY] = self.beta
+
+        self.initial_data = self.collate(configurations).to(device=self.device)
+        self.n_sims = len(configurations)
+        self.n_atoms = len(configurations[0].atom_types)
+        self.n_dims = configurations[0].pos.shape[1]
 
         if VELOCITY_KEY not in self.initial_data:
             # initialize velocities at zero
@@ -259,7 +269,15 @@ class OverdampedSimulation(_Simulation):
             List of AtomicData instances representing initial structures for
         parallel simulations.
         """
-        super().attach_configurations(configurations)
+        self.validate_data_list(configurations)
+        for configuration in configurations:
+            configuration[BETA_KEY] = self.beta
+
+        self.initial_data = self.collate(configurations).to(device=self.device)
+        self.n_sims = len(configurations)
+        self.n_atoms = len(configurations[0].atom_types)
+        self.n_dims = configurations[0].pos.shape[1]
+
         if MASS_KEY in self.initial_data:
             warnings.warn(
                 "Masses were provided, but will not be used since "
@@ -292,7 +310,12 @@ class OverdampedSimulation(_Simulation):
         x_new = (
             x_old.detach()
             + forces * self._dtau
-            + np.sqrt(2 * self._dtau / self.beta) * noise
+            + np.sqrt(
+                2
+                * self._dtau
+                / data[BETA_KEY].repeat_interleave(self.n_atoms)[:, None]
+            )
+            * noise
         )
         data[POSITIONS_KEY] = x_new
         potential, forces = self.calculate_potential_and_forces(data)

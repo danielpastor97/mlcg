@@ -158,11 +158,7 @@ class _Simulation(object):
             List of AtomicData instances representing initial structures for
         parallel simulations.
         """
-        self.validate_data_list(configurations)
-        self.initial_data = self.collate(configurations).to(device=self.device)
-        self.n_sims = len(configurations)
-        self.n_atoms = len(configurations[0].atom_types)
-        self.n_dims = configurations[0].pos.shape[1]
+        raise NotImplementedError
 
     def simulate(self, overwrite: bool = False) -> np.ndarray:
         """Generates independent simulations.

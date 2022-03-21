@@ -315,7 +315,7 @@ def test_exchange_detection():
     # run the exchange 50000 times and assert the average acceptance rate
     # the acceptances are tracked internally by the `attempts/approved` attributes
     expected_rate = np.exp((low_energy - high_energy) * (betas[0] - betas[1]))
-    for _ in range(50000):
+    for _ in range(100000):
         simulation._detect_exchange(simulation.initial_data)
     np.testing.assert_almost_equal(
         expected_rate,
