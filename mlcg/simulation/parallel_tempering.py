@@ -151,7 +151,8 @@ class PTSimulation(LangevinSimulation):
         self.initial_data = self.collate(new_configurations).to(
             device=self.device
         )
-        # If not provided, initialize all velocites to zero
+
+        # If not defined, initialize all velocities to zero
         if VELOCITY_KEY not in self.initial_data:
             # initialize velocities at zero
             self.initial_data.velocities = torch.zeros_like(
@@ -185,7 +186,7 @@ class PTSimulation(LangevinSimulation):
             pair_b.append(
                 torch.arange(self.n_indep_sims) + pair[1] * self.n_indep_sims
             )
-        self._even_pairs = [np.concatenate(pair_a), np.concatenate(pair_b)]
+        self._even_pairs = [torch.cat(pair_a), torch.cat(pair_b)]
         pair_a = []
         pair_b = []
         for pair in odd_pairs:
