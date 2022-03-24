@@ -18,15 +18,9 @@ from ..data._keys import ENERGY_KEY, FORCE_KEY, MASS_KEY, VELOCITY_KEY
 
 
 # Physical Constants
-KBOLTZMANN = 1.38064852e-23 # Boltzmann's constant in Joules/Kelvin
-AVOGADRO = 6.022140857e23 # Dimensionaless Avogadro's number
-JPERKCAL = 4184 # Ratio of Joules/kilocalorie
-
-
-def calc_beta_from_temperature(temp):
-    """Converts a single or a list of temperature(s) in Kelvin
-    to inverse temperature(s) in mol/kcal."""
-    return JPERKCAL / KBOLTZMANN / AVOGADRO / np.array(temp)
+KBOLTZMANN = 1.38064852e-23  # Boltzmann's constant in Joules/Kelvin
+AVOGADRO = 6.022140857e23  # Dimensionaless Avogadro's number
+JPERKCAL = 4184  # Ratio of Joules/kilocalorie
 
 
 class _Simulation(object):
