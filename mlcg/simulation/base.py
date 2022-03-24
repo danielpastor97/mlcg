@@ -136,6 +136,17 @@ class _Simulation(object):
         self.random_seed = random_seed
         self._simulated = False
 
+        if self.subroutine != None and self.subroutine_interval == None:
+            raise ValueError(
+                "subroutine {} specified, but subroutine_interval is ambiguous.".format(
+                    self.subroutine
+                )
+            )
+        if self.subroutine_interval != None and self.subroutine == None:
+            raise ValueError(
+                "subroutine interval specified, but subroutine is ambiguous."
+            )
+
         self.specific_setup = specific_setup
         self.subroutine = subroutine
         self.subroutine_interval = subroutine_interval
@@ -177,16 +188,6 @@ class _Simulation(object):
             Also an attribute; stores the simulation coordinates at the
             save_interval
         """
-        if self.subroutine != None and self.subroutine_interval == None:
-            raise ValueError(
-                "subroutine {} specified, but subroutine_interval is ambiguous.".format(
-                    self.subroutine
-                )
-            )
-        if self.subroutine_interval != None and self.subroutine == None:
-            raise ValueError(
-                "subroutine interval specified, but subroutine is ambiguous."
-            )
 
         self._set_up_simulation(overwrite)
         data = deepcopy(self.initial_data)
