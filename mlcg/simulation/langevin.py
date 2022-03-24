@@ -329,7 +329,7 @@ OverdampedSimulation.__doc__ += _Simulation.__doc__
 
 class PTSimulation(LangevinSimulation):
     """Parallel tempering simulation using a Langevin update scheme.
-    For thoeretical details on replica exchange/parallel tempering, see
+    For theoretical details on replica exchange/parallel tempering, see
     https://github.com/noegroup/reform.
     Note that currently we only implement parallel tempering for Langevin dynamics.
     Be aware that the output will contain information (e.g., coordinates)
