@@ -11,8 +11,8 @@ from mlcg.simulation.base import _Simulation
 from mlcg.simulation.langevin import (
     LangevinSimulation,
     OverdampedSimulation,
-    PTSimulation,
 )
+from mlcg.simulation.parallel_tempering import PTSimulation
 from mlcg.nn.test_outs import ASE_prior_model
 from mlcg.data.atomic_data import AtomicData
 from mlcg.data._keys import MASS_KEY, POSITIONS_KEY, ATOM_TYPE_KEY
