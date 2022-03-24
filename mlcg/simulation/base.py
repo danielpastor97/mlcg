@@ -74,14 +74,18 @@ class _Simulation(object):
     specific_setup :
         if specified, this function/method is called at the end of _set_up_simulation
         if additional pre-processing is required.
-    subroutine :
+    sim_subroutine :
         Optional subroutine to run at at the interval specified by
         subroutine_interval after simulation updates. The subroutine should
         take only the internal collated `AtomicData` instance as an argument.
-    subroutine_interval :
+    sim_subroutine_interval :
         Specifies the interval, in simulation steps, between successive calls to
         the subroutine, if specified.
-
+    save_subroutine :
+        Specifies additional saving procedures for extra information at the
+        same interval as export_interval. The subroutine should take only the
+        internal collated `AtomicData` and the current timestep // save_interval as
+        arguments.
     """
 
     def __init__(
@@ -99,8 +103,9 @@ class _Simulation(object):
         log_type: str = "write",
         filename: Optional[str] = None,
         specific_setup: Optional[Callable] = None,
-        subroutine: Optional[Callable] = None,
-        subroutine_interval: Optional[int] = None,
+        sim_subroutine: Optional[Callable] = None,
+        sim_subroutine_interval: Optional[int] = None,
+        save_subroutine: Optional[Callable] = None,
     ):
         self.model = None
         self.initial_data = None
@@ -118,6 +123,11 @@ class _Simulation(object):
             raise ValueError("log_type can be either 'print' or 'write'")
         self.log_type = log_type
         self.filename = filename
+        self.specific_setup = specific_setup
+        self.sim_subroutine = sim_subroutine
+        self.sim_subroutine_interval = sim_subroutine_interval
+        self.save_subroutine = save_subroutine
+
         # check to make sure input options for the simulation
         self.input_option_checks()
 
@@ -129,21 +139,6 @@ class _Simulation(object):
             )
         self.random_seed = random_seed
         self._simulated = False
-
-        if self.subroutine != None and self.subroutine_interval == None:
-            raise ValueError(
-                "subroutine {} specified, but subroutine_interval is ambiguous.".format(
-                    self.subroutine
-                )
-            )
-        if self.subroutine_interval != None and self.subroutine == None:
-            raise ValueError(
-                "subroutine interval specified, but subroutine is ambiguous."
-            )
-
-        self.specific_setup = specific_setup
-        self.subroutine = subroutine
-        self.subroutine_interval = subroutine_interval
 
     def attach_model(self, model: torch.nn.Module):
         """setup the model to use in the simulation
@@ -207,6 +202,10 @@ class _Simulation(object):
                 if self.export_interval is not None:
                     if (t + 1) % self.export_interval == 0:
                         self.write((t + 1) // self.save_interval)
+                        if self.save_subroutine is not None:
+                            self.save_routine(
+                                data, (t + 1) // self.save_interval
+                            )
 
                 # log if relevant; this can be indented here because
                 # it only happens when time when time points are also recorded
@@ -214,9 +213,9 @@ class _Simulation(object):
                     if int((t + 1) % self.log_interval) == 0:
                         self.log((t + 1) // self.save_interval)
 
-            if self.subroutine != None:
-                if (t + 1) % self.subroutine_interval == 0:
-                    data = self.subroutine(data)
+            if self.sim_subroutine != None:
+                if (t + 1) % self.sim_subroutine_interval == 0:
+                    data = self.sim_subroutine(data)
 
             # reset data outputs to collect the new forces/energies
             data.out = {}
@@ -435,6 +434,17 @@ class _Simulation(object):
                             self._log_file
                         )
                     )
+        # simulation subroutine
+        if self.sim_subroutine != None and self.sim_subroutine_interval == None:
+            raise ValueError(
+                "subroutine {} specified, but subroutine_interval is ambiguous.".format(
+                    self.sim_subroutine
+                )
+            )
+        if self.sim_subroutine_interval != None and self.sim_subroutine == None:
+            raise ValueError(
+                "subroutine interval specified, but subroutine is ambiguous."
+            )
 
     def _get_numpy_count(self):
         """Returns a string 000-999 for appending to numpy file outputs"""

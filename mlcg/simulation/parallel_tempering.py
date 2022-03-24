@@ -1,4 +1,4 @@
-from typing import List, Tuple, Any, Dict
+from typing import List, Tuple, Any, Dict, Sequence
 import torch
 import numpy as np
 import warnings
@@ -41,22 +41,36 @@ class PTSimulation(LangevinSimulation):
     def __init__(
         self,
         friction: float = 1e-3,
-        betas: List[float] = [1.67, 1.42, 1.17],
+        betas: Sequence[float] = [1.67, 1.42, 1.17],
         exchange_interval: int = 100,
         **kwargs,
     ):
 
-        assert all([beta > 0.00 for beta in betas])
-        self.betas = betas
+        if not isinstance(betas, torch.Tensor):
+            self.betas = torch.tensor(betas)
+        else:
+            self.betas = betas
+
+        assert all([beta > 0.00 for beta in self.betas])
+        assert len(betas) == len(torch.unique(self.betas))
+
         self.n_replicas = len(self.betas)
 
         super(PTSimulation, self).__init__(
             friction=friction,
             specific_setup=self._reset_exchange_stats,
-            subroutine=self.detect_and_exchange_replicas,
-            subroutine_interval=exchange_interval,
+            sim_subroutine=self.detect_and_exchange_replicas,
+            sim_subroutine_interval=exchange_interval,
+            save_subroutine=self.save_exchanges,
             **kwargs,
         )
+
+        # Acceptance/attempted matrices. Row and column indices denote
+        # the acceptance/attempt numbers for exchanges between adjacent beta values
+        # self.betas[row, col]. Each matrix should be symmetric as exchanges are full trajectory
+        # swaps
+        self.acceptance_matrix = torch.zeros(len(self.betas), len(self.betas))
+        self.attempted_matrix = torch.zeros(len(self.betas), len(self.betas))
         self._reset_exchange_stats()
 
     def _reset_exchange_stats(self):
@@ -129,7 +143,7 @@ class PTSimulation(LangevinSimulation):
         for beta in self.betas:
             for configuration in configurations:
                 config = deepcopy(configuration)
-                config[BETA_KEY] = torch.tensor(beta)
+                config[BETA_KEY] = beta
                 new_configurations.append(config)
 
         # collate the final datalist
@@ -265,12 +279,24 @@ class PTSimulation(LangevinSimulation):
         pair_a, pair_b = self._get_proposed_pairs()
         u_a, u_b = data.out[ENERGY_KEY][pair_a], data.out[ENERGY_KEY][pair_b]
         betas_a, betas_b = data[BETA_KEY][pair_a], data[BETA_KEY][pair_b]
+        beta_id_a, beta_id_b = (self.betas == betas_a[0]).nonzero()[0], (
+            self.betas == betas_b[0]
+        ).nonzero()[0]
 
         p_pair = torch.exp((u_a - u_b) * (betas_a - betas_b))
         approved = torch.rand(len(p_pair)) < p_pair
-        self._replica_exchange_attempts += len(pair_a)
-        self._replica_exchange_approved += torch.sum(approved).numpy()
+        num_approved = torch.sum(approved)
+        num_attempted = len(pair_a)
+        self._replica_exchange_approved += num_approved
+        self._replica_exchange_attempts += num_attempted
         pairs_for_exchange = {"a": pair_a[approved], "b": pair_b[approved]}
+
+        # accumulate the symmetric acceptance/attempt matrices
+        self.acceptance_matrix[beta_id_a, beta_id_b] += num_approved
+        self.acceptance_matrix[beta_id_b, beta_id_a] += num_approved
+        self.attempted_matrix[beta_id_a, beta_id_b] += num_attempted
+        self.attempted_matrix[beta_id_b, beta_id_a] += num_attempted
+
         return pairs_for_exchange
 
     def _perform_exchange(
@@ -360,6 +386,23 @@ class PTSimulation(LangevinSimulation):
         pairs_for_exchange = self._detect_exchange(data)
         data = self._perform_exchange(data, pairs_for_exchange)
         return data
+
+    def save_exchanges(self, data: AtomicData, save_step: int) -> None:
+        """Save routine to record the ratio of acceptances/attempts for each temperature during the simulation.
+        After saving to file, the acceptances/attempts are reset. For this particular method, the AtomicData
+        and save_step are not used, though they are included as arguments for the sake of saving"""
+        key = self._get_numpy_count()
+        np.save(
+            "{}_acceptance_{}.npy".format(self.filename, key),
+            self.acceptance_matrix.numpy(),
+        )
+        np.save(
+            "{}_attempted_{}.npy".format(self.filename, key),
+            self.attempted_matrix.numpy(),
+        )
+        # Reset
+        self.acceptance_matrix = torch.zeros(len(self.betas), len(self.betas))
+        self.attemped_matrix = torch.zeros(len(self.betas), len(self.betas))
 
     def summary(self):
         attempted = self._replica_exchange_attempts
