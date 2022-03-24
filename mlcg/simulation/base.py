@@ -16,9 +16,11 @@ from ..utils import tqdm
 from ..data.atomic_data import AtomicData
 from ..data._keys import ENERGY_KEY, FORCE_KEY, MASS_KEY, VELOCITY_KEY
 
-KBOLTZMANN = 1.38064852e-23
-AVOGADRO = 6.022140857e23
-JPERKCAL = 4184
+
+# Physical Constants
+KBOLTZMANN = 1.38064852e-23 # Boltzmann's constant in Joules/Kelvin
+AVOGADRO = 6.022140857e23 # Dimensionaless Avogadro's number
+JPERKCAL = 4184 # Ratio of Joules/kilocalorie
 
 
 def calc_beta_from_temperature(temp):
