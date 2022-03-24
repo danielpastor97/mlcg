@@ -210,7 +210,7 @@ class PTSimulation(LangevinSimulation):
             (replica_num + 1) * self.n_indep_sims,
         )
         return {
-            "beta": self._betas[replica_num],
+            "beta": self.betas[replica_num],
             "indices_in_the_output": indices,
         }
 
