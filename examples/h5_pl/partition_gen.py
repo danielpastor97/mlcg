@@ -85,7 +85,7 @@ if __name__ == "__main__":
         mol_dict = mol_dicts[name]
         if args.kfsplits != None:
             splits = n_fold_multimol_split(
-                mol_dict, k=args.kfsplits, shuffle=True, random_state=seed
+                mol_dict, k=args.kfsplits, shuffle=True, random_state=args.seed
             )
         else:
             if len(args.proportions) != 2:
