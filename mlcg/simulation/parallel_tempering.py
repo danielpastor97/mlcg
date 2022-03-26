@@ -131,7 +131,9 @@ class PTSimulation(LangevinSimulation):
         self._odd_pairs = [torch.cat(pair_a), torch.cat(pair_b)]
 
         # maps pairs to beta idx for acceptance matrix updates
-        self.pair_to_beta_idx = torch.arange(len(self._beta_list)).repeat_interleave(self.n_indep_sims)
+        self.pair_to_beta_idx = torch.arange(
+            len(self._beta_list)
+        ).repeat_interleave(self.n_indep_sims)
         self.acceptance_matrix = torch.zeros(
             self.n_indep_sims, len(self._beta_list), len(self._beta_list)
         )
@@ -218,7 +220,10 @@ class PTSimulation(LangevinSimulation):
         pair_a, pair_b = self._get_proposed_pairs()
         u_a, u_b = data.out[ENERGY_KEY][pair_a], data.out[ENERGY_KEY][pair_b]
         betas_a, betas_b = self.beta[pair_a], self.beta[pair_b]
-        beta_idx_a, beta_idx_b = self.pair_to_beta_idx[pair_a][0], self.pair_to_beta_idx[pair_b][0]
+        beta_idx_a, beta_idx_b = (
+            self.pair_to_beta_idx[pair_a][0],
+            self.pair_to_beta_idx[pair_b][0],
+        )
 
         p_pair = torch.exp((u_a - u_b) * (betas_a - betas_b))
         approved = torch.rand(len(p_pair)) < p_pair
