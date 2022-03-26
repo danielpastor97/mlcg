@@ -365,7 +365,7 @@ def test_exchange_and_rescale():
     manual_coords = simulation.initial_data.pos.numpy().reshape(
         n_replicas * n_indep, 7, 3
     )
-    manual_betas = simulation.initial_data.beta.numpy()
+    manual_betas = np.repeat(betas, n_indep)[:, None, None]
     manual_velocities = simulation.initial_data.velocities.numpy().reshape(
         n_replicas * n_indep, 7, 3
     )
@@ -373,11 +373,11 @@ def test_exchange_and_rescale():
     hot_to_cold_vscale = np.sqrt(
         manual_betas[pairs_for_exchange["b"]]
         / manual_betas[pairs_for_exchange["a"]]
-    )[:, None, None]
+    )
     cold_to_hot_vscale = np.sqrt(
         manual_betas[pairs_for_exchange["a"]]
         / manual_betas[pairs_for_exchange["b"]]
-    )[:, None, None]
+    )
 
     swapped_coords = deepcopy(manual_coords)
     swapped_velocities = deepcopy(manual_velocities)

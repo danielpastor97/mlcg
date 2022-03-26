@@ -91,7 +91,7 @@ class _Simulation(object):
     def __init__(
         self,
         dt: float = 5e-4,
-        beta: float = 1.0,
+        beta: Union[float, List[float]] = 1.0,
         save_forces: bool = False,
         save_energies: bool = False,
         n_timesteps: int = 100,
@@ -114,7 +114,7 @@ class _Simulation(object):
         self.n_timesteps = n_timesteps
         self.save_interval = save_interval
         self.dt = dt
-        self.beta = beta
+        self._beta_list = beta
         self.device = torch.device(device)
         self.export_interval = export_interval
         self.log_interval = log_interval
@@ -160,7 +160,12 @@ class _Simulation(object):
             List of AtomicData instances representing initial structures for
         parallel simulations.
         """
-        raise NotImplementedError
+        self.validate_data_list(configurations)
+        self.initial_data = self.collate(configurations).to(device=self.device)
+        self.n_sims = len(configurations)
+        self.n_atoms = len(configurations[0].atom_types)
+        self.n_dims = configurations[0].pos.shape[1]
+        self.beta = torch.tensor(self.n_sims * [self._beta_list])
 
     def simulate(self, overwrite: bool = False) -> np.ndarray:
         """Generates independent simulations.

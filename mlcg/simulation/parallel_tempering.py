@@ -8,9 +8,9 @@ from ..data.atomic_data import AtomicData
 from ..data._keys import (
     MASS_KEY,
     VELOCITY_KEY,
-    BETA_KEY,
     POSITIONS_KEY,
     ENERGY_KEY,
+    ATOM_TYPE_KEY,
 )
 from .base import _Simulation
 from .langevin import LangevinSimulation
@@ -31,7 +31,7 @@ class PTSimulation(LangevinSimulation):
     ----------
     friction:
         Scalar friction to use for Langevin updates
-    betas:
+    beta:
         List of inverse temperatures for each of the thermodynamic replicas
     exchange_interval:
         Specifies the number of simulation steps to take before attempting
@@ -45,19 +45,9 @@ class PTSimulation(LangevinSimulation):
         exchange_interval: int = 100,
         **kwargs,
     ):
-
-        if not isinstance(betas, torch.Tensor):
-            self.betas = torch.tensor(betas)
-        else:
-            self.betas = betas
-
-        assert all([beta > 0.00 for beta in self.betas])
-        assert len(betas) == len(torch.unique(self.betas))
-
-        self.n_replicas = len(self.betas)
-
         super(PTSimulation, self).__init__(
             friction=friction,
+            beta=betas,
             specific_setup=self._reset_exchange_stats,
             sim_subroutine=self.detect_and_exchange_replicas,
             sim_subroutine_interval=exchange_interval,
@@ -65,12 +55,26 @@ class PTSimulation(LangevinSimulation):
             **kwargs,
         )
 
+        if not isinstance(betas, Sequence):
+            raise ValueError(
+                "`betas` supplied, {}, is not a sequence of floats.".format(
+                    betas
+                )
+            )
+        else:
+            self._beta_list = betas
+
+        assert all([beta > 0.00 for beta in self._beta_list])
+
+        self.n_replicas = len(self._beta_list)
+
         # Acceptance/attempted matrices. Row and column indices denote
         # the acceptance/attempt numbers for exchanges between adjacent beta values
         # self.betas[row, col]. Each matrix should be symmetric as exchanges are full trajectory
         # swaps
-        self.acceptance_matrix = torch.zeros(len(self.betas), len(self.betas))
-        self.attempted_matrix = torch.zeros(len(self.betas), len(self.betas))
+        self.acceptance_matrix = torch.zeros(
+            len(self._beta_list), len(self._beta_list)
+        )
         self._reset_exchange_stats()
 
     def _reset_exchange_stats(self):
@@ -78,95 +82,26 @@ class PTSimulation(LangevinSimulation):
         self._replica_exchange_attempts = 0
         self._replica_exchange_approved = 0
 
-    def timestep(
-        self, data: AtomicData, forces: torch.Tensor
-    ) -> Tuple[AtomicData, torch.Tensor, torch.Tensor]:
-        """Timestep method for Langevin dynamics. Here, the scale
-        for the noise term is conditioned on the beta values for each respective replica.
-
-        Parameters
-        ----------
-        data:
-            atomic structure at t
-        forces:
-            forces evaluated at t
-        Returns
-        -------
-        data:
-            atomic structure at t+1
-        forces:
-            forces evaluated at t+1
-        potential:
-            potential evaluated at t+1
-        """
-        v_old = data[VELOCITY_KEY]
-        masses = data.masses
-        x_old = data[POSITIONS_KEY]
-
-        # B
-        v_new = v_old + 0.5 * self.dt * forces / masses[:, None]
-
-        # A (position update)
-        x_new = x_old + v_new * self.dt * 0.5
-
-        # O (noise)
-        noise = torch.sqrt(
-            1.0 / data[BETA_KEY].repeat_interleave(self.n_atoms) / masses
-        )[:, None]
-        noise = noise * torch.randn(
-            size=x_new.size(),
-            dtype=x_new.dtype,
-            generator=self.rng,
-            device=self.device,
-        )
-
-        v_new = v_new * self.vscale + self.noisescale * noise
-
-        # A
-        x_new = x_new + v_new * self.dt * 0.5
-
-        data[POSITIONS_KEY] = x_new
-        potential, forces = self.calculate_potential_and_forces(data)
-        # B
-        v_new = v_new + 0.5 * self.dt * forces / masses[:, None]
-        data[VELOCITY_KEY] = v_new
-
-        return data, potential, forces
-
     def attach_configurations(self, configurations: List[AtomicData]):
         """Attaches the configurations at each of the temperatures defined for
         parallel tempering simulations. If the initial configurations do not contain
         specified velocities, all velocities will be initialized to zero.
         """
+        self.n_indep_sims = len(configurations)
         # copy the configurations across each beta/temperature
         new_configurations = []
-        for beta in self.betas:
+        for beta in self._beta_list:
             for configuration in configurations:
                 config = deepcopy(configuration)
-                config[BETA_KEY] = beta
                 new_configurations.append(config)
 
-        # collate the final datalist
-        self.validate_data_list(new_configurations)
-        self.initial_data = self.collate(new_configurations).to(
-            device=self.device
-        )
+        super(PTSimulation, self).attach_configurations(new_configurations)
 
-        # If not defined, initialize all velocities to zero
-        if VELOCITY_KEY not in self.initial_data:
-            # initialize velocities at zero
-            self.initial_data.velocities = torch.zeros_like(
-                self.initial_data.pos
-            )
-        assert (
-            self.initial_data[VELOCITY_KEY].shape
-            == self.initial_data[POSITIONS_KEY].shape
-        )
-
-        self.n_sims = len(new_configurations)
-        self.n_indep_sims = len(configurations)
-        self.n_atoms = len(new_configurations[0].atom_types)
-        self.n_dims = new_configurations[0].pos.shape[1]
+        # Reset/stratify the beta attribute across all temperatures
+        extended_betas = []
+        for beta in self._beta_list:
+            extended_betas += self.n_indep_sims * [beta]
+        self.beta = torch.tensor(extended_betas)
 
         # Setup possible even/odd pair exchanges
         self._propose_even_pairs = True
@@ -279,10 +214,7 @@ class PTSimulation(LangevinSimulation):
         """
         pair_a, pair_b = self._get_proposed_pairs()
         u_a, u_b = data.out[ENERGY_KEY][pair_a], data.out[ENERGY_KEY][pair_b]
-        betas_a, betas_b = data[BETA_KEY][pair_a], data[BETA_KEY][pair_b]
-        beta_id_a, beta_id_b = (self.betas == betas_a[0]).nonzero()[0], (
-            self.betas == betas_b[0]
-        ).nonzero()[0]
+        betas_a, betas_b = self.beta[pair_a], self.beta[pair_b]
 
         p_pair = torch.exp((u_a - u_b) * (betas_a - betas_b))
         approved = torch.rand(len(p_pair)) < p_pair
@@ -293,10 +225,10 @@ class PTSimulation(LangevinSimulation):
         pairs_for_exchange = {"a": pair_a[approved], "b": pair_b[approved]}
 
         # accumulate the symmetric acceptance/attempt matrices
-        self.acceptance_matrix[beta_id_a, beta_id_b] += num_approved
-        self.acceptance_matrix[beta_id_b, beta_id_a] += num_approved
-        self.attempted_matrix[beta_id_a, beta_id_b] += num_attempted
-        self.attempted_matrix[beta_id_b, beta_id_a] += num_attempted
+        # self.acceptance_matrix[beta_id_a, beta_id_b] += num_approved
+        # self.acceptance_matrix[beta_id_b, beta_id_a] += num_approved
+        # self.attempted_matrix[beta_id_a, beta_id_b] += num_attempted
+        # self.attempted_matrix[beta_id_b, beta_id_a] += num_attempted
 
         return pairs_for_exchange
 
@@ -346,13 +278,8 @@ class PTSimulation(LangevinSimulation):
 
         # scale and exchange the velocities
         # reshape the betas for simpler elementwise multiplication
-        betas_a = data[BETA_KEY][pair_a].repeat_interleave(self.n_atoms)[
-            :, None
-        ]
-        betas_b = data[BETA_KEY][pair_b].repeat_interleave(self.n_atoms)[
-            :, None
-        ]
-
+        betas_a = self.beta[pair_a].repeat_interleave(self.n_atoms)[:, None]
+        betas_b = self.beta[pair_b].repeat_interleave(self.n_atoms)[:, None]
         vscale_a_to_b = torch.sqrt(betas_a / betas_b)
         vscale_b_to_a = torch.sqrt(betas_b / betas_a)
         v_changed = data[VELOCITY_KEY].detach().clone()
@@ -402,8 +329,12 @@ class PTSimulation(LangevinSimulation):
             self.attempted_matrix.numpy(),
         )
         # Reset
-        self.acceptance_matrix = torch.zeros(len(self.betas), len(self.betas))
-        self.attemped_matrix = torch.zeros(len(self.betas), len(self.betas))
+        self.acceptance_matrix = torch.zeros(
+            len(self._beta_list), len(self._beta_list)
+        )
+        self.attemped_matrix = torch.zeros(
+            len(self._beta_list), len(self._beta_list)
+        )
 
     def summary(self):
         attempted = self._replica_exchange_attempts

@@ -1,4 +1,4 @@
-from typing import List, Tuple, Any, Dict
+from typing import List, Tuple, Any, Dict, Sequence
 import torch
 import numpy as np
 import warnings
@@ -8,7 +8,6 @@ from ..data.atomic_data import AtomicData
 from ..data._keys import (
     MASS_KEY,
     VELOCITY_KEY,
-    BETA_KEY,
     POSITIONS_KEY,
     ENERGY_KEY,
 )
@@ -100,9 +99,8 @@ class LangevinSimulation(_Simulation):
 
         # O (noise)
         noise = torch.sqrt(
-            1.0 / data[BETA_KEY].repeat_interleave(self.n_atoms) / masses
+            1.0 / self.beta.repeat_interleave(self.n_atoms) / masses
         )[:, None]
-
         noise = noise * torch.randn(
             size=x_new.size(),
             dtype=x_new.dtype,
@@ -131,14 +129,7 @@ class LangevinSimulation(_Simulation):
             List of AtomicData instances representing initial structures for
         parallel simulations.
         """
-        self.validate_data_list(configurations)
-        for configuration in configurations:
-            configuration[BETA_KEY] = self.beta
-
-        self.initial_data = self.collate(configurations).to(device=self.device)
-        self.n_sims = len(configurations)
-        self.n_atoms = len(configurations[0].atom_types)
-        self.n_dims = configurations[0].pos.shape[1]
+        super(LangevinSimulation, self).attach_configurations(configurations)
 
         if VELOCITY_KEY not in self.initial_data:
             # initialize velocities at zero
@@ -269,14 +260,7 @@ class OverdampedSimulation(_Simulation):
             List of AtomicData instances representing initial structures for
         parallel simulations.
         """
-        self.validate_data_list(configurations)
-        for configuration in configurations:
-            configuration[BETA_KEY] = self.beta
-
-        self.initial_data = self.collate(configurations).to(device=self.device)
-        self.n_sims = len(configurations)
-        self.n_atoms = len(configurations[0].atom_types)
-        self.n_dims = configurations[0].pos.shape[1]
+        super(OverdampedSimulation, self).attach_configurations(configurations)
 
         if MASS_KEY in self.initial_data:
             warnings.warn(
@@ -313,7 +297,7 @@ class OverdampedSimulation(_Simulation):
             + np.sqrt(
                 2
                 * self._dtau
-                / data[BETA_KEY].repeat_interleave(self.n_atoms)[:, None]
+                / self.beta.repeat_interleave(self.n_atoms)[:, None]
             )
             * noise
         )
