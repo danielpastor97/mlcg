@@ -236,8 +236,8 @@ class PTSimulation(LangevinSimulation):
         # accumulate the symmetric acceptance/attempt matrices
         self.acceptance_matrix[beta_idx_a, beta_idx_b] += num_approved
         self.acceptance_matrix[beta_idx_b, beta_idx_a] += num_approved
-        self.acceptance_matrix[beta_idx_a, beta_idx_a] += num_attempted
-        self.acceptance_matrix[beta_idx_b, beta_idx_b] += num_attempted
+        self.acceptance_matrix[beta_idx_a, beta_idx_a] += num_attempted - num_approved
+        self.acceptance_matrix[beta_idx_b, beta_idx_b] += num_attempted - num_approved
 
         return pairs_for_exchange
 
@@ -291,6 +291,8 @@ class PTSimulation(LangevinSimulation):
         betas_b = self.beta[pair_b].repeat_interleave(self.n_atoms)[:, None]
         vscale_a_to_b = torch.sqrt(betas_a / betas_b)
         vscale_b_to_a = torch.sqrt(betas_b / betas_a)
+        print(vscale_a_to_b)
+        print(vscale_b_to_a)
         v_changed = data[VELOCITY_KEY].detach().clone()
         v_changed[batch_pair_a_cond] = (
             data[VELOCITY_KEY][batch_pair_b_cond] * vscale_a_to_b
@@ -333,15 +335,8 @@ class PTSimulation(LangevinSimulation):
             "{}_acceptance_{}.npy".format(self.filename, key),
             self.acceptance_matrix.numpy(),
         )
-        np.save(
-            "{}_attempted_{}.npy".format(self.filename, key),
-            self.attempted_matrix.numpy(),
-        )
         # Reset
         self.acceptance_matrix = torch.zeros(
-            len(self._beta_list), len(self._beta_list)
-        )
-        self.attemped_matrix = torch.zeros(
             len(self._beta_list), len(self._beta_list)
         )
 
