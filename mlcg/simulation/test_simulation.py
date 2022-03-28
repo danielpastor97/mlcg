@@ -17,6 +17,8 @@ from mlcg.nn.test_outs import ASE_prior_model
 from mlcg.data.atomic_data import AtomicData
 from mlcg.data._keys import MASS_KEY, POSITIONS_KEY, ATOM_TYPE_KEY
 
+torch_pi = torch.tensor(np.pi)
+
 
 @pytest.fixture
 def get_initial_data():
@@ -298,10 +300,12 @@ def test_exchange_detection():
         AtomicData.from_points(
             pos=coords,
             atom_types=torch.tensor([1]),  # dummy types
+            masses=torch.tensor([1]),
         ),
         AtomicData.from_points(
             pos=coords,
             atom_types=torch.tensor([1]),  # dummy types
+            masses=torch.tensor([1]),
         ),
     ]
     simulation = PTSimulation(betas=betas)
@@ -339,6 +343,7 @@ def test_exchange_and_rescale():
             AtomicData.from_points(
                 pos=torch.zeros(7, 3),
                 atom_types=torch.ones(7),
+                masses=torch.ones(7),
                 velocities=torch.zeros(7, 3),
             )
         )
@@ -410,3 +415,70 @@ def test_exchange_and_rescale():
     np.testing.assert_array_equal(
         swapped_velocities, exchanged_and_scaled_velocities
     )
+
+
+def test_maxwell_boltzmann_stats():
+    """Tests to make sure MB distribution produces the correct
+    velocity moments"""
+    betas = 1.67 * torch.ones((10000))
+    masses = 12.0 * torch.ones((10000))
+    sampled_velocities = LangevinSimulation.sample_maxwell_boltzmann(
+        betas, masses
+    )
+    emperical_expectation = torch.sqrt(
+        (sampled_velocities**2).sum(dim=1)
+    ).mean()
+    emperical_expectation_2 = (sampled_velocities**2).sum(dim=1).mean()
+    theory_expectation = torch.sqrt(8 * betas[0] / (torch_pi * masses[0]))
+    theory_expectation_2 = 3 * betas[0] / (masses[0])
+
+    np.testing.assert_almost_equal(
+        emperical_expectation.numpy(), theory_expectation.numpy(), decimal=2
+    )
+    np.testing.assert_almost_equal(
+        emperical_expectation_2.numpy(), theory_expectation_2.numpy(), decimal=2
+    )
+
+
+def test_pt_velocity_init():
+    """Tests to make sure that PTSimulation.attach_configurations
+    correctly for each temperature level"""
+    betas = [1.67, 1.42, 1.22, 1.0]  # only used to instantiate the simulation
+
+    # Mock data of 1000 frames of a 7 atom molecule, each atom having unit mass
+    n_indep = 10000
+    n_atoms = 7
+    configurations = []
+    for _ in range(n_indep):
+        configurations.append(
+            AtomicData.from_points(
+                pos=torch.zeros(n_atoms, 3),
+                atom_types=torch.ones(n_atoms),
+                masses=torch.ones(n_atoms),
+                velocities=torch.zeros(n_atoms, 3),
+            )
+        )
+
+    simulation = PTSimulation(betas=betas)
+    simulation.attach_configurations(configurations)
+    print(simulation.initial_data.velocities)
+
+    mass = 1.00
+    for i, beta in enumerate(betas):
+        theory_expectation = torch.sqrt(8 * beta / (torch_pi * mass))
+        theory_expectation_2 = torch.tensor(3 * beta / (mass))
+
+        velocities = simulation.initial_data.velocities[
+            (n_indep * n_atoms) * i : (n_indep * n_atoms) * (i + 1)
+        ]
+        emperical_expectation = torch.sqrt((velocities**2).sum(dim=1)).mean()
+        emperical_expectation_2 = (velocities**2).sum(dim=1).mean()
+
+        np.testing.assert_almost_equal(
+            emperical_expectation.numpy(), theory_expectation.numpy(), decimal=1
+        )
+        np.testing.assert_almost_equal(
+            emperical_expectation_2.numpy(),
+            theory_expectation_2.numpy(),
+            decimal=1,
+        )

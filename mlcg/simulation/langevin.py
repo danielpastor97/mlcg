@@ -1,5 +1,6 @@
 from typing import List, Tuple, Any, Dict, Sequence
 import torch
+from torch.distributions.normal import Normal
 import numpy as np
 import warnings
 from copy import deepcopy
@@ -12,6 +13,8 @@ from ..data._keys import (
     ENERGY_KEY,
 )
 from .base import _Simulation
+
+torch_pi = torch.tensor(np.pi)
 
 
 class LangevinSimulation(_Simulation):
@@ -68,6 +71,27 @@ class LangevinSimulation(_Simulation):
         self.vscale = np.exp(-self.dt * self.friction)
         self.noisescale = np.sqrt(1 - self.vscale * self.vscale)
 
+    @staticmethod
+    def sample_maxwell_boltzmann(
+        betas: torch.Tensor, masses: torch.Tensor
+    ) -> torch.Tensor:
+        """Returns n_samples atomic velocites according to Maxwell-Boltzmann
+        distribution at the corresponding temperature and mass values.
+
+        Parameters
+        ----------
+        n_samples:
+            Number of atoms to generate velocites for
+        betas:
+            The inverse thermodynamic temperature of each atom
+        masses:
+            Them masses of each atom
+        """
+        scale = torch.sqrt(betas / masses)
+        dist = Normal(loc=0.00, scale=scale)
+        velocities = dist.sample((3,)).t()
+        return velocities
+
     def timestep(
         self, data: AtomicData, forces: torch.Tensor
     ) -> Tuple[AtomicData, torch.Tensor, torch.Tensor]:
@@ -88,7 +112,7 @@ class LangevinSimulation(_Simulation):
             potential evaluated at t+1
         """
         v_old = data[VELOCITY_KEY]
-        masses = data.masses
+        masses = data[MASS_KEY]
         x_old = data[POSITIONS_KEY]
 
         # B
@@ -131,12 +155,15 @@ class LangevinSimulation(_Simulation):
         """
         super(LangevinSimulation, self).attach_configurations(configurations)
 
+        # Initialize velocities according to Maxwell-Boltzmann distribution
         if VELOCITY_KEY not in self.initial_data:
             # initialize velocities at zero
-            self.initial_data[VELOCITY_KEY] = torch.zeros_like(
-                self.initial_data[POSITIONS_KEY]
+            self.initial_data[
+                VELOCITY_KEY
+            ] = LangevinSimulation.sample_maxwell_boltzmann(
+                self.beta.repeat_interleave(self.n_atoms),
+                self.initial_data[MASS_KEY],
             )
-
         assert (
             self.initial_data[VELOCITY_KEY].shape
             == self.initial_data[POSITIONS_KEY].shape

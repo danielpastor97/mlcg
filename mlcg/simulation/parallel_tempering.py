@@ -93,13 +93,26 @@ class PTSimulation(LangevinSimulation):
                 config = deepcopy(configuration)
                 new_configurations.append(config)
 
-        super(PTSimulation, self).attach_configurations(new_configurations)
+        self.validate_data_list(new_configurations)
+        self.initial_data = self.collate(new_configurations).to(
+            device=self.device
+        )
+        self.n_sims = len(new_configurations)
+        self.n_atoms = len(new_configurations[0].atom_types)
+        self.n_dims = new_configurations[0].pos.shape[1]
 
-        # Reset/stratify the beta attribute across all temperatures
         extended_betas = []
         for beta in self._beta_list:
             extended_betas += self.n_indep_sims * [beta]
         self.beta = torch.tensor(extended_betas).to(self.device)
+
+        # Initialize velocities according to Maxwell-Boltzmann distribution
+        self.initial_data[
+            VELOCITY_KEY
+        ] = LangevinSimulation.sample_maxwell_boltzmann(
+            self.beta.repeat_interleave(self.n_atoms),
+            self.initial_data[MASS_KEY],
+        )
 
         # Setup possible even/odd pair exchanges
         self._propose_even_pairs = True
@@ -136,7 +149,7 @@ class PTSimulation(LangevinSimulation):
             len(self._beta_list)
         ).repeat_interleave(self.n_indep_sims)
         self.acceptance_matrix = torch.zeros(
-            len(self._beta_list), len(self._beta_list)
+            len(self._beta_list), len(self._beta_list), 2, 2
         ).to(self.device)
 
     def get_replica_info(self, replica_num: int = 0) -> Dict:
@@ -235,12 +248,12 @@ class PTSimulation(LangevinSimulation):
         pairs_for_exchange = {"a": pair_a[approved], "b": pair_b[approved]}
 
         # accumulate the symmetric acceptance/attempt matrices
-        self.acceptance_matrix[beta_idx_a, beta_idx_b] += num_approved
-        self.acceptance_matrix[beta_idx_b, beta_idx_a] += num_approved
-        self.acceptance_matrix[beta_idx_a, beta_idx_a] += (
+        self.acceptance_matrix[beta_idx_a, beta_idx_b][0, 1] += num_approved
+        self.acceptance_matrix[beta_idx_b, beta_idx_a][1, 0] += num_approved
+        self.acceptance_matrix[beta_idx_a, beta_idx_a][0, 0] += (
             num_attempted - num_approved
         )
-        self.acceptance_matrix[beta_idx_b, beta_idx_b] += (
+        self.acceptance_matrix[beta_idx_b, beta_idx_b][1, 1] += (
             num_attempted - num_approved
         )
 
@@ -346,7 +359,7 @@ class PTSimulation(LangevinSimulation):
         )
         # Reset
         self.acceptance_matrix = torch.zeros(
-            len(self._beta_list), len(self._beta_list)
+            len(self._beta_list), len(self._beta_list), 2, 2
         ).to(self.device)
 
     def summary(self):

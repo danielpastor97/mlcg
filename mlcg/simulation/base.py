@@ -114,6 +114,7 @@ class _Simulation(object):
         self.n_timesteps = n_timesteps
         self.save_interval = save_interval
         self.dt = dt
+
         self._beta_list = beta
         self.device = torch.device(device)
         self.export_interval = export_interval
@@ -165,9 +166,12 @@ class _Simulation(object):
         self.n_sims = len(configurations)
         self.n_atoms = len(configurations[0].atom_types)
         self.n_dims = configurations[0].pos.shape[1]
-        self.beta = torch.tensor(self.n_sims * [self._beta_list]).to(
-            self.device
-        )
+        if isinstance(self._beta_list, float):
+            self.beta = torch.tensor(self.n_sims * [self._beta_list]).to(
+                self.device
+            )
+        else:
+            self.beta = torch.tensor(self._beta_list).to(self.device)
 
     def simulate(self, overwrite: bool = False) -> np.ndarray:
         """Generates independent simulations.
