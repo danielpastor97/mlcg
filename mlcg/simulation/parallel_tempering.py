@@ -49,7 +49,6 @@ class PTSimulation(LangevinSimulation):
         super(PTSimulation, self).__init__(
             friction=friction,
             beta=betas,
-            specific_setup=self._reset_exchange_stats,
             sim_subroutine=self.detect_and_exchange_replicas,
             sim_subroutine_interval=exchange_interval,
             save_subroutine=self.save_exchanges,
@@ -68,17 +67,20 @@ class PTSimulation(LangevinSimulation):
         assert all([beta > 0.00 for beta in self._beta_list])
 
         self.n_replicas = len(self._beta_list)
-
-        # Acceptance/attempted matrices. Row and column indices denote
-        # the acceptance/attempt numbers for exchanges between adjacent beta values
-        # self.betas[row, col]. Each matrix should be symmetric as exchanges are full trajectory
-        # swaps
-        self._reset_exchange_stats()
+        self._replica_exchange_approved = 0
+        self._replica_exchange_attempts = 0
 
     def _reset_exchange_stats(self):
         """Setup function that resets exchange statistics before running a simulation"""
         self._replica_exchange_attempts = 0
         self._replica_exchange_approved = 0
+
+    def _set_up_simulation(self, overwrite: bool = False):
+        super(PTSimulation, self)._set_up_simulation(overwrite=overwrite)
+        self._reset_exchange_stats()
+        self.acceptance_matrix = torch.zeros(
+            len(self._beta_list), len(self._beta_list)
+        ).to(self.device)
 
     def attach_configurations(self, configurations: List[AtomicData]):
         """Attaches the configurations at each of the temperatures defined for
@@ -149,7 +151,7 @@ class PTSimulation(LangevinSimulation):
             len(self._beta_list)
         ).repeat_interleave(self.n_indep_sims)
         self.acceptance_matrix = torch.zeros(
-            len(self._beta_list), len(self._beta_list), 2, 2
+            len(self._beta_list), len(self._beta_list)
         ).to(self.device)
 
     def get_replica_info(self, replica_num: int = 0) -> Dict:
@@ -239,6 +241,8 @@ class PTSimulation(LangevinSimulation):
             self.pair_to_beta_idx[pair_b][0],
         )
 
+        print(pair_a, pair_b)
+
         p_pair = torch.exp((u_a - u_b) * (betas_a - betas_b))
         approved = torch.rand(len(p_pair)).to(self.device) < p_pair
         num_approved = torch.sum(approved)
@@ -248,15 +252,10 @@ class PTSimulation(LangevinSimulation):
         pairs_for_exchange = {"a": pair_a[approved], "b": pair_b[approved]}
 
         # accumulate the symmetric acceptance/attempt matrices
-        self.acceptance_matrix[beta_idx_a, beta_idx_b][0, 1] += num_approved
-        self.acceptance_matrix[beta_idx_b, beta_idx_a][1, 0] += num_approved
-        self.acceptance_matrix[beta_idx_a, beta_idx_a][0, 0] += (
+        self.acceptance_matrix[beta_idx_a, beta_idx_b] += num_approved
+        self.acceptance_matrix[beta_idx_b, beta_idx_a] += (
             num_attempted - num_approved
         )
-        self.acceptance_matrix[beta_idx_b, beta_idx_b][1, 1] += (
-            num_attempted - num_approved
-        )
-
         return pairs_for_exchange
 
     def _perform_exchange(
@@ -359,7 +358,7 @@ class PTSimulation(LangevinSimulation):
         )
         # Reset
         self.acceptance_matrix = torch.zeros(
-            len(self._beta_list), len(self._beta_list), 2, 2
+            len(self._beta_list), len(self._beta_list)
         ).to(self.device)
 
     def summary(self):

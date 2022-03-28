@@ -71,9 +71,6 @@ class _Simulation(object):
         is not None and log_type is 'write'. This provides the base file name;
         for numpy outputs, '_coords_000.npy' or similar is added. For log
         outputs, '_log.txt' is added.
-    specific_setup :
-        if specified, this function/method is called at the end of _set_up_simulation
-        if additional pre-processing is required.
     sim_subroutine :
         Optional subroutine to run at at the interval specified by
         subroutine_interval after simulation updates. The subroutine should
@@ -124,7 +121,6 @@ class _Simulation(object):
             raise ValueError("log_type can be either 'print' or 'write'")
         self.log_type = log_type
         self.filename = filename
-        self.specific_setup = specific_setup
         self.sim_subroutine = sim_subroutine
         self.sim_subroutine_interval = sim_subroutine_interval
         self.save_subroutine = save_subroutine
@@ -528,10 +524,6 @@ class _Simulation(object):
                 file = open(self._log_file, "a")
                 file.write(printstring)
                 file.close()
-
-        # Optional/additional simulation setup if necessary
-        if self.specific_setup != None:
-            self.specific_setup()
 
     def save(
         self,
