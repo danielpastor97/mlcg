@@ -241,8 +241,6 @@ class PTSimulation(LangevinSimulation):
             self.pair_to_beta_idx[pair_b][0],
         )
 
-        print(pair_a, pair_b)
-
         p_pair = torch.exp((u_a - u_b) * (betas_a - betas_b))
         approved = torch.rand(len(p_pair)).to(self.device) < p_pair
         num_approved = torch.sum(approved)
