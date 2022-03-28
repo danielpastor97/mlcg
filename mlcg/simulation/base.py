@@ -165,7 +165,9 @@ class _Simulation(object):
         self.n_sims = len(configurations)
         self.n_atoms = len(configurations[0].atom_types)
         self.n_dims = configurations[0].pos.shape[1]
-        self.beta = torch.tensor(self.n_sims * [self._beta_list])
+        self.beta = torch.tensor(self.n_sims * [self._beta_list]).to(
+            self.device
+        )
 
     def simulate(self, overwrite: bool = False) -> np.ndarray:
         """Generates independent simulations.
@@ -208,7 +210,7 @@ class _Simulation(object):
                     if (t + 1) % self.export_interval == 0:
                         self.write((t + 1) // self.save_interval)
                         if self.save_subroutine is not None:
-                            self.save_routine(
+                            self.save_subroutine(
                                 data, (t + 1) // self.save_interval
                             )
 

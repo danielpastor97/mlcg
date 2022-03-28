@@ -1,4 +1,5 @@
 from typing import List, Tuple, Any, Dict, Sequence
+import time
 import torch
 import numpy as np
 import warnings
@@ -55,7 +56,7 @@ class PTSimulation(LangevinSimulation):
             **kwargs,
         )
 
-        if not isinstance(betas, Sequence):
+        if not isinstance(betas, (list, np.ndarray)):
             raise ValueError(
                 "`betas` supplied, {}, is not a sequence of floats.".format(
                     betas
@@ -98,7 +99,7 @@ class PTSimulation(LangevinSimulation):
         extended_betas = []
         for beta in self._beta_list:
             extended_betas += self.n_indep_sims * [beta]
-        self.beta = torch.tensor(extended_betas)
+        self.beta = torch.tensor(extended_betas).to(self.device)
 
         # Setup possible even/odd pair exchanges
         self._propose_even_pairs = True
@@ -135,8 +136,8 @@ class PTSimulation(LangevinSimulation):
             len(self._beta_list)
         ).repeat_interleave(self.n_indep_sims)
         self.acceptance_matrix = torch.zeros(
-            self.n_indep_sims, len(self._beta_list), len(self._beta_list)
-        )
+            len(self._beta_list), len(self._beta_list)
+        ).to(self.device)
 
     def get_replica_info(self, replica_num: int = 0) -> Dict:
         """Returns information for the specified replica after the
@@ -226,7 +227,7 @@ class PTSimulation(LangevinSimulation):
         )
 
         p_pair = torch.exp((u_a - u_b) * (betas_a - betas_b))
-        approved = torch.rand(len(p_pair)) < p_pair
+        approved = torch.rand(len(p_pair)).to(self.device) < p_pair
         num_approved = torch.sum(approved)
         num_attempted = len(pair_a)
         self._replica_exchange_approved += num_approved
@@ -236,8 +237,12 @@ class PTSimulation(LangevinSimulation):
         # accumulate the symmetric acceptance/attempt matrices
         self.acceptance_matrix[beta_idx_a, beta_idx_b] += num_approved
         self.acceptance_matrix[beta_idx_b, beta_idx_a] += num_approved
-        self.acceptance_matrix[beta_idx_a, beta_idx_a] += num_attempted - num_approved
-        self.acceptance_matrix[beta_idx_b, beta_idx_b] += num_attempted - num_approved
+        self.acceptance_matrix[beta_idx_a, beta_idx_a] += (
+            num_attempted - num_approved
+        )
+        self.acceptance_matrix[beta_idx_b, beta_idx_b] += (
+            num_attempted - num_approved
+        )
 
         return pairs_for_exchange
 
@@ -272,38 +277,42 @@ class PTSimulation(LangevinSimulation):
         # exchange the coordinates
         # Here we must make swaps in the coordinates and velocities
         # according to to the collated batch attribute
+        if len(pair_a) == 0 and len(pair_b) == 0:
+            return data
+        else:
+            batch_pair_a_cond = False
+            batch_pair_b_cond = False
+            for idx_a, idx_b in zip(pair_a, pair_b):
+                # cumulative bitwise OR to grab corresponding pair batch index
+                batch_pair_a_cond |= data.batch == idx_a
+                batch_pair_b_cond |= data.batch == idx_b
 
-        batch_pair_a_cond = False
-        batch_pair_b_cond = False
-        for idx_a, idx_b in zip(pair_a, pair_b):
-            # cumulative bitwise OR to grab corresponding pair batch index
-            batch_pair_a_cond |= data.batch == idx_a
-            batch_pair_b_cond |= data.batch == idx_b
+            # exchange coordinates
+            x_changed = data[POSITIONS_KEY].detach().clone()
+            x_changed[batch_pair_a_cond] = data[POSITIONS_KEY][
+                batch_pair_b_cond
+            ]
+            x_changed[batch_pair_b_cond] = data[POSITIONS_KEY][
+                batch_pair_a_cond
+            ]
 
-        # exchange coordinates
-        x_changed = data[POSITIONS_KEY].detach().clone()
-        x_changed[batch_pair_a_cond] = data[POSITIONS_KEY][batch_pair_b_cond]
-        x_changed[batch_pair_b_cond] = data[POSITIONS_KEY][batch_pair_a_cond]
+            # scale and exchange the velocities
+            # reshape the betas for simpler elementwise multiplication
+            betas_a = self.beta[pair_a].repeat_interleave(self.n_atoms)[:, None]
+            betas_b = self.beta[pair_b].repeat_interleave(self.n_atoms)[:, None]
+            vscale_a_to_b = torch.sqrt(betas_a / betas_b)
+            vscale_b_to_a = torch.sqrt(betas_b / betas_a)
+            v_changed = data[VELOCITY_KEY].detach().clone()
+            v_changed[batch_pair_a_cond] = (
+                data[VELOCITY_KEY][batch_pair_b_cond] * vscale_a_to_b
+            )
+            v_changed[batch_pair_b_cond] = (
+                data[VELOCITY_KEY][batch_pair_a_cond] * vscale_b_to_a
+            )
 
-        # scale and exchange the velocities
-        # reshape the betas for simpler elementwise multiplication
-        betas_a = self.beta[pair_a].repeat_interleave(self.n_atoms)[:, None]
-        betas_b = self.beta[pair_b].repeat_interleave(self.n_atoms)[:, None]
-        vscale_a_to_b = torch.sqrt(betas_a / betas_b)
-        vscale_b_to_a = torch.sqrt(betas_b / betas_a)
-        print(vscale_a_to_b)
-        print(vscale_b_to_a)
-        v_changed = data[VELOCITY_KEY].detach().clone()
-        v_changed[batch_pair_a_cond] = (
-            data[VELOCITY_KEY][batch_pair_b_cond] * vscale_a_to_b
-        )
-        v_changed[batch_pair_b_cond] = (
-            data[VELOCITY_KEY][batch_pair_a_cond] * vscale_b_to_a
-        )
-
-        data[POSITIONS_KEY] = x_changed
-        data[VELOCITY_KEY] = v_changed
-        return data
+            data[POSITIONS_KEY] = x_changed
+            data[VELOCITY_KEY] = v_changed
+            return data
 
     def detect_and_exchange_replicas(self, data: AtomicData) -> AtomicData:
         """Subroutine for replica exchange: Modifies the internal coordinates and velocities
@@ -333,12 +342,12 @@ class PTSimulation(LangevinSimulation):
         key = self._get_numpy_count()
         np.save(
             "{}_acceptance_{}.npy".format(self.filename, key),
-            self.acceptance_matrix.numpy(),
+            self.acceptance_matrix.detach().cpu().numpy(),
         )
         # Reset
         self.acceptance_matrix = torch.zeros(
             len(self._beta_list), len(self._beta_list)
-        )
+        ).to(self.device)
 
     def summary(self):
         attempted = self._replica_exchange_attempts
