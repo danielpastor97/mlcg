@@ -370,27 +370,31 @@ def test_exchange_and_rescale():
 
     simulation.initial_data.pos = torch.randn(
         *simulation.initial_data.pos.shape
-    )
+    ).double()
     simulation.initial_data.velocities = torch.randn(
         *simulation.initial_data.velocities.shape
-    )
+    ).double()
 
-    manual_coords = simulation.initial_data.pos.numpy().reshape(
-        n_replicas * n_indep, 7, 3
+    manual_coords = (
+        simulation.initial_data.pos.numpy()
+        .reshape(n_replicas * n_indep, 7, 3)
+        .astype("float64")
     )
     manual_betas = np.repeat(betas, n_indep)[:, None, None]
-    manual_velocities = simulation.initial_data.velocities.numpy().reshape(
-        n_replicas * n_indep, 7, 3
+    manual_velocities = (
+        simulation.initial_data.velocities.numpy()
+        .reshape(n_replicas * n_indep, 7, 3)
+        .astype("float64")
     )
 
     hot_to_cold_vscale = np.sqrt(
         manual_betas[pairs_for_exchange["b"]]
         / manual_betas[pairs_for_exchange["a"]]
-    )
+    ).astype("float64")
     cold_to_hot_vscale = np.sqrt(
         manual_betas[pairs_for_exchange["a"]]
         / manual_betas[pairs_for_exchange["b"]]
-    )
+    ).astype("float64")
 
     swapped_coords = deepcopy(manual_coords)
     swapped_velocities = deepcopy(manual_velocities)
@@ -419,9 +423,9 @@ def test_exchange_and_rescale():
         n_replicas * n_indep, 7, 3
     )
 
-    np.testing.assert_array_equal(swapped_coords, exchanged_coords)
-    np.testing.assert_array_equal(
-        swapped_velocities, exchanged_and_scaled_velocities
+    np.testing.assert_almost_equal(swapped_coords, exchanged_coords, decimal=5)
+    np.testing.assert_almost_equal(
+        swapped_velocities, exchanged_and_scaled_velocities, decimal=5
     )
 
 
