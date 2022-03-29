@@ -179,6 +179,7 @@ class _Simulation(object):
                         self.beta
                     )
                 )
+        assert len(self.beta) == len(configurations)
 
     def simulate(self, overwrite: bool = False) -> np.ndarray:
         """Generates independent simulations.
