@@ -161,7 +161,6 @@ class AtomicData(Data):
         energy: Optional[torch.Tensor] = None,
         forces: Optional[torch.Tensor] = None,
         velocities: Optional[torch.Tensor] = None,
-        beta: Optional[torch.Tensor] = None,
         neighborlist: Optional[Dict[str, Dict[str, Any]]] = None,
         **kwargs,
     ):
@@ -191,8 +190,6 @@ class AtomicData(Data):
             shape (n_atoms, 3)
         velocities:
             Atomic velocities, of shape (n_atoms, 3)
-        beta:
-            Inverse thermodynamic temperature, 1/kbT
         neighborlist:
             Neighborlist dictionary for tagged features. Eg,
 
