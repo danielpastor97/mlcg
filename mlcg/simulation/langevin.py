@@ -87,6 +87,7 @@ class LangevinSimulation(_Simulation):
         masses:
             Them masses of each atom
         """
+        assert all([m > 0 for m in masses])
         scale = torch.sqrt(betas / masses)
         dist = Normal(loc=0.00, scale=scale)
         velocities = dist.sample((3,)).t()
