@@ -18,12 +18,41 @@ from .langevin import LangevinSimulation
 
 
 class PTSimulation(LangevinSimulation):
-    """Parallel tempering simulation using a Langevin update scheme.
+    r"""Parallel tempering simulation using a Langevin update scheme.
     For theoretical details on replica exchange/parallel tempering, see
     https://github.com/noegroup/reform.
-    Note that currently we only implement parallel tempering for Langevin dynamics.
+
+    Briefly, a pair exchange is proposed, and the associated potential energies are used
+    to compute a Metroplis-Hastings Boltzmann ratio. This ratio defines an acceptance threshold
+        aginst which approved exchanges are sampled according to a unit uniform distribution.
+        For a pair of configurations :math:`A` and :math:`B`, characterized by the respective
+        potential energies :math:`U_A` and :math:`U_B` the the inverse thermodynamic temperatures
+        :math:`\beta_A` and :math:`\beta_B`, the acceptance rate for exchanging configurations is:
+
+        .. math::
+
+                Acc = \exp{\left( (U_A - U_B) \times (\beta_A - \beta_B) \right)}
+
+        Pairs of candidate configurations undergo exchange if :math:`\rho \sim U(0,1) < Acc`. Note
+        that the exchanged velocities for each configuration must further be rescaled according to the
+        square root of their inverse beta ratios. See _perform_exchange for more details.
+
+    Currently we only implement parallel tempering for Langevin dynamics.
     Be aware that the output will contain information (e.g., coordinates)
     for all replicas.
+
+    In addition to the typical outputs of `LangevinSimulation`, `PTSimulation` also
+    ouputs information about exchange acceptance between replicas at each export.
+    This information takes the form of an `acceptance_matrix`, which has shape
+    `(n_betas, n_betas)`. The upper triangular portion of the matrix counts
+    accepted exchanges between adjacent tempeartures, while the lower triangular
+    portion of the matrix counts rejected exchanges between adjacent temperatures. For
+    example, the entry `[1,2]` contains the number of accepted exchanges between replicas
+    running at the temperatures associated with `beta_1` and `beta_2`, while the entry
+    `[2,1]` counts the number of rejected echanges at those two temperatures. The sum of
+    such complementary entries across the matrix diagonal always sum to the total number
+    of exhchanges proposed between each export interval.
+
 
     Note: This implementation only allows for replica exchanges between directly
     adjecent temperatures implied by the user-supplied list of beta values.
@@ -217,22 +246,9 @@ class PTSimulation(LangevinSimulation):
             return self._odd_pairs
 
     def _detect_exchange(self, data: AtomicData) -> Dict:
-        """Proposes and checks pairs to be exchanged for parallel tempering.
-        Modified from `reform`. Briefly, a pair exchange is proposed, and the
-        current associated potential energies are used to compute a Boltzmann ratio based
-        on the temperature/energy differences. This ratio defines an acceptance threshold
-        aginst which approved exchanges are sampled according to a unit uniform distribution.
-        For a pair of configurations :math:`A` and :math:`B`, characterized by the respective
-        potential energies :math:`U_A` and :math:`U_B` the the inverse thermodynamic temperatures
-        :math:`\beta_A` and :math:`\beta_B`, the acceptance rate for exchanging configurations is:
-
-        .. math::
-
-            Acc = \exp{\left( (U_A - U_B) \times (\beta_A - \beta_B) \right)}
-
-        Pairs of candidate configurations undergo exchange if :math:`\rho \sim U(0,1) < Acc`. Note
-        that the exchanged velocities for each configuration must further be rescaled according to the
-        square root of their inverse beta ratios. See _perform_exchange for more details.
+        """Proposes and checks pairs to be exchanged for parallel tempering, tracking
+        the associated acceptance/rejection statistics for each temperature pair at
+        each detection query.
 
         Parameters
         ----------
