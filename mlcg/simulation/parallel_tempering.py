@@ -32,8 +32,6 @@ class PTSimulation(LangevinSimulation):
     ----------
     friction:
         Scalar friction to use for Langevin updates
-    beta:
-        List of inverse temperatures for each of the thermodynamic replicas
     exchange_interval:
         Specifies the number of simulation steps to take before attempting
         replica exchange.
@@ -42,31 +40,17 @@ class PTSimulation(LangevinSimulation):
     def __init__(
         self,
         friction: float = 1e-3,
-        betas: Sequence[float] = [1.67, 1.42, 1.17],
         exchange_interval: int = 100,
         **kwargs,
     ):
         super(PTSimulation, self).__init__(
             friction=friction,
-            beta=betas,
             sim_subroutine=self.detect_and_exchange_replicas,
             sim_subroutine_interval=exchange_interval,
             save_subroutine=self.save_exchanges,
             **kwargs,
         )
 
-        if not isinstance(betas, (list, np.ndarray)):
-            raise ValueError(
-                "`betas` supplied, {}, is not a sequence of floats.".format(
-                    betas
-                )
-            )
-        else:
-            self._beta_list = betas
-
-        assert all([beta > 0.00 for beta in self._beta_list])
-
-        self.n_replicas = len(self._beta_list)
         self._replica_exchange_approved = 0
         self._replica_exchange_attempts = 0
 
@@ -79,21 +63,54 @@ class PTSimulation(LangevinSimulation):
         super(PTSimulation, self)._set_up_simulation(overwrite=overwrite)
         self._reset_exchange_stats()
         self.acceptance_matrix = torch.zeros(
-            len(self._beta_list), len(self._beta_list)
+            self.n_replicas, self.n_replicas
         ).to(self.device)
 
-    def attach_configurations(self, configurations: List[AtomicData]):
-        """Attaches the configurations at each of the temperatures defined for
+    def attach_configurations(
+        self, configurations: List[AtomicData], betas: List[float]
+    ):
+        r"""Attaches the configurations at each of the temperatures defined for
         parallel tempering simulations. If the initial configurations do not contain
         specified velocities, all velocities will be initialized to zero.
+
+        Parameters
+        ----------
+        configurations:
+            List of `AtomicData` instances representing the initial configurations.
+        betas:
+            List of floats, from largest to smallest, representing beta values
+            for each subset of replicas
         """
+
+        # beta checks
+        if not isinstance(betas, list):
+            raise ValueError(
+                "Parallel tempering requires multiple temperatures, but only {} was supplied.".format(
+                    betas
+                )
+            )
+        if not all([b >= 0 for b in betas]):
+            raise ValueError(
+                "All betas must be positive, but {} contains an illegal value.".format(
+                    beta
+                )
+            )
+        if not (np.array(betas[::-1]) == np.sort(betas[::-1])).all():
+            raise ValueError(
+                "Betas must be in order of increasing temperature."
+            )
+
         self.n_indep_sims = len(configurations)
+        self.n_replicas = len(betas)
         # copy the configurations across each beta/temperature
         new_configurations = []
-        for beta in self._beta_list:
+        extended_betas = []
+        for beta in betas:
+            extended_betas += self.n_indep_sims * [beta]
             for configuration in configurations:
                 config = deepcopy(configuration)
                 new_configurations.append(config)
+        self.beta = torch.tensor(extended_betas).to(self.device)
 
         self.validate_data_list(new_configurations)
         self.initial_data = self.collate(new_configurations).to(
@@ -103,11 +120,6 @@ class PTSimulation(LangevinSimulation):
         self.n_atoms = len(new_configurations[0].atom_types)
         self.n_dims = new_configurations[0].pos.shape[1]
 
-        extended_betas = []
-        for beta in self._beta_list:
-            extended_betas += self.n_indep_sims * [beta]
-        self.beta = torch.tensor(extended_betas).to(self.device)
-
         # Initialize velocities according to Maxwell-Boltzmann distribution
         self.initial_data[
             VELOCITY_KEY
@@ -116,7 +128,7 @@ class PTSimulation(LangevinSimulation):
             self.initial_data[MASS_KEY],
         )
 
-        # Setup possible even/odd pair exchanges
+        # Setup alternating even/odd pair exchanges
         self._propose_even_pairs = True
 
         # (0, 1), (2, 3), ...
@@ -147,11 +159,11 @@ class PTSimulation(LangevinSimulation):
         self._odd_pairs = [torch.cat(pair_a), torch.cat(pair_b)]
 
         # maps pairs to beta idx for acceptance matrix updates
-        self.pair_to_beta_idx = torch.arange(
-            len(self._beta_list)
-        ).repeat_interleave(self.n_indep_sims)
+        self.pair_to_beta_idx = torch.arange(self.n_replicas).repeat_interleave(
+            self.n_indep_sims
+        )
         self.acceptance_matrix = torch.zeros(
-            len(self._beta_list), len(self._beta_list)
+            self.n_replicas, self.n_replicas
         ).to(self.device)
 
     def get_replica_info(self, replica_num: int = 0) -> Dict:
@@ -237,10 +249,11 @@ class PTSimulation(LangevinSimulation):
         u_a, u_b = data.out[ENERGY_KEY][pair_a], data.out[ENERGY_KEY][pair_b]
         betas_a, betas_b = self.beta[pair_a], self.beta[pair_b]
         beta_idx_a, beta_idx_b = (
-            self.pair_to_beta_idx[pair_a][0],
-            self.pair_to_beta_idx[pair_b][0],
+            self.pair_to_beta_idx[pair_a],
+            self.pair_to_beta_idx[pair_b],
         )
-
+        # Assemble pairs of beta undergoing exchange - useful for indexing below
+        beta_pairs = torch.unique(torch.stack((beta_idx_a, beta_idx_b)), dim=1)
         p_pair = torch.exp((u_a - u_b) * (betas_a - betas_b))
         approved = torch.rand(len(p_pair)).to(self.device) < p_pair
         num_approved = torch.sum(approved)
@@ -249,10 +262,17 @@ class PTSimulation(LangevinSimulation):
         self._replica_exchange_attempts += num_attempted
         pairs_for_exchange = {"a": pair_a[approved], "b": pair_b[approved]}
 
-        # accumulate the symmetric acceptance/attempt matrices
-        self.acceptance_matrix[beta_idx_a, beta_idx_b] += num_approved
-        self.acceptance_matrix[beta_idx_b, beta_idx_a] += (
-            num_attempted - num_approved
+        # Count the number of approved for each temperature pair
+        approved_per_beta = torch.sum(
+            approved.reshape(len(torch.unique(betas_a)), self.n_indep_sims),
+            dim=1,
+        )
+        # accumulate the symmetric acceptance/rejection matrices
+        self.acceptance_matrix[
+            beta_pairs[0, :], beta_pairs[1, :]
+        ] += approved_per_beta
+        self.acceptance_matrix[beta_pairs[1, :], beta_pairs[0, :]] += (
+            self.n_indep_sims - approved_per_beta
         )
         return pairs_for_exchange
 
@@ -356,7 +376,7 @@ class PTSimulation(LangevinSimulation):
         )
         # Reset
         self.acceptance_matrix = torch.zeros(
-            len(self._beta_list), len(self._beta_list)
+            self.n_replicas, self.n_replicas
         ).to(self.device)
 
     def summary(self):

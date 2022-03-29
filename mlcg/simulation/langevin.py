@@ -1,4 +1,4 @@
-from typing import List, Tuple, Any, Dict, Sequence
+from typing import List, Tuple, Any, Dict, Sequence, Union
 import torch
 from torch.distributions.normal import Normal
 import numpy as np
@@ -144,16 +144,22 @@ class LangevinSimulation(_Simulation):
 
         return data, potential, forces
 
-    def attach_configurations(self, configurations: List[AtomicData]):
+    def attach_configurations(
+        self, configurations: List[AtomicData], beta: Union[float, List[float]]
+    ):
         """Setup the starting atomic configurations.
 
         Parameters
         ----------
         configurations : List[AtomicData]
             List of AtomicData instances representing initial structures for
-        parallel simulations.
+            parallel simulations.
+        beta:
+            Desired temperature(s) of the simulation
         """
-        super(LangevinSimulation, self).attach_configurations(configurations)
+        super(LangevinSimulation, self).attach_configurations(
+            configurations, beta
+        )
 
         # Initialize velocities according to Maxwell-Boltzmann distribution
         if VELOCITY_KEY not in self.initial_data:
@@ -278,16 +284,22 @@ class OverdampedSimulation(_Simulation):
         self.diffusion = diffusion
         self._dtau = self.diffusion * self.dt
 
-    def attach_configurations(self, configurations: List[AtomicData]):
+    def attach_configurations(
+        self, configurations: List[AtomicData], beta: Union[float, List[float]]
+    ):
         """Setup the starting atomic configurations.
 
         Parameters
         ----------
-        configurations : List[AtomicData]
+        configurations :
             List of AtomicData instances representing initial structures for
-        parallel simulations.
+            parallel simulations.
+        beta:
+            Desired temperature(s) of the simulation.
         """
-        super(OverdampedSimulation, self).attach_configurations(configurations)
+        super(OverdampedSimulation, self).attach_configurations(
+            configurations, beta
+        )
 
         if MASS_KEY in self.initial_data:
             warnings.warn(

@@ -175,7 +175,7 @@ def test_simulation_device(seed, device):
 
 
 @pytest.mark.parametrize(
-    "ASE_prior_model, get_initial_data, add_masses, sim_class, sim_args, sim_kwargs",
+    "ASE_prior_model, get_initial_data, add_masses, sim_class, sim_args, betas, sim_kwargs",
     [
         (
             ASE_prior_model,
@@ -183,6 +183,7 @@ def test_simulation_device(seed, device):
             False,
             OverdampedSimulation,
             [],
+            1.0,
             {},
         ),
         (
@@ -191,6 +192,7 @@ def test_simulation_device(seed, device):
             True,
             LangevinSimulation,
             [1.0],
+            1.0,
             {},
         ),
         (
@@ -198,7 +200,8 @@ def test_simulation_device(seed, device):
             get_initial_data,
             True,
             PTSimulation,
-            [1.0, [1.67, 1.42, 1.28, 1.00, 0.8, 0.5], 1],
+            [1.0, 1],
+            [1.67, 1.42, 1.28, 1.00, 0.8, 0.5],
             {},
         ),
     ],
@@ -210,6 +213,7 @@ def test_simulation_run(
     add_masses,
     sim_class,
     sim_args,
+    betas,
     sim_kwargs,
 ):
     """Test to make sure the simulation runs"""
@@ -221,13 +225,13 @@ def test_simulation_run(
         mol, neighbor_lists, corruptor=None, add_masses=add_masses
     )
     simulation = sim_class(*sim_args, **sim_kwargs)
-    simulation.attach_configurations(initial_data_list)
+    simulation.attach_configurations(initial_data_list, betas)
     simulation.attach_model(full_model)
     simulation.simulate()
 
 
 @pytest.mark.parametrize(
-    "ASE_prior_model, get_initial_data, add_masses, sim_class, sim_args, sim_kwargs",
+    "ASE_prior_model, get_initial_data, add_masses, sim_class, sim_args, betas, sim_kwargs",
     [
         (
             ASE_prior_model,
@@ -235,6 +239,7 @@ def test_simulation_run(
             False,
             OverdampedSimulation,
             [],
+            1.0,
             {},
         ),
         (
@@ -243,6 +248,7 @@ def test_simulation_run(
             True,
             LangevinSimulation,
             [1.0],
+            1.0,
             {},
         ),
         (
@@ -250,7 +256,8 @@ def test_simulation_run(
             get_initial_data,
             True,
             PTSimulation,
-            [1.0, [1.67, 1.42, 1.28, 1.00, 0.8, 0.5], 1],
+            [1.0, 1],
+            [1.67, 1.42, 1.28, 1.00, 0.8, 0.5],
             {},
         ),
     ],
@@ -262,6 +269,7 @@ def test_overwrite_protection(
     add_masses,
     sim_class,
     sim_args,
+    betas,
     sim_kwargs,
 ):
     """Test to make sure that overwrite protection works"""
@@ -278,7 +286,7 @@ def test_overwrite_protection(
         open(filename, "w").close()
         sim_kwargs["filename"] = filename
         simulation = sim_class(*sim_args, **sim_kwargs)
-        simulation.attach_configurations(initial_data_list)
+        simulation.attach_configurations(initial_data_list, betas)
         simulation.attach_model(full_model)
         simulation.simulate()
 
@@ -308,9 +316,9 @@ def test_exchange_detection():
             masses=torch.tensor([1]),
         ),
     ]
-    simulation = PTSimulation(betas=betas)
+    simulation = PTSimulation()
     simulation.attach_configurations(
-        test_data
+        test_data, betas
     )  # necessary to populate some attributes
 
     simulation.initial_data["out"]["energy"] = torch.tensor(
@@ -354,8 +362,8 @@ def test_exchange_and_rescale():
         "b": torch.tensor([10, 12, 13, 16, 19]),
     }
 
-    simulation = PTSimulation(betas=betas)
-    simulation.attach_configurations(configurations)
+    simulation = PTSimulation()
+    simulation.attach_configurations(configurations, betas)
 
     # randomize coordinates and velocites - as if we had run some simulation and the replicas
     # evolved independently in time.
@@ -459,8 +467,8 @@ def test_pt_velocity_init():
             )
         )
 
-    simulation = PTSimulation(betas=betas)
-    simulation.attach_configurations(configurations)
+    simulation = PTSimulation()
+    simulation.attach_configurations(configurations, betas)
     print(simulation.initial_data.velocities)
 
     mass = 1.00

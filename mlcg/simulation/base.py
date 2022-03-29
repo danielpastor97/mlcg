@@ -88,7 +88,6 @@ class _Simulation(object):
     def __init__(
         self,
         dt: float = 5e-4,
-        beta: Union[float, List[float]] = 1.0,
         save_forces: bool = False,
         save_energies: bool = False,
         n_timesteps: int = 100,
@@ -112,7 +111,6 @@ class _Simulation(object):
         self.save_interval = save_interval
         self.dt = dt
 
-        self._beta_list = beta
         self.device = torch.device(device)
         self.export_interval = export_interval
         self.log_interval = log_interval
@@ -148,26 +146,39 @@ class _Simulation(object):
         model = model.eval().to(device=self.device)
         self.model = model
 
-    def attach_configurations(self, configurations: List[AtomicData]):
+    def attach_configurations(
+        self, configurations: List[AtomicData], beta: Union[float, List[float]]
+    ):
         """Setup the starting atomic configurations.
 
         Parameters
         ----------
         configurations : List[AtomicData]
             List of AtomicData instances representing initial structures for
-        parallel simulations.
+            parallel simulations.
+        beta:
+            Desired temperature(s) of the simulation
         """
         self.validate_data_list(configurations)
         self.initial_data = self.collate(configurations).to(device=self.device)
         self.n_sims = len(configurations)
         self.n_atoms = len(configurations[0].atom_types)
         self.n_dims = configurations[0].pos.shape[1]
-        if isinstance(self._beta_list, float):
-            self.beta = torch.tensor(self.n_sims * [self._beta_list]).to(
-                self.device
-            )
+
+        if isinstance(beta, float):
+            if beta <= 0:
+                raise ValueError(
+                    "Beta must be positive, but {} was supplied".format(beta)
+                )
+            self.beta = torch.tensor(self.n_sims * [beta]).to(self.device)
         else:
-            self.beta = torch.tensor(self._beta_list).to(self.device)
+            self.beta = torch.tensor(beta).to(self.device)
+            if not all([b >= 0 for b in self.beta]):
+                raise ValueError(
+                    "All betas must be positive, but {} contains an illegal value.".format(
+                        self.beta
+                    )
+                )
 
     def simulate(self, overwrite: bool = False) -> np.ndarray:
         """Generates independent simulations.
