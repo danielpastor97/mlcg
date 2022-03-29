@@ -208,6 +208,7 @@ class AtomicData(Data):
         )
 
         if masses is not None:
+            assert all([m > 0 for m in masses])
             data[MASS_KEY] = torch.as_tensor(masses)
         if energy is not None:
             data[ENERGY_KEY] = torch.as_tensor(
