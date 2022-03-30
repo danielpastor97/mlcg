@@ -127,6 +127,7 @@ class PTSimulation(LangevinSimulation):
                     beta
                 )
             )
+        assert all([np.isfinite(b) for b in betas])
         if not (np.array(betas[::-1]) == np.sort(betas[::-1])).all():
             raise ValueError(
                 "Betas must be in order of increasing temperature."
