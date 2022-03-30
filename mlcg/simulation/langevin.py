@@ -123,10 +123,7 @@ class LangevinSimulation(_Simulation):
         x_new = x_old + v_new * self.dt * 0.5
 
         # O (noise)
-        noise = torch.sqrt(
-            1.0 / self.beta.repeat_interleave(self.n_atoms) / masses
-        )[:, None]
-        noise = noise * torch.randn(
+        noise = self.beta_mass_ratio * torch.randn(
             size=x_new.size(),
             dtype=x_new.dtype,
             generator=self.rng,
@@ -175,6 +172,11 @@ class LangevinSimulation(_Simulation):
             self.initial_data[VELOCITY_KEY].shape
             == self.initial_data[POSITIONS_KEY].shape
         )
+        self.beta_mass_ratio = torch.sqrt(
+            1.0
+            / self.beta.repeat_interleave(self.n_atoms)
+            / self.initial_data[MASS_KEY]
+        )[:, None]
 
     def _set_up_simulation(self, overwrite: bool = False):
         """Method to setup up saving and logging options"""
@@ -307,6 +309,7 @@ class OverdampedSimulation(_Simulation):
                 "Masses were provided, but will not be used since "
                 "an overdamped Langevin scheme is being used for integration."
             )
+        self.expanded_beta = self.beta.repeat_interleave(self.n_atoms)[:, None]
 
     def timestep(
         self, data: AtomicData, forces: torch.Tensor
@@ -334,12 +337,7 @@ class OverdampedSimulation(_Simulation):
         x_new = (
             x_old.detach()
             + forces * self._dtau
-            + np.sqrt(
-                2
-                * self._dtau
-                / self.beta.repeat_interleave(self.n_atoms)[:, None]
-            )
-            * noise
+            + np.sqrt(2 * self._dtau / self.expanded_beta) * noise
         )
         data[POSITIONS_KEY] = x_new
         potential, forces = self.calculate_potential_and_forces(data)
