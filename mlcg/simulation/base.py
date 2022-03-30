@@ -98,7 +98,6 @@ class _Simulation(object):
         log_interval: Optional[int] = None,
         log_type: str = "write",
         filename: Optional[str] = None,
-        specific_setup: Optional[Callable] = None,
         sim_subroutine: Optional[Callable] = None,
         sim_subroutine_interval: Optional[int] = None,
         save_subroutine: Optional[Callable] = None,
