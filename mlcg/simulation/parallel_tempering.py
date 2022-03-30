@@ -1,3 +1,6 @@
+# Authors: Nick Charron, Felix Musil, Clark Templeton
+# Based on code from Yaoyi Chen and Andreas Kramer: https://github.com/noegroup/reform
+
 from typing import List, Tuple, Any, Dict, Sequence
 import time
 import torch
