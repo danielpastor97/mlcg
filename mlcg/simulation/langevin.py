@@ -1,11 +1,20 @@
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Dict, Sequence, Union
 import torch
+from torch.distributions.normal import Normal
 import numpy as np
 import warnings
+from copy import deepcopy
 
 from ..data.atomic_data import AtomicData
-from ..data._keys import MASS_KEY, VELOCITY_KEY
+from ..data._keys import (
+    MASS_KEY,
+    VELOCITY_KEY,
+    POSITIONS_KEY,
+    ENERGY_KEY,
+)
 from .base import _Simulation
+
+torch_pi = torch.tensor(np.pi)
 
 
 class LangevinSimulation(_Simulation):
@@ -62,6 +71,28 @@ class LangevinSimulation(_Simulation):
         self.vscale = np.exp(-self.dt * self.friction)
         self.noisescale = np.sqrt(1 - self.vscale * self.vscale)
 
+    @staticmethod
+    def sample_maxwell_boltzmann(
+        betas: torch.Tensor, masses: torch.Tensor
+    ) -> torch.Tensor:
+        """Returns n_samples atomic velocites according to Maxwell-Boltzmann
+        distribution at the corresponding temperature and mass values.
+
+        Parameters
+        ----------
+        n_samples:
+            Number of atoms to generate velocites for
+        betas:
+            The inverse thermodynamic temperature of each atom
+        masses:
+            Them masses of each atom
+        """
+        assert all([m > 0 for m in masses])
+        scale = torch.sqrt(betas / masses)
+        dist = Normal(loc=0.00, scale=scale)
+        velocities = dist.sample((3,)).t()
+        return velocities
+
     def timestep(
         self, data: AtomicData, forces: torch.Tensor
     ) -> Tuple[AtomicData, torch.Tensor, torch.Tensor]:
@@ -81,9 +112,9 @@ class LangevinSimulation(_Simulation):
         potential:
             potential evaluated at t+1
         """
-        v_old = data.velocities
-        masses = data.masses
-        x_old = data.pos
+        v_old = data[VELOCITY_KEY]
+        masses = data[MASS_KEY]
+        x_old = data[POSITIONS_KEY]
 
         # B
         v_new = v_old + 0.5 * self.dt * forces / masses[:, None]
@@ -92,8 +123,7 @@ class LangevinSimulation(_Simulation):
         x_new = x_old + v_new * self.dt * 0.5
 
         # O (noise)
-        noise = torch.sqrt(1.0 / self.beta / masses[:, None])
-        noise = noise * torch.randn(
+        noise = self.beta_mass_ratio * torch.randn(
             size=x_new.size(),
             dtype=x_new.dtype,
             generator=self.rng,
@@ -104,32 +134,49 @@ class LangevinSimulation(_Simulation):
         # A
         x_new = x_new + v_new * self.dt * 0.5
 
-        data.pos = x_new
+        data[POSITIONS_KEY] = x_new
         potential, forces = self.calculate_potential_and_forces(data)
         # B
         v_new = v_new + 0.5 * self.dt * forces / masses[:, None]
-        data.velocities = v_new
+        data[VELOCITY_KEY] = v_new
 
         return data, potential, forces
 
-    def attach_configurations(self, configurations: List[AtomicData]):
+    def attach_configurations(
+        self, configurations: List[AtomicData], beta: Union[float, List[float]]
+    ):
         """Setup the starting atomic configurations.
 
         Parameters
         ----------
         configurations : List[AtomicData]
             List of AtomicData instances representing initial structures for
-        parallel simulations.
+            parallel simulations.
+        beta:
+            Desired temperature(s) of the simulation
         """
-        super().attach_configurations(configurations)
+        super(LangevinSimulation, self).attach_configurations(
+            configurations, beta
+        )
 
+        # Initialize velocities according to Maxwell-Boltzmann distribution
         if VELOCITY_KEY not in self.initial_data:
             # initialize velocities at zero
-            self.initial_data.velocities = torch.zeros_like(
-                self.initial_data.pos
+            self.initial_data[
+                VELOCITY_KEY
+            ] = LangevinSimulation.sample_maxwell_boltzmann(
+                self.beta.repeat_interleave(self.n_atoms),
+                self.initial_data[MASS_KEY],
             )
-
-        assert self.initial_data.velocities.shape == self.initial_data.pos.shape
+        assert (
+            self.initial_data[VELOCITY_KEY].shape
+            == self.initial_data[POSITIONS_KEY].shape
+        )
+        self.beta_mass_ratio = torch.sqrt(
+            1.0
+            / self.beta.repeat_interleave(self.n_atoms)
+            / self.initial_data[MASS_KEY]
+        )[:, None]
 
     def _set_up_simulation(self, overwrite: bool = False):
         """Method to setup up saving and logging options"""
@@ -168,7 +215,7 @@ class LangevinSimulation(_Simulation):
         """
         super().save(data, forces, potential, t)
 
-        v_new = data.velocities.view(-1, self.n_atoms, self.n_dims)
+        v_new = data[VELOCITY_KEY].view(-1, self.n_atoms, self.n_dims)
         masses = data.masses.view(self.n_sims, self.n_atoms)
 
         save_ind = t // self.save_interval
@@ -240,21 +287,29 @@ class OverdampedSimulation(_Simulation):
         self.diffusion = diffusion
         self._dtau = self.diffusion * self.dt
 
-    def attach_configurations(self, configurations: List[AtomicData]):
+    def attach_configurations(
+        self, configurations: List[AtomicData], beta: Union[float, List[float]]
+    ):
         """Setup the starting atomic configurations.
 
         Parameters
         ----------
-        configurations : List[AtomicData]
+        configurations :
             List of AtomicData instances representing initial structures for
-        parallel simulations.
+            parallel simulations.
+        beta:
+            Desired temperature(s) of the simulation.
         """
-        super().attach_configurations(configurations)
+        super(OverdampedSimulation, self).attach_configurations(
+            configurations, beta
+        )
+
         if MASS_KEY in self.initial_data:
             warnings.warn(
                 "Masses were provided, but will not be used since "
                 "an overdamped Langevin scheme is being used for integration."
             )
+        self.expanded_beta = self.beta.repeat_interleave(self.n_atoms)[:, None]
 
     def timestep(
         self, data: AtomicData, forces: torch.Tensor
@@ -275,16 +330,16 @@ class OverdampedSimulation(_Simulation):
         potential:
             potential evaluated at t+1
         """
-        x_old = data.pos
+        x_old = data[POSITIONS_KEY]
         noise = torch.randn(size=x_old.size(), generator=self.rng).to(
             self.device
         )
         x_new = (
             x_old.detach()
             + forces * self._dtau
-            + np.sqrt(2 * self._dtau / self.beta) * noise
+            + np.sqrt(2 * self._dtau / self.expanded_beta) * noise
         )
-        data.pos = x_new
+        data[POSITIONS_KEY] = x_new
         potential, forces = self.calculate_potential_and_forces(data)
         return data, potential, forces
 

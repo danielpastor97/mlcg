@@ -2,7 +2,7 @@
 # Authors: Brooke Husic, Nick Charron, Jiang Wang
 # Contributors: Dominik Lemm, Andreas Kraemer
 
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Callable
 import torch
 import numpy as np
 
@@ -15,6 +15,12 @@ from ..utils import tqdm
 
 from ..data.atomic_data import AtomicData
 from ..data._keys import ENERGY_KEY, FORCE_KEY, MASS_KEY, VELOCITY_KEY
+
+
+# Physical Constants
+KBOLTZMANN = 1.38064852e-23  # Boltzmann's constant in Joules/Kelvin
+AVOGADRO = 6.022140857e23  # Dimensionaless Avogadro's number
+JPERKCAL = 4184  # Ratio of Joules/kilocalorie
 
 
 class _Simulation(object):
@@ -65,13 +71,23 @@ class _Simulation(object):
         is not None and log_type is 'write'. This provides the base file name;
         for numpy outputs, '_coords_000.npy' or similar is added. For log
         outputs, '_log.txt' is added.
-
+    sim_subroutine :
+        Optional subroutine to run at at the interval specified by
+        subroutine_interval after simulation updates. The subroutine should
+        take only the internal collated `AtomicData` instance as an argument.
+    sim_subroutine_interval :
+        Specifies the interval, in simulation steps, between successive calls to
+        the subroutine, if specified.
+    save_subroutine :
+        Specifies additional saving procedures for extra information at the
+        same interval as export_interval. The subroutine should take only the
+        internal collated `AtomicData` and the current timestep // save_interval as
+        arguments.
     """
 
     def __init__(
         self,
         dt: float = 5e-4,
-        beta: float = 1.0,
         save_forces: bool = False,
         save_energies: bool = False,
         n_timesteps: int = 100,
@@ -82,6 +98,9 @@ class _Simulation(object):
         log_interval: Optional[int] = None,
         log_type: str = "write",
         filename: Optional[str] = None,
+        sim_subroutine: Optional[Callable] = None,
+        sim_subroutine_interval: Optional[int] = None,
+        save_subroutine: Optional[Callable] = None,
     ):
         self.model = None
         self.initial_data = None
@@ -90,7 +109,7 @@ class _Simulation(object):
         self.n_timesteps = n_timesteps
         self.save_interval = save_interval
         self.dt = dt
-        self.beta = beta
+
         self.device = torch.device(device)
         self.export_interval = export_interval
         self.log_interval = log_interval
@@ -99,6 +118,10 @@ class _Simulation(object):
             raise ValueError("log_type can be either 'print' or 'write'")
         self.log_type = log_type
         self.filename = filename
+        self.sim_subroutine = sim_subroutine
+        self.sim_subroutine_interval = sim_subroutine_interval
+        self.save_subroutine = save_subroutine
+
         # check to make sure input options for the simulation
         self.input_option_checks()
 
@@ -122,20 +145,41 @@ class _Simulation(object):
         model = model.eval().to(device=self.device)
         self.model = model
 
-    def attach_configurations(self, configurations: List[AtomicData]):
+    def attach_configurations(
+        self, configurations: List[AtomicData], beta: Union[float, List[float]]
+    ):
         """Setup the starting atomic configurations.
 
         Parameters
         ----------
         configurations : List[AtomicData]
             List of AtomicData instances representing initial structures for
-        parallel simulations.
+            parallel simulations.
+        beta:
+            Desired temperature(s) of the simulation
         """
         self.validate_data_list(configurations)
         self.initial_data = self.collate(configurations).to(device=self.device)
         self.n_sims = len(configurations)
         self.n_atoms = len(configurations[0].atom_types)
         self.n_dims = configurations[0].pos.shape[1]
+
+        if isinstance(beta, float):
+            if beta <= 0:
+                raise ValueError(
+                    "Beta must be positive, but {} was supplied".format(beta)
+                )
+            self.beta = torch.tensor(self.n_sims * [beta]).to(self.device)
+        else:
+            self.beta = torch.tensor(beta).to(self.device)
+            if not all([b >= 0 for b in self.beta]):
+                raise ValueError(
+                    "All betas must be positive, but {} contains an illegal value.".format(
+                        self.beta
+                    )
+                )
+        assert all([torch.isfinite(b) for b in self.beta])
+        assert len(self.beta) == len(configurations)
 
     def simulate(self, overwrite: bool = False) -> np.ndarray:
         """Generates independent simulations.
@@ -152,6 +196,7 @@ class _Simulation(object):
             Also an attribute; stores the simulation coordinates at the
             save_interval
         """
+
         self._set_up_simulation(overwrite)
         data = deepcopy(self.initial_data)
         data.to(self.device)
@@ -176,12 +221,20 @@ class _Simulation(object):
                 if self.export_interval is not None:
                     if (t + 1) % self.export_interval == 0:
                         self.write((t + 1) // self.save_interval)
+                        if self.save_subroutine is not None:
+                            self.save_subroutine(
+                                data, (t + 1) // self.save_interval
+                            )
 
                 # log if relevant; this can be indented here because
                 # it only happens when time when time points are also recorded
                 if self.log_interval is not None:
                     if int((t + 1) % self.log_interval) == 0:
                         self.log((t + 1) // self.save_interval)
+
+            if self.sim_subroutine != None:
+                if (t + 1) % self.sim_subroutine_interval == 0:
+                    data = self.sim_subroutine(data)
 
             # reset data outputs to collect the new forces/energies
             data.out = {}
@@ -193,14 +246,7 @@ class _Simulation(object):
 
         # if relevant, log that simulation has been completed
         if self.log_interval is not None:
-            printstring = "Done simulating ({})".format(time.asctime())
-            if self.log_type == "print":
-                print(printstring)
-            elif self.log_type == "write":
-                printstring += "\n"
-                file = open(self._log_file, "a")
-                file.write(printstring)
-                file.close()
+            self.summary()
 
         self.reshape_output()
 
@@ -222,6 +268,16 @@ class _Simulation(object):
             file = open(self._log_file, "a")
             file.write(printstring)
             file.close()
+
+    def summary(self):
+        """Prints summary information after finishing the simulation"""
+        printstring = "Done simulating ({})".format(time.asctime())
+        if self.log_type == "print":
+            print(printstring)
+        elif self.log_type == "write":
+            printstring += "\n"
+            with open(self._log_file, "a") as lfile:
+                lfile.write(printstring)
 
     def calculate_potential_and_forces(
         self, data: AtomicData
@@ -397,6 +453,17 @@ class _Simulation(object):
                             self._log_file
                         )
                     )
+        # simulation subroutine
+        if self.sim_subroutine != None and self.sim_subroutine_interval == None:
+            raise ValueError(
+                "subroutine {} specified, but subroutine_interval is ambiguous.".format(
+                    self.sim_subroutine
+                )
+            )
+        if self.sim_subroutine_interval != None and self.sim_subroutine == None:
+            raise ValueError(
+                "subroutine interval specified, but subroutine is ambiguous."
+            )
 
     def _get_numpy_count(self):
         """Returns a string 000-999 for appending to numpy file outputs"""
