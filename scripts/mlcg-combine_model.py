@@ -14,6 +14,7 @@ from mlcg.pl.utils import (
     extract_model_from_checkpoint,
     merge_priors_and_checkpoint,
 )
+import argparse
 
 
 def parse_cli():

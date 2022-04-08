@@ -52,7 +52,7 @@ def parse_simulation_config(
         "-tm",
         "--temperatures",
         metavar="FN",
-        type=(float, list),
+        type=list,
         help="temperature(s) at which the simulation will run",
     )
 

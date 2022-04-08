@@ -17,9 +17,9 @@ from mlcg.simulation import (
 
 
 if __name__ == "__main__":
-    print(f"Starting simulation at {ctime()} with {LangevinSimulation}")
+    print(f"Starting simulation at {ctime()} with {PTSimulation}")
     model, initial_data_list, betas, simulation = parse_simulation_config(
-        LangevinSimulation
+        PTSimulation
     )
 
     simulation.attach_configurations(initial_data_list, betas=betas)
