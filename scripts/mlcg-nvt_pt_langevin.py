@@ -12,7 +12,7 @@ sys.path.insert(0, osp.join(SCRIPT_DIR, "../"))
 
 from mlcg.simulation import (
     parse_simulation_config,
-    LangevinSimulation,
+    PTSimulation,
 )
 
 
