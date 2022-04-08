@@ -34,6 +34,7 @@ setup(
         "scripts/mlcg-train.py",
         "scripts/mlcg-nvt_langevin.py",
         "scripts/mlcg-nvt_pt_langevin.py",
+        "scripts/mlcg-combine_model.py",
         "scripts/mlcg-train_h5.py",
     ],
 )
