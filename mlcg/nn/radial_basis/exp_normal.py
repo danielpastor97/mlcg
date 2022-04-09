@@ -6,31 +6,21 @@ from .base import _RadialBasis
 from ..cutoff import _Cutoff, CosineCutoff
 
 
-class ExpNormalBasis(_RadialBasis):
+class MyExpNormalBasis(_RadialBasis):
     r"""Class for generating a set of exponential normal radial basis functions,
     as described in [Physnet]_ . The functions have the following form:
-
     .. math::
-
         f_n(r_{ij};\alpha, r_{low},r_{high}) = f_{cut}(r_{ij},r_{low},r_{high})
         \times \exp\left[-\beta_n \left(e^{\alpha (r_{ij} -r_{high}) }
         - \mu_n \right)^2\right]
-
     where
-
     .. math::
-
         \alpha = 5.0/(r_{high} - r_{low})
-
     is a distance rescaling factor, and, by default
-
     .. math::
-
         f_{cut} ( r_{ij},r_{low},r_{high} ) =  \cos{\left( r_{ij} \times \pi / r_{high}\right)} + 1.0
-
     represents a cosine cutoff function (though users can specify their own cutoff function
     if they desire).
-
     Parameters
     ----------
     cutoff:
@@ -44,6 +34,10 @@ class ExpNormalBasis(_RadialBasis):
         function) are registered as optimizable parameters that will be updated
         during backpropagation. If False, these parameters will be instead fixed
         in an unoptimizable buffer.
+    internal_lower_cutoff:
+        if specified, this overides the lower cutoff to the specified value. Useful
+        for the design of bases that start at a non-zero lower cutoff but still
+        possess the basic contours expected of ExpNormalBasis functions.
     """
 
     def __init__(
@@ -51,6 +45,7 @@ class ExpNormalBasis(_RadialBasis):
         cutoff: Union[int, float, _Cutoff],
         num_rbf: int = 50,
         trainable: bool = True,
+        internal_cutoff_lower: Union[None, float] = None,
     ):
         super(ExpNormalBasis, self).__init__()
         if isinstance(cutoff, (float, int)):
@@ -68,8 +63,15 @@ class ExpNormalBasis(_RadialBasis):
 
         self.num_rbf = num_rbf
         self.trainable = trainable
-        self.alpha = 5.0 / (self.cutoff.cutoff_upper - self.cutoff.cutoff_lower)
+        if internal_cutoff_lower != None:
+            self.internal_cutoff_lower = internal_cutoff_lower
+        else:
+            self.internal_cutoff_lower = self.cutoff.cutoff_lower
 
+        self.internal_cutoff_upper = self.cutoff.cutoff_upper
+        self.alpha = 5.0 / (
+            self.internal_cutoff_upper - self.internal_cutoff_lower
+        )
         means, betas = self._initial_params()
         if trainable:
             self.register_parameter("means", nn.Parameter(means))
@@ -85,7 +87,7 @@ class ExpNormalBasis(_RadialBasis):
 
         start_value = torch.exp(
             torch.scalar_tensor(
-                -self.cutoff.cutoff_upper + self.cutoff.cutoff_lower
+                -self.internal_cutoff_upper + self.internal_cutoff_lower
             )
         )
         means = torch.linspace(start_value, 1, self.num_rbf)
@@ -104,12 +106,10 @@ class ExpNormalBasis(_RadialBasis):
 
     def forward(self, dist: torch.Tensor) -> torch.Tensor:
         r"""Expansion of distances through the radial basis function set.
-
         Parameters
         ----------
         dist: torch.Tensor
             Input pairwise distances of shape (total_num_edges)
-
         Return
         ------
         expanded_distances: torch.Tensor
@@ -120,7 +120,7 @@ class ExpNormalBasis(_RadialBasis):
         return self.cutoff(dist) * torch.exp(
             -self.betas
             * (
-                torch.exp(self.alpha * (-dist + self.cutoff.cutoff_lower))
+                torch.exp(self.alpha * (-dist + self.internal_cutoff_lower))
                 - self.means
             )
             ** 2
