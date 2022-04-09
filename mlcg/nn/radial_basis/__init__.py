@@ -1,3 +1,3 @@
-from .exp_normal import ExpNormalBasis
+from .exp_normal import ExpNormalBasis, ExtendedExpNormalBasis
 from .gaussian import GaussianBasis
 from .radial_integral_gto import RIGTOBasis
