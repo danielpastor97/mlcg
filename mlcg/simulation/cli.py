@@ -88,7 +88,7 @@ def parse_simulation_config(
     config_init = parser.instantiate_classes(config)
     simulation = config_init.get("simulation")
     temps = config.pop("temperatures")
-    if isinstance(temps, list):
+    if isinstance(temps, Sequence):
         betas = [calc_beta_from_temperature(temp) for temp in temps]
     else:
         betas = calc_beta_from_temperature(temps)
