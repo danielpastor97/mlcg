@@ -12,6 +12,6 @@ simulation:
   log_interval: 10
   log_type: write
   filename: cln_model
-temperatures: [300, 350, 400]
+temperatures: [1.67, 1.42, 1.16]
 model_file: SOME_PATH
 structure_file: SOME_PATH

@@ -1,4 +1,4 @@
-from typing import Any, List, Dict, Tuple
+from typing import Any, List, Dict, Tuple, Sequence
 import torch
 from jsonargparse import (
     ActionConfigFile,
@@ -14,7 +14,6 @@ from . import (
     OverdampedSimulation,
 )
 from ..data import AtomicData
-from .utils import calc_beta_from_temperature
 
 
 def parse_simulation_config(
@@ -50,10 +49,10 @@ def parse_simulation_config(
 
     parser.add_argument(
         "-tm",
-        "--temperatures",
+        "--betas",
         metavar="FN",
         type=list,
-        help="temperature(s) at which the simulation will run",
+        help="inverse temperature(s) (1/kBT) at which the simulation will run",
     )
 
     parser.add_argument(
@@ -87,11 +86,7 @@ def parse_simulation_config(
     initial_data_list = torch.load(structures_fn)
     config_init = parser.instantiate_classes(config)
     simulation = config_init.get("simulation")
-    temps = config.pop("temperatures")
-    if isinstance(temps, Sequence):
-        betas = [calc_beta_from_temperature(temp) for temp in temps]
-    else:
-        betas = calc_beta_from_temperature(temps)
+    betas = config.pop("betas")
 
     return model, initial_data_list, betas, simulation
 
