@@ -7,10 +7,11 @@ simulation:
   save_interval: 10
   random_seed: 103838
   device: cpu
+  exchange_interval: 100
   export_interval: 50
   log_interval: 10
   log_type: write
   filename: cln_model
-betas: [1.67]
+betas: [1.67, 1.42, 1.16]
 model_file: SOME_PATH
 structure_file: SOME_PATH

@@ -1,4 +1,4 @@
-from typing import Any, List, Dict, Tuple
+from typing import Any, List, Dict, Tuple, Sequence
 import torch
 from jsonargparse import (
     ActionConfigFile,
@@ -7,7 +7,12 @@ from jsonargparse import (
 )
 from jsonargparse.typing import Path_fr
 
-from .base import _Simulation
+from . import (
+    _Simulation,
+    LangevinSimulation,
+    PTSimulation,
+    OverdampedSimulation,
+)
 from ..data import AtomicData
 
 
@@ -41,6 +46,15 @@ def parse_simulation_config(
     parser.add_simulation_args(
         simulation_class, "simulation", subclass_mode=subclass_mode
     )
+
+    parser.add_argument(
+        "-tm",
+        "--betas",
+        metavar="FN",
+        type=list,
+        help="inverse temperature(s) (1/kBT) at which the simulation will run",
+    )
+
     parser.add_argument(
         "-mf",
         "--model_file",
@@ -59,6 +73,12 @@ def parse_simulation_config(
 
     config = parser.parse_args()
 
+    # Sanitize PTSimulation kwargs
+    if simulation_class == PTSimulation:
+        del config["simulation"]["sim_subroutine"]
+        del config["simulation"]["sim_subroutine_interval"]
+        del config["simulation"]["save_subroutine"]
+
     model_fn = config.pop("model_file")
     model = torch.load(model_fn)
 
@@ -66,8 +86,9 @@ def parse_simulation_config(
     initial_data_list = torch.load(structures_fn)
     config_init = parser.instantiate_classes(config)
     simulation = config_init.get("simulation")
+    betas = config.pop("betas")
 
-    return model, initial_data_list, simulation
+    return model, initial_data_list, betas, simulation
 
 
 class ConfigurationException(Exception):
