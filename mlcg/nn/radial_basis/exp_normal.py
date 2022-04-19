@@ -117,7 +117,7 @@ class ExpNormalBasis(_RadialBasis):
 
 class ExtendedExpNormalBasis(ExpNormalBasis):
     r"""ExpNormalBasis that allows for arbitrary lower cutoffs not tied to
-    a supplied `_Cutoff`.
+    a supplied `_Cutoff`. This basis follows the definition in [Physnet]_.
     Parameters
     ----------
     internal_cutoff:
