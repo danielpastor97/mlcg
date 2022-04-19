@@ -22,7 +22,7 @@ if __name__ == "__main__":
         LangevinSimulation
     )
 
-    simulation.attach_configurations(initial_data_list, betas=betas)
+    simulation.attach_configurations(initial_data_list, beta=betas)
     simulation.attach_model(model)
     simulation.simulate()
     print(f"Ending simulation at {ctime()}")
