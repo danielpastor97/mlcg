@@ -8,32 +8,34 @@ from ..cutoff import _Cutoff, CosineCutoff
 
 class SpacedNormalBasis(_RadialBasis):
     r"""Class for generating a set of exponential normal radial basis functions,
-    as described in [Physnet]_ . The functions have the following form:
+    with means and standard deviations designed to capture the physics around 2-* A.
+    The functions have an exponential form with the following means and std:
 
     .. math::
+        \sigma_0 = \sigma_f/s
+        \sigma_1 = \sigma_${min}
+        \sigma_2 = \sigma_f*\sigma_1
+        ...
+        \sigma_n = \sigma_f*\sigma_${n-1}
 
-
-    where
-
-    .. math::
-
-
-    is a distance rescaling factor, and, by default
-
-    .. math::
-
-
-    represents a cosine cutoff function (though users can specify their own cutoff function
-    if they desire).
+        \mu_0 = 0
+        \mu_1 = \sigma_f
+        \mu_2 = \mu_1 + s*\sigma_1
+        ...
+        \mu_n = \mu_${n-1} + s*\sigma_${n-1}
 
     Parameters
     ----------
     cutoff:
         Defines the smooth cutoff function. If a float is provided, it will be interpreted as
-        an upper cutoff and a CosineCutoff will be used between 0 and the provided float. Otherwise,
+        an upper cutoff. Otherwise,
         a chosen `_Cutoff` instance can be supplied.
-    num_rbf:
-        The number of functions in the basis set.
+    sigma_min:
+        Width of first 
+    sigma_factor:
+        Location of first non-zero basis function and multiplicative factor to spread std of each new peak by
+    mean_spacing:
+        this time previous sigma indicates how much to distance the mean of subsequent gaussian by
     trainable:
         If True, the parameters of the basis (the centers and widths of each
         function) are registered as optimizable parameters that will be updated
@@ -44,15 +46,15 @@ class SpacedNormalBasis(_RadialBasis):
     def __init__(
         self,
         cutoff: Union[int, float, _Cutoff],
-        num_rbf: int = 50,
         sigma_min: float = 0.25,
         sigma_factor: float = 2.0,
-        spacing: float = 2.0,
+        mean_spacing: float = 2.0,
         trainable: bool = True,
     ):
         super(SpacedNormalBasis, self).__init__()
         if isinstance(cutoff, (float, int)):
-            self.cutoff = CosineCutoff(0, cutoff)
+            # self.cutoff = CosineCutoff(0, cutoff)
+            self.cutoff = cutoff
         elif isinstance(cutoff, _Cutoff):
             self.cutoff = cutoff
         else:
@@ -62,14 +64,10 @@ class SpacedNormalBasis(_RadialBasis):
                 )
             )
 
-        self.num_rbf = num_rbf
         self.sigma_min = sigma_min
         self.sigma_factor = sigma_factor
-        self.spacing = spacing
-        self.cutoff = cutoff
+        self.mean_spacing = mean_spacing
         self.check_cutoff()
-
-        self.num_rbf = num_rbf
         self.trainable = trainable
 
         means, betas = self._initial_params()
@@ -79,6 +77,7 @@ class SpacedNormalBasis(_RadialBasis):
         else:
             self.register_buffer("means", means)
             self.register_buffer("betas", betas)
+        self.num_rbf = len(means)
 
     def _initial_params(self):
         r"""
@@ -86,12 +85,12 @@ class SpacedNormalBasis(_RadialBasis):
         """
 
         mus = [0, self.sigma_factor]
-        sigmas = [self.sigma_factor / self.spacing, self.sigma_min]
+        sigmas = [self.sigma_factor / self.mean_spacing, self.sigma_min]
         while mus[-1] < self.cutoff:
-            mus.append(mus[-1] + self.spacing * sigmas[-1])
+            mus.append(mus[-1] + self.mean_spacing * sigmas[-1])
             sigmas.append(self.sigma_factor * sigmas[-1])
         means = torch.FloatTensor(mus)
-        betas = torch.FloatTensor(sigmas)
+        betas = 2*torch.FloatTensor(sigmas*sigmas)
         return means, betas
 
     def reset_parameters(self):
@@ -120,5 +119,5 @@ class SpacedNormalBasis(_RadialBasis):
 
         dist = dist.unsqueeze(-1)
         return self.cutoff_fn(dist) * torch.exp(
-            -((dist - self.means) ** 2) / (2 * self.betas**2)
+            -((dist - self.means) ** 2) / self.betas
         )
