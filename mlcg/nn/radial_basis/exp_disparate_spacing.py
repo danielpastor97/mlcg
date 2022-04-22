@@ -12,12 +12,12 @@ class SpacedNormalBasis(_RadialBasis):
 
     .. math::
 
-        
+
     where
 
     .. math::
 
-        
+
     is a distance rescaling factor, and, by default
 
     .. math::
@@ -66,7 +66,7 @@ class SpacedNormalBasis(_RadialBasis):
         self.sigma_min = sigma_min
         self.sigma_factor = sigma_factor
         self.spacing = spacing
-
+        self.cutoff = cutoff
         self.check_cutoff()
 
         self.num_rbf = num_rbf
@@ -85,11 +85,11 @@ class SpacedNormalBasis(_RadialBasis):
         Method for initializing the basis function parameters
         """
 
-        mus = [0,self.sigma_factor]
-        sigmas = [self.sigma_factor/self.spacing, self.sigma_min]
-        while mus[-1] < self.cutoff_upper:
-            mus.append(mus[-1]+self.spacing*sigmas[-1])
-            sigmas.append(self.sigma_factor*sigmas[-1])
+        mus = [0, self.sigma_factor]
+        sigmas = [self.sigma_factor / self.spacing, self.sigma_min]
+        while mus[-1] < self.cutoff:
+            mus.append(mus[-1] + self.spacing * sigmas[-1])
+            sigmas.append(self.sigma_factor * sigmas[-1])
         means = torch.FloatTensor(mus)
         betas = torch.FloatTensor(sigmas)
         return means, betas
@@ -119,4 +119,6 @@ class SpacedNormalBasis(_RadialBasis):
         """
 
         dist = dist.unsqueeze(-1)
-        return self.cutoff_fn(dist)*torch.exp(-(dist-self.means)**2/(2*self.betas**2))
+        return self.cutoff_fn(dist) * torch.exp(
+            -((dist - self.means) ** 2) / (2 * self.betas**2)
+        )
