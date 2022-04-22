@@ -20,9 +20,9 @@ def test_cutoff_error_raise(basis_type):
 
 @pytest.mark.parametrize(
     "basis_type, kwargs, error_type",
-    [(SpacedExpBasis, {"sigma_factor": 0.5}, ValueError)],
+    [(SpacedExpBasis, {"cutoff": 5.0, "sigma_factor": 0.5}, ValueError)],
 )
-def test_generic_error_raise(basis_type):
+def test_generic_error_raise(basis_type, kwargs, error_type):
     """Test to make sure that RBFs enforce sensible cutoffs"""
     with pytest.raises(error_type):
         basis_type(**kwargs)

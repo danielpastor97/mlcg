@@ -3,7 +3,7 @@ from torch import nn
 from typing import Union
 
 from .base import _RadialBasis
-from ..cutoff import _Cutoff, CosineCutoff
+from ..cutoff import _Cutoff, CosineCutoff, IdentityCutoff
 
 
 class SpacedExpBasis(_RadialBasis):
