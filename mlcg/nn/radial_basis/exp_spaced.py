@@ -31,9 +31,9 @@ class SpacedExpBasis(_RadialBasis):
         an IdentityCutoff ranging over [0, cutoff]. Otherwise,
         a chosen `_Cutoff` instance can be supplied.
     sigma_min:
-        Width of first
+        Width of first non-zero-centered basis function
     sigma_factor:
-        Location of first non-zero basis function and multiplicative factor to spread std of each new peak by
+        Location of first non-zero-centered basis function and multiplicative factor to spread std of each new peak by
     mean_spacing:
         this time previous sigma indicates how much to distance the mean of subsequent gaussian by
     trainable:
