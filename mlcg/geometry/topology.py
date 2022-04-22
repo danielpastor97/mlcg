@@ -5,7 +5,7 @@ try:
     import mdtraj
     from mdtraj.core.element import Element
 except ModuleNotFoundError:
-    warnings(f"Failed to import mdtraj")
+    warnings.warn(f"Failed to import mdtraj")
 from ase.geometry.analysis import Analysis
 from ase import Atoms
 from typing import NamedTuple, List, Optional, Tuple, Dict, Callable
