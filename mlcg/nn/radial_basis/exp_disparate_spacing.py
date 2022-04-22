@@ -53,8 +53,7 @@ class SpacedNormalBasis(_RadialBasis):
     ):
         super(SpacedNormalBasis, self).__init__()
         if isinstance(cutoff, (float, int)):
-            # self.cutoff = CosineCutoff(0, cutoff)
-            self.cutoff = cutoff
+            self.cutoff = IdentityCutoff(0, cutoff)
         elif isinstance(cutoff, _Cutoff):
             self.cutoff = cutoff
         else:
@@ -67,7 +66,14 @@ class SpacedNormalBasis(_RadialBasis):
         self.sigma_min = sigma_min
         self.sigma_factor = sigma_factor
         self.mean_spacing = mean_spacing
+
         self.check_cutoff()
+        if self.sigma_factor < 1.0:
+            raise ValueError(
+                "Sigma factor must be greater than or equal to 1.0, but {} was supplied.".format(
+                    self.sigma_factor
+                )
+            )
         self.trainable = trainable
 
         means, betas = self._initial_params()
@@ -86,11 +92,11 @@ class SpacedNormalBasis(_RadialBasis):
 
         mus = [0, self.sigma_factor]
         sigmas = [self.sigma_factor / self.mean_spacing, self.sigma_min]
-        while mus[-1] < self.cutoff:
+        while mus[-1] < self.cutoff.cutoff_upper:
             mus.append(mus[-1] + self.mean_spacing * sigmas[-1])
             sigmas.append(self.sigma_factor * sigmas[-1])
-        means = torch.FloatTensor(mus)
-        betas = 2 * torch.FloatTensor(sigmas * sigmas)
+        means = torch.tensor(mus)
+        betas = 2 * (torch.tensor(sigmas) ** 2)
         return means, betas
 
     def reset_parameters(self):
@@ -118,6 +124,6 @@ class SpacedNormalBasis(_RadialBasis):
         """
 
         dist = dist.unsqueeze(-1)
-        return self.cutoff_fn(dist) * torch.exp(
+        return self.cutoff(dist) * torch.exp(
             -((dist - self.means) ** 2) / self.betas
         )
