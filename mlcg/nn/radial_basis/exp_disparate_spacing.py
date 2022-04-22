@@ -31,7 +31,7 @@ class SpacedNormalBasis(_RadialBasis):
         an upper cutoff. Otherwise,
         a chosen `_Cutoff` instance can be supplied.
     sigma_min:
-        Width of first 
+        Width of first
     sigma_factor:
         Location of first non-zero basis function and multiplicative factor to spread std of each new peak by
     mean_spacing:
@@ -90,7 +90,7 @@ class SpacedNormalBasis(_RadialBasis):
             mus.append(mus[-1] + self.mean_spacing * sigmas[-1])
             sigmas.append(self.sigma_factor * sigmas[-1])
         means = torch.FloatTensor(mus)
-        betas = 2*torch.FloatTensor(sigmas*sigmas)
+        betas = 2 * torch.FloatTensor(sigmas * sigmas)
         return means, betas
 
     def reset_parameters(self):
