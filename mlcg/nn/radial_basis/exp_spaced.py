@@ -6,7 +6,7 @@ from .base import _RadialBasis
 from ..cutoff import _Cutoff, CosineCutoff
 
 
-class SpacedNormalBasis(_RadialBasis):
+class SpacedExpBasis(_RadialBasis):
     r"""Class for generating a set of exponential normal radial basis functions,
     with means and standard deviations designed to capture the physics around 2-* A.
     The functions have an exponential form with the following means and std:
@@ -28,7 +28,7 @@ class SpacedNormalBasis(_RadialBasis):
     ----------
     cutoff:
         Defines the smooth cutoff function. If a float is provided, it will be interpreted as
-        an upper cutoff. Otherwise,
+        an IdentityCutoff ranging over [0, cutoff]. Otherwise,
         a chosen `_Cutoff` instance can be supplied.
     sigma_min:
         Width of first
@@ -51,7 +51,7 @@ class SpacedNormalBasis(_RadialBasis):
         mean_spacing: float = 2.0,
         trainable: bool = True,
     ):
-        super(SpacedNormalBasis, self).__init__()
+        super(SpacedExpBasis, self).__init__()
         if isinstance(cutoff, (float, int)):
             self.cutoff = IdentityCutoff(0, cutoff)
         elif isinstance(cutoff, _Cutoff):
