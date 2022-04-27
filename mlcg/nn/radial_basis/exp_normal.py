@@ -9,28 +9,18 @@ from ..cutoff import _Cutoff, CosineCutoff
 class ExpNormalBasis(_RadialBasis):
     r"""Class for generating a set of exponential normal radial basis functions,
     as described in [Physnet]_ . The functions have the following form:
-
     .. math::
-
         f_n(r_{ij};\alpha, r_{low},r_{high}) = f_{cut}(r_{ij},r_{low},r_{high})
         \times \exp\left[-\beta_n \left(e^{\alpha (r_{ij} -r_{high}) }
         - \mu_n \right)^2\right]
-
     where
-
     .. math::
-
         \alpha = 5.0/(r_{high} - r_{low})
-
     is a distance rescaling factor, and, by default
-
     .. math::
-
         f_{cut} ( r_{ij},r_{low},r_{high} ) =  \cos{\left( r_{ij} \times \pi / r_{high}\right)} + 1.0
-
     represents a cosine cutoff function (though users can specify their own cutoff function
     if they desire).
-
     Parameters
     ----------
     cutoff:
@@ -104,12 +94,10 @@ class ExpNormalBasis(_RadialBasis):
 
     def forward(self, dist: torch.Tensor) -> torch.Tensor:
         r"""Expansion of distances through the radial basis function set.
-
         Parameters
         ----------
         dist: torch.Tensor
             Input pairwise distances of shape (total_num_edges)
-
         Return
         ------
         expanded_distances: torch.Tensor
@@ -121,6 +109,92 @@ class ExpNormalBasis(_RadialBasis):
             -self.betas
             * (
                 torch.exp(self.alpha * (-dist + self.cutoff.cutoff_lower))
+                - self.means
+            )
+            ** 2
+        )
+
+
+class ExtendedExpNormalBasis(ExpNormalBasis):
+    r"""ExpNormalBasis that allows for arbitrary lower cutoffs not tied to
+    a supplied `_Cutoff`. This basis follows the definition in [Physnet]_.
+    Parameters
+    ----------
+    internal_cutoff:
+        if specified, this lower cutoff overrides any supplied `_Cutoff` lower
+        cutoff.
+    trainable:
+        If True, the parameters of the basis (the centers and widths of each
+        function) are registered as optimizable parameters that will be updated
+        during backpropagation. If False, these parameters will be instead fixed
+        in an unoptimizable buffer.
+    """
+
+    def __init__(
+        self,
+        *args,
+        internal_cutoff_lower: Union[None, float] = None,
+        trainable=False,
+        **kwargs,
+    ):
+        super(ExtendedExpNormalBasis, self).__init__(*args, **kwargs)
+
+        if internal_cutoff_lower != None:
+            self.internal_cutoff_lower = internal_cutoff_lower
+        else:
+            self.internal_cutoff_lower = self.cutoff.cutoff_lower
+
+        self.internal_cutoff_upper = self.cutoff.cutoff_upper
+        self.alpha = 5.0 / (
+            self.internal_cutoff_upper - self.internal_cutoff_lower
+        )
+        means, betas = self.extended_initial_params()
+
+        # reset attributes
+        if trainable:
+            delattr(self, "means")
+            delattr(self, "betas")
+            self.register_parameter("means", nn.Parameter(means))
+            self.register_parameter("betas", nn.Parameter(betas))
+        else:
+            delattr(self, "means")
+            delattr(self, "betas")
+            self.register_buffer("means", means)
+            self.register_buffer("betas", betas)
+
+    def extended_initial_params(self):
+        r"""Method for initializing the basis function parameters, as described in
+        https://pubs.acs.org/doi/10.1021/acs.jctc.9b00181 .
+        """
+
+        start_value = torch.exp(
+            torch.scalar_tensor(
+                -self.internal_cutoff_upper + self.internal_cutoff_lower
+            )
+        )
+        means = torch.linspace(start_value, 1, self.num_rbf)
+        betas = torch.tensor(
+            [(2 / self.num_rbf * (1 - start_value)) ** -2] * self.num_rbf
+        )
+        return means, betas
+
+    def forward(self, dist: torch.Tensor) -> torch.Tensor:
+        r"""Expansion of distances through the radial basis function set.
+        Parameters
+        ----------
+        dist: torch.Tensor
+            Input pairwise distances of shape (total_num_edges)
+        Return
+        ------
+        expanded_distances: torch.Tensor
+            Distances expanded in the radial basis with shape (total_num_edges, num_rbf)
+        """
+
+        dist = dist.unsqueeze(-1)
+        return self.cutoff(dist) * torch.exp(
+            -self.betas
+            * (
+                torch.exp(self.alpha * (-dist + self.internal_cutoff_lower))
                 - self.means
             )
             ** 2
