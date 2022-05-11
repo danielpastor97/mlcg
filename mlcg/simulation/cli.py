@@ -35,7 +35,9 @@ def parse_simulation_config(
         more arguments to the parser, by default None
     subclass_mode: bool, optional
         Whether allow any subclass of the given class. So if true,
-        one could provide `_Simulation` as input here but define `LangevinSimulation` in the input file, e.g. `{"simulation":"class_path": "mlcg.simulation.LangevinSimulation", "init_args": {.....}}`.
+        one could provide `_Simulation` as input here but define `LangevinSimulation`
+        in the input file, e.g.
+        `{"simulation":"class_path": "mlcg.simulation.LangevinSimulation", "init_args": {.....}}`.
     Returns
     -------
     model, atomic_data_list, simulation_obj
@@ -87,6 +89,8 @@ def parse_simulation_config(
     config_init = parser.instantiate_classes(config)
     simulation = config_init.get("simulation")
     betas = config.pop("betas")
+    if len(betas) == 1:
+        betas = betas[0]
 
     return model, initial_data_list, betas, simulation
 
