@@ -40,7 +40,6 @@ class MACEInterface(torch.nn.Module):
         self.model = MACE(**config)
         self.cutoff = config["r_max"]
         self.config = config
-        self.model.dtype = None
         self.derivative = True
 
     def forward(self, data):
@@ -61,7 +60,7 @@ class MACEInterface(torch.nn.Module):
                 data, self.cutoff, self.max_num_neighbors
             )[self.name]
         device = data.pos.device
-        one_hot = to_one_hot(data.atom_types.view(-1,1), self.n_atom_types).to(device=device)
+        one_hot = to_one_hot(data.atom_types.view(-1,1), self.n_atom_types)
         kwargs = dict(
                 edge_index=neighbor_list["index_mapping"],
                 positions=data.pos,
