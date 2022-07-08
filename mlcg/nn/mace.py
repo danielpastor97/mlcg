@@ -66,7 +66,20 @@ class MACEInterface(torch.nn.Module):
         }
         return data
 
-    def data2ndata(self, data, **kwargs):
+    def data2ndata(self, data: AtomicData, **kwargs) -> Batch:
+        """Helper function to convert mlcg.data.AtomicData objects to a form compatible with
+        MACE input structure.
+        
+        Parameters
+        ------------
+        data:
+            mlcg.data.AtomicData instance
+         
+         Returns
+         --------
+         ndata:
+             MACE-compatible data instance
+        """
         neighbor_list = data.neighbor_list.get(self.name)
 
         if not self.is_nl_compatible(neighbor_list):
