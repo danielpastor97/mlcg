@@ -40,11 +40,18 @@ class MACEInterface(torch.nn.Module):
         config["gate"] = gate
         for k in "hidden_irreps", "MLP_irreps":
             config[k] = o3.Irreps(config[k])
+
         for k in "interaction_cls", "interaction_cls_first":
             config[k] = modules.interaction_classes[config[k]]
-        # config["atomic_energies"] = np.zeros(self.n_atom_types)
-        # config["atomic_numbers"] = [an for an in range(1,self.n_atom_types)]
-        config["atomic_energies"] = np.zeros(self.n_atom_types)
+
+        if config.get("atomic_energies") is None:
+            config["atomic_energies"] = np.zeros(self.n_atom_types)
+        else:
+            types = sorted(list(config["atomic_energies"].keys()))
+            config["atomic_energies"] = np.array(
+                [config["atomic_energies"][z] for z in types]
+            )
+
         atomic_types = torch.tensor(config["atomic_numbers"])
         self.register_buffer(
             "types_mapping",
@@ -74,7 +81,6 @@ class MACEInterface(torch.nn.Module):
                 data, self.cutoff, self.max_num_neighbors
             )[self.name]
         device = data.pos.device
-        # one_hot = to_one_hot(data.atom_types.view(-1,1), self.n_atom_types)
         types_ids = self.types_mapping[data.atom_types].view(-1, 1)
         one_hot = to_one_hot(types_ids, self.n_atom_types)
         kwargs = dict(
