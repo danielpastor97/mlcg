@@ -27,19 +27,19 @@ from ..neighbor_list.neighbor_list import (
 
 class MACEInterface(torch.nn.Module):
     """MLCG-Tools interface for MACE model. Based on:
-    
+
     https://arxiv.org/abs/2206.07697
-    
+
     and the corresponding implementation found here:
-    
+
     https://github.com/ACEsuit/mace
-    
+
     Parameters
     ------------
     config:
         Dictionary of MACE model configuration options
      gate:
-         Gate function (eg, composition of nonlinearities) to be used in the 
+         Gate function (eg, composition of nonlinearities) to be used in the
           EquivariantProductBasisBlock
      max_num_neighbors:
          Maximum number of neighbors to return for a
@@ -48,7 +48,7 @@ class MACEInterface(torch.nn.Module):
          routine keyword max_num_neighbors, which normally defaults to 32.
          Users should set this to higher values if they are using higher upper
          distance cutoffs and expect more than 32 neighbors per node/atom.
-     """
+    """
 
     name: Final[str] = "mace"
 
@@ -100,12 +100,12 @@ class MACEInterface(torch.nn.Module):
     def data2ndata(self, data: AtomicData, **kwargs) -> Batch:
         """Helper function to convert mlcg.data.AtomicData objects to a form compatible with
         MACE input structure.
-        
+
         Parameters
         ------------
         data:
             mlcg.data.AtomicData instance
-         
+
          Returns
          --------
          ndata:
