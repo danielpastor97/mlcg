@@ -1,5 +1,5 @@
 import torch
-from typing import Final
+from typing import Final, Optional
 from e3nn import o3
 import numpy as np
 
@@ -28,10 +28,11 @@ from ..neighbor_list.neighbor_list import (
 class MACEInterface(torch.nn.Module):
     name: Final[str] = "mace"
 
-    def __init__(self, config: dict, max_num_neighbors: int = 1000):
+    def __init__(self, config: dict, gate: Optional[torch.nn.Module], max_num_neighbors: int = 1000):
         super(MACEInterface, self).__init__()
         self.max_num_neighbors = max_num_neighbors
         self.n_atom_types = config["num_elements"]
+        config['gate'] = gate
         for k in "hidden_irreps", "MLP_irreps":
             config[k] = o3.Irreps(config[k])
         for k in "interaction_cls", "interaction_cls_first":
