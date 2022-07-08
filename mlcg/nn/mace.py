@@ -1,6 +1,7 @@
 import torch
 from typing import Final
 from e3nn import o3
+import numpy as np
 
 try:
     from mace.modules.models import MACE
@@ -35,8 +36,12 @@ class MACEInterface(torch.nn.Module):
             config[k] = o3.Irreps(config[k])
         for k in "interaction_cls", "interaction_cls_first":
             config[k] = modules.interaction_classes[config[k]]
-        config["atomic_energies"] = torch.zeros(self.n_atom_types)
-        config["atomic_numbers"] = [an for an in range(1,self.n_atom_types)]
+        # config["atomic_energies"] = np.zeros(self.n_atom_types)
+        # config["atomic_numbers"] = [an for an in range(1,self.n_atom_types)]
+        config["atomic_energies"] = np.zeros(self.n_atom_types)
+        atomic_types = torch.tensor(config["atomic_numbers"])
+        self.register_buffer("types_mapping", -1*torch.ones(atomic_types.max()+1,dtype=torch.long))
+        self.types_mapping[atomic_types] = torch.arange(atomic_types.shape[0])
         self.model = MACE(**config)
         self.cutoff = config["r_max"]
         self.config = config
@@ -60,7 +65,9 @@ class MACEInterface(torch.nn.Module):
                 data, self.cutoff, self.max_num_neighbors
             )[self.name]
         device = data.pos.device
-        one_hot = to_one_hot(data.atom_types.view(-1,1), self.n_atom_types)
+        # one_hot = to_one_hot(data.atom_types.view(-1,1), self.n_atom_types)
+        types_ids = self.types_mapping[data.atom_types].view(-1,1)
+        one_hot = to_one_hot(types_ids, self.n_atom_types)
         kwargs = dict(
                 edge_index=neighbor_list["index_mapping"],
                 positions=data.pos,
