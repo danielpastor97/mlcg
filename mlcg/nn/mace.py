@@ -28,11 +28,16 @@ from ..neighbor_list.neighbor_list import (
 class MACEInterface(torch.nn.Module):
     name: Final[str] = "mace"
 
-    def __init__(self, config: dict, gate: Optional[torch.nn.Module], max_num_neighbors: int = 1000):
+    def __init__(
+        self,
+        config: dict,
+        gate: Optional[torch.nn.Module],
+        max_num_neighbors: int = 1000,
+    ):
         super(MACEInterface, self).__init__()
         self.max_num_neighbors = max_num_neighbors
         self.n_atom_types = config["num_elements"]
-        config['gate'] = gate
+        config["gate"] = gate
         for k in "hidden_irreps", "MLP_irreps":
             config[k] = o3.Irreps(config[k])
         for k in "interaction_cls", "interaction_cls_first":
@@ -41,7 +46,10 @@ class MACEInterface(torch.nn.Module):
         # config["atomic_numbers"] = [an for an in range(1,self.n_atom_types)]
         config["atomic_energies"] = np.zeros(self.n_atom_types)
         atomic_types = torch.tensor(config["atomic_numbers"])
-        self.register_buffer("types_mapping", -1*torch.ones(atomic_types.max()+1,dtype=torch.long))
+        self.register_buffer(
+            "types_mapping",
+            -1 * torch.ones(atomic_types.max() + 1, dtype=torch.long),
+        )
         self.types_mapping[atomic_types] = torch.arange(atomic_types.shape[0])
         self.model = MACE(**config)
         self.cutoff = config["r_max"]
@@ -67,20 +75,20 @@ class MACEInterface(torch.nn.Module):
             )[self.name]
         device = data.pos.device
         # one_hot = to_one_hot(data.atom_types.view(-1,1), self.n_atom_types)
-        types_ids = self.types_mapping[data.atom_types].view(-1,1)
+        types_ids = self.types_mapping[data.atom_types].view(-1, 1)
         one_hot = to_one_hot(types_ids, self.n_atom_types)
         kwargs = dict(
-                edge_index=neighbor_list["index_mapping"],
-                positions=data.pos,
-                node_attrs=one_hot,
-                shifts=neighbor_list["cell_shifts"],
-                weight=torch.tensor([1], device=device),
+            edge_index=neighbor_list["index_mapping"],
+            positions=data.pos,
+            node_attrs=one_hot,
+            shifts=neighbor_list["cell_shifts"],
+            weight=torch.tensor([1], device=device),
         )
-        if 'forces' in data:
+        if "forces" in data:
             kwargs["forces"] = data.forces
-        if 'energy' in data:
+        if "energy" in data:
             kwargs["energy"] = data.energy
-        if 'cell' in data:
+        if "cell" in data:
             if data.cell is not None:
                 kwargs["cell"] = data.cell
 
