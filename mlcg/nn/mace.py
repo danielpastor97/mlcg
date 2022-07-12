@@ -38,16 +38,16 @@ class MACEInterface(torch.nn.Module):
     ------------
     config:
         Dictionary of MACE model configuration options
-     gate:
-         Gate function (eg, composition of nonlinearities) to be used in the
-          EquivariantProductBasisBlock
-     max_num_neighbors:
-         Maximum number of neighbors to return for a
-         given node/atom when constructing the molecular graph during forward
-         passes. This attribute is passed to the torch_cluster radius_graph
-         routine keyword max_num_neighbors, which normally defaults to 32.
-         Users should set this to higher values if they are using higher upper
-         distance cutoffs and expect more than 32 neighbors per node/atom.
+    gate:
+        Gate function (eg, composition of nonlinearities) to be used in the
+        EquivariantProductBasisBlock
+    max_num_neighbors:
+        Maximum number of neighbors to return for a
+        given node/atom when constructing the molecular graph during forward
+        passes. This attribute is passed to the torch_cluster radius_graph
+        routine keyword max_num_neighbors, which normally defaults to 32.
+        Users should set this to higher values if they are using higher upper
+        distance cutoffs and expect more than 32 neighbors per node/atom.
     """
 
     name: Final[str] = "mace"
