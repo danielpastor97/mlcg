@@ -106,10 +106,10 @@ class MACEInterface(torch.nn.Module):
         data:
             mlcg.data.AtomicData instance
 
-         Returns
-         --------
-         ndata:
-             MACE-compatible data instance
+        Returns
+        --------
+        ndata:
+            MACE-compatible data instance
         """
         neighbor_list = data.neighbor_list.get(self.name)
 
