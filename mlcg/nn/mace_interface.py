@@ -9,7 +9,8 @@ try:
     from torch_geometric.data import Batch
     from mace.tools import to_one_hot
 
-except ImportError:
+except ImportError as e:
+    print(e)
     print(
         """Please install or set mace to your path before using this interface.
     To install you can either run
@@ -18,8 +19,8 @@ except ImportError:
     )
 
 
-from ..data import AtomicData
-from ..neighbor_list.neighbor_list import (
+from mlcg.data import AtomicData
+from mlcg.neighbor_list.neighbor_list import (
     atomic_data2neighbor_list,
     validate_neighborlist,
 )
