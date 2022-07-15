@@ -95,7 +95,7 @@ model:
         avg_num_neighbors: 9
         correlation: 4
         gate:
-          class_path: torch.nn.SiLU
+          class_path: torch.nn.Tanh
           init_args: {}
         atomic_numbers: [3,  6,  7, 15, 17, 18, 19, 40]
   # necessary parameters when using ReduceLROnPlateau

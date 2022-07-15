@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Dict, Union
+from typing import Dict, Union, List
 import torch
 import pytest
 import numpy as np
@@ -17,6 +17,47 @@ from mlcg.nn.cutoff import CosineCutoff
 from mlcg.nn.radial_basis import GaussianBasis
 from mlcg.data._keys import ENERGY_KEY, FORCE_KEY
 from mlcg.data.atomic_data import AtomicData
+
+test_mol = molecule("CH3CH2NH2")
+test_topo = Topology.from_ase(test_mol)
+unique_test_types = sorted(np.unique(test_topo.types).tolist())
+
+
+class DummyGradientModel(object):
+    """Minimal object for model checking"""
+
+    def __init__(self, model_name):
+        self.name = model_name
+
+
+HAS_MACE = False
+try:
+    import mace
+    from mlcg.nn.mace_interface import MACEInterface
+
+    mace_config = {
+        "r_max": 10,
+        "num_bessel": 10,
+        "num_polynomial_cutoff": 5,
+        "max_ell": 2,
+        "interaction_cls": mace.modules.blocks.RealAgnosticResidualInteractionBlock,
+        "interaction_cls_first": mace.modules.blocks.RealAgnosticInteractionBlock,
+        "num_interactions": 1,
+        "num_elements": len(unique_test_types),
+        "hidden_irreps": "256x0e",
+        "MLP_irreps": "16x0e",
+        "avg_num_neighbors": 9,
+        "correlation": 4,
+        "gate": torch.nn.Tanh,
+        "atomic_numbers": unique_test_types,
+    }
+    mace_model = MACEInterface(config=mace_config, gate=torch.nn.SiLU)
+    mace_force_model = GradientsOut(mace_model, targets=[FORCE_KEY]).float()
+    HAS_MACE = True
+except Exception as e:
+    print(e)
+    mace_force_model = DummyGradientModel("mace")
+    print("MACE installation not found")
 
 standard_cutoff = CosineCutoff(cutoff_lower=0, cutoff_upper=5)
 standard_basis = GaussianBasis(cutoff=standard_cutoff)
@@ -111,9 +152,9 @@ def ASE_prior_model():
         prior_data_list = []
         for frame in range(prior_data_frames.shape[0]):
             data_point = AtomicData(
-                pos=prior_data_frames[frame],
+                pos=prior_data_frames[frame].float(),
                 atom_types=torch.tensor(test_topo.types),
-                masses=torch.tensor(mol.get_masses()),
+                masses=torch.tensor(mol.get_masses()).float(),
                 cell=None,
                 neighbor_list=neighbor_lists,
             )
@@ -192,11 +233,16 @@ def test_outs(ASE_prior_model, out_targets):
 
 @pytest.mark.parametrize(
     "ASE_prior_model, network_model, out_targets",
-    [(ASE_prior_model, schnet_force_model, [ENERGY_KEY, FORCE_KEY])],
+    [
+        (ASE_prior_model, schnet_force_model, [ENERGY_KEY, FORCE_KEY]),
+        (ASE_prior_model, mace_force_model, [ENERGY_KEY, FORCE_KEY]),
+    ],
     indirect=["ASE_prior_model"],
 )
 def test_sum_outs(ASE_prior_model, network_model, out_targets):
     """Tests property aggregating with SumOut"""
+    # if network_model.name == "mace" and HAS_MACE == False:
+    #    pytest.skip("Skipping test, MACE installation not found...")
     data_dictionary = ASE_prior_model(sum_out=False)
 
     prior_model = data_dictionary["model"]
