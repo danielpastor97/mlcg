@@ -241,8 +241,8 @@ def test_outs(ASE_prior_model, out_targets):
 )
 def test_sum_outs(ASE_prior_model, network_model, out_targets):
     """Tests property aggregating with SumOut"""
-    # if network_model.name == "mace" and HAS_MACE == False:
-    #    pytest.skip("Skipping test, MACE installation not found...")
+    if network_model.name == "mace" and HAS_MACE == False:
+        pytest.skip("Skipping test, MACE installation not found...")
     data_dictionary = ASE_prior_model(sum_out=False)
 
     prior_model = data_dictionary["model"]
