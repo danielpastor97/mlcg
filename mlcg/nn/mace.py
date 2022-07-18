@@ -13,7 +13,7 @@ except ImportError:
     print(
         """Please install or set mace to your path before using this interface.
     To install you can either run
-    'pip install git+https://github.com/ACEsuit/mace.git'
+    'pip install git+https://github.com/ACEsuit/mace.git@develop'
     or clone the repository and add it to PYTHONPATH."""
     )
 
