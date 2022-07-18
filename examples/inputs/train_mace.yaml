@@ -81,6 +81,9 @@ model:
     class_path: mlcg.nn.mace.MACEInterface
     init_args:
       max_num_neighbors: 15
+      gate:
+          class_path: torch.nn.Tanh
+          init_args: {}
       config:
         r_max: 10
         num_bessel: 10
@@ -94,9 +97,6 @@ model:
         MLP_irreps: 16x0e
         avg_num_neighbors: 9
         correlation: 4
-        gate:
-          class_path: torch.nn.Tanh
-          init_args: {}
         atomic_numbers: [3,  6,  7, 15, 17, 18, 19, 40]
   # necessary parameters when using ReduceLROnPlateau
   monitor: validation_loss
