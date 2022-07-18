@@ -203,8 +203,11 @@ class _Simulation(object):
         data = deepcopy(self.initial_data)
         data.to(self.device)
         _, forces = self.calculate_potential_and_forces(data)
-        for t in tqdm(range(self.n_timesteps), desc="Simulation timestep",
-                                               mininterval=self.tqdm_refresh):
+        for t in tqdm(
+            range(self.n_timesteps),
+            desc="Simulation timestep",
+            mininterval=self.tqdm_refresh,
+        ):
             # step forward in time
             data, potential, forces = self.timestep(data, forces)
 
