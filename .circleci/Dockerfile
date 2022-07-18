@@ -17,3 +17,4 @@ RUN apt update -y; \
     apt install cmake -y
 
 RUN pip3 install ipython pytorch-lightning[extra]
+RUN pip3 install git+https://github.com/ACEsuit/mace.git@develop
