@@ -70,7 +70,7 @@ class MACEInterface(torch.nn.Module):
             config[k] = o3.Irreps(config[k])
 
         for k in "interaction_cls", "interaction_cls_first":
-            config[k] = modules.interaction_classes[config[k].__name__]
+            config[k] = modules.interaction_classes[config[k]]
 
         if config.get("atomic_energies") is None:
             config["atomic_energies"] = np.zeros(self.n_atom_types)
