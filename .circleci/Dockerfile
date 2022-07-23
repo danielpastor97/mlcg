@@ -18,3 +18,6 @@ RUN apt update -y; \
 
 RUN pip3 install ipython pytorch-lightning[extra]
 RUN pip3 install git+https://github.com/ACEsuit/mace.git@develop
+
+# the newest version of torchtext (0.13.0) is not compatible with the version of torch (1.10.0)
+RUN pip3 install torchtext==0.12.0
