@@ -453,6 +453,7 @@ class Repulsion(torch.nn.Module, _Prior):
             )
         }
 
+
 class Dihedral(torch.nn.Module, _Prior):
     r"""
     Prior that constrains dihedral planar angles using
@@ -569,7 +570,7 @@ class Dihedral(torch.nn.Module, _Prior):
         k2s = torch.vstack(
             [self.k2s[ii][interaction_types] for ii in range(self.n_degs)]
         ).t()
-        v_0 = self.v_0[interaction_types].view(-1,1)
+        v_0 = self.v_0[interaction_types].view(-1, 1)
         return {"k1s": k1s, "k2s": k2s, "v_0": v_0}
 
     @staticmethod
@@ -871,4 +872,3 @@ class Dihedral(torch.nn.Module, _Prior):
     def neighbor_list(topology) -> None:
         nl = topology.neighbor_list(Dihedral.name)
         return {Dihedral.name: nl}
-
