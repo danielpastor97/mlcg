@@ -101,10 +101,12 @@ def test_dihedral_aic_criterion():
         assert np.abs(k2 - k2s[i_k]) < 0.1, f"{k2}, {k2s[i_k]}"
 
 
-def sample_from_curve(k1s, k2s, n_frames, beta=1):
+def sample_from_curve(v_0, k1s, k2s, n_frames, beta=1):
     """
     Sample from a potential
     Inputs:
+        v_0
+            constant offset
         k1s
             values from sin coefficient
         k2s
@@ -115,10 +117,12 @@ def sample_from_curve(k1s, k2s, n_frames, beta=1):
         theta
             values drawn from potential
     """
-    V = 0
+    V = v_0
     thetas = torch.from_numpy(np.linspace(-np.pi, np.pi, 100))
     for ik, (k1, k2) in enumerate(zip(k1s, k2s)):
-        V += k1 * torch.sin(ik * thetas) + k2 * torch.cos(ik * thetas)
+        V += k1 * torch.sin((ik + 1) * thetas) + k2 * torch.cos(
+            (ik + 1) * thetas
+        )
     pi = torch.exp(-beta * V)
     pi = pi / torch.sum(pi)
     cum_pi = torch.cumsum(pi, dim=0).numpy()
