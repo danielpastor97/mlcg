@@ -72,9 +72,10 @@ def test_dihedral_aic_criterion():
     ind_mapping = torch.tensor((0, 1, 2, 3))
     ind_mapping = torch.reshape(ind_mapping, [4, 1])
     theta_map = theta_mapping(pos, ind_mapping)
-    k1s = [1, 0.5, 1, 0, 0, 0]
-    k2s = [1, 0, 0, 0, 0, 0]
-    samples = sample_from_curve(k1s, k2s, n_frames)
+    k1s = [0.5, 1, 0, 0, 0, 0]
+    k2s = [0, 0, 0, 0, 0, 0]
+    v_0 = 0
+    samples = sample_from_curve(v_0, k1s, k2s, n_frames)
     for i_s, sample in enumerate(samples):
         for k, v in theta_map.items():
             if np.abs(sample - v) < 1e-2:
@@ -96,11 +97,8 @@ def test_dihedral_aic_criterion():
     for i_k, (k1, k2) in enumerate(
         zip(params["k1s"].values(), params["k2s"].values())
     ):
-        # First term is a constant so value is unimportant
-        if i_k == 0:
-            continue
-        assert np.abs(k1 - k1s[i_k]) < 0.1
-        assert np.abs(k2 - k2s[i_k]) < 0.1
+        assert np.abs(k1 - k1s[i_k]) < 0.1, f"{k1}, {k1s[i_k]}"
+        assert np.abs(k2 - k2s[i_k]) < 0.1, f"{k2}, {k2s[i_k]}"
 
 
 def sample_from_curve(k1s, k2s, n_frames, beta=1):
