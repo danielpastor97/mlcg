@@ -78,7 +78,7 @@ model:
             force_kwd: forces
   # model specifications
   model:
-    class_path: mlcg.nn.mace.MACEInterface
+    class_path: mlcg.nn.MACEInterface
     init_args:
       max_num_neighbors: 15
       gate:
@@ -88,12 +88,12 @@ model:
         r_max: 10
         num_bessel: 10
         num_polynomial_cutoff: 5
-        max_ell: 2
+        max_ell: 1
         interaction_cls: RealAgnosticResidualInteractionBlock
         interaction_cls_first: RealAgnosticInteractionBlock
         num_interactions: 1
         num_elements: 8
-        hidden_irreps: 256x0e
+        hidden_irreps: 128x0e
         MLP_irreps: 16x0e
         avg_num_neighbors: 9
         correlation: 4
