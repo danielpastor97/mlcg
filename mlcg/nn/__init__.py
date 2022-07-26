@@ -6,6 +6,12 @@ from .losses import ForceMSE, ForceRMSE, Loss
 from .prior import Harmonic, HarmonicAngles, HarmonicBonds, Repulsion, Dihedral
 from .mlp import MLP
 
+try:
+    from .mace_interface import MACEInterface
+except Exception as e:
+    print(e)
+    print("MACE installation not found ...")
+
 __all__ = [
     "GradientsOut",
     "SumOut",
