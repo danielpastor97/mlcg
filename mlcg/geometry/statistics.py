@@ -80,6 +80,7 @@ def compute_statistics(
     nbins: int = 100,
     bmin: Optional[float] = None,
     bmax: Optional[float] = None,
+    fit_from_values: bool = False,
     target_fit_kwargs: Optional[Dict] = None,
 ) -> Dict:
     r"""Function for computing atom type-specific statistics for
@@ -113,6 +114,9 @@ def compute_statistics(
     bmax:
         If specified, the upper bound of bin edges. If not specified, the upper bound
         defaults to the greatest value in the input feature
+    fit_from_values:
+        If True, the prior parameters are estimated directly from features values
+        instead of their implied emperical potentials
     target_fit_kwargs:
         Extra fit options that are prior_specific
 
@@ -229,17 +233,20 @@ def compute_statistics(
             b_max = bmax
 
         bin_centers = _get_bin_centers(val, nbins, b_min=b_min, b_max=b_max)
-
         hist = torch.histc(val, bins=nbins, min=b_min, max=b_max)
-
         mask = hist > 0
         bin_centers_nz = bin_centers[mask]
-
         ncounts_nz = hist[mask]
         dG_nz = -torch.log(ncounts_nz) / beta
-        params = TargetPrior.fit_from_potential_estimates(
-            bin_centers_nz, dG_nz, **target_fit_kwargs
-        )
+
+        if fit_from_values:
+            params = TargetPrior.fit_from_values(val, **target_fit_kwargs)
+
+        else:
+            params = TargetPrior.fit_from_potential_estimates(
+                bin_centers_nz, dG_nz, **target_fit_kwargs
+            )
+
         kk = tensor2tuple(unique_key)
         statistics[kk] = params
 
