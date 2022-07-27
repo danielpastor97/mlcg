@@ -400,7 +400,9 @@ class Repulsion(torch.nn.Module, _Prior):
 
     @staticmethod
     def fit_from_values(
-        values: torch.Tensor, percentile: Optional[float] = 1
+        values: torch.Tensor,
+        percentile: Optional[float] = 1,
+        cutoff: Optional[float] = None,
     ) -> Dict:
         """Method for fitting interaction parameters directly from input features
 
@@ -413,7 +415,11 @@ class Repulsion(torch.nn.Module, _Prior):
             distance percentile (eg, percentile = 1) sets the sigma value
             at the location of the 1th percentile of pairwise distances. This
             option is useful for estimating repulsions for distance distribtions
-            with long lower tails or lower distance outliers.
+            with long lower tails or lower distance outliers. Must be a number from
+            0 to 1
+        cutoff:
+            If specified, only those input values below this cutoff will be used in
+            evaluating the percentile
 
         Returns
         -------
@@ -422,6 +428,8 @@ class Repulsion(torch.nn.Module, _Prior):
             `scipy.optimize.curve_fit`
         """
         values = values.numpy()
+        if cutoff != None:
+            values = values[values < cutoff]
         sigma = torch.tensor(np.perentile(values, percentile))
         stat = {"sigma": sigma}
         return stat
