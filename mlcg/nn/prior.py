@@ -430,7 +430,7 @@ class Repulsion(torch.nn.Module, _Prior):
         values = values.numpy()
         if cutoff != None:
             values = values[values < cutoff]
-        sigma = torch.tensor(np.perentile(values, percentile))
+        sigma = torch.tensor(np.percentile(values, percentile))
         stat = {"sigma": sigma}
         return stat
 
