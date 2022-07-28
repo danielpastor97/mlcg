@@ -268,4 +268,5 @@ def test_sum_outs(ASE_prior_model, network_model, out_targets):
         np.testing.assert_allclose(
             target_totals[target].detach().numpy(),
             collated_data_2.out[target].detach().numpy(),
+            rtol=1e-5,
         )

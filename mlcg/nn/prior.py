@@ -20,6 +20,10 @@ class _Prior(object):
     def __init__(self) -> None:
         super(_Prior, self).__init__()
 
+    @staticmethod
+    def fit_from_values():
+        raise NotImplementedError
+
 
 class Harmonic(torch.nn.Module, _Prior):
     r"""1-D Harmonic prior interaction for feature :math:`x` of the form:
@@ -395,9 +399,47 @@ class Repulsion(torch.nn.Module, _Prior):
         return rr * rr * rr
 
     @staticmethod
+    def fit_from_values(
+        values: torch.Tensor,
+        percentile: Optional[float] = 1,
+        cutoff: Optional[float] = None,
+    ) -> Dict:
+        """Method for fitting interaction parameters directly from input features
+
+        Parameters
+        ----------
+        values:
+            Input features as a tensor of shape (n_frames)
+        percentile:
+            If specified, the sigma value is calculated using the specified
+            distance percentile (eg, percentile = 1) sets the sigma value
+            at the location of the 1th percentile of pairwise distances. This
+            option is useful for estimating repulsions for distance distribtions
+            with long lower tails or lower distance outliers. Must be a number from
+            0 to 1
+        cutoff:
+            If specified, only those input values below this cutoff will be used in
+            evaluating the percentile
+
+        Returns
+        -------
+        Dict:
+            Dictionary of interaction parameters as retrived through
+            `scipy.optimize.curve_fit`
+        """
+        values = values.numpy()
+        if cutoff != None:
+            values = values[values < cutoff]
+        sigma = torch.tensor(np.perentile(values, percentile))
+        stat = {"sigma": sigma}
+        return stat
+
+    @staticmethod
     def fit_from_potential_estimates(
-        bin_centers_nz: torch.Tensor, dG_nz: torch.Tensor
-    ) -> torch.Tensor:
+        bin_centers_nz: torch.Tensor,
+        dG_nz: torch.Tensor,
+        percentile: Optional[float] = None,
+    ) -> Dict:
         """Method for fitting interaction parameters from data
 
         Parameters
@@ -417,9 +459,10 @@ class Repulsion(torch.nn.Module, _Prior):
             :math:`p(x)` is the normalized probability distribution of
             :math:`x`.
 
+
         Returns
         -------
-        torch.Tensor:
+        Dict:
             Dictionary of interaction parameters as retrived through
             `scipy.optimize.curve_fit`
         """
