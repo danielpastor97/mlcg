@@ -98,6 +98,7 @@ class _Simulation(object):
         log_interval: Optional[int] = None,
         log_type: str = "write",
         filename: Optional[str] = None,
+        tqdm_refresh: float = 10,
         sim_subroutine: Optional[Callable] = None,
         sim_subroutine_interval: Optional[int] = None,
         save_subroutine: Optional[Callable] = None,
@@ -121,6 +122,7 @@ class _Simulation(object):
         self.sim_subroutine = sim_subroutine
         self.sim_subroutine_interval = sim_subroutine_interval
         self.save_subroutine = save_subroutine
+        self.tqdm_refresh = tqdm_refresh
 
         # check to make sure input options for the simulation
         self.input_option_checks()
@@ -201,7 +203,11 @@ class _Simulation(object):
         data = deepcopy(self.initial_data)
         data.to(self.device)
         _, forces = self.calculate_potential_and_forces(data)
-        for t in tqdm(range(self.n_timesteps), desc="Simulation timestep"):
+        for t in tqdm(
+            range(self.n_timesteps),
+            desc="Simulation timestep",
+            mininterval=self.tqdm_refresh,
+        ):
             # step forward in time
             data, potential, forces = self.timestep(data, forces)
 

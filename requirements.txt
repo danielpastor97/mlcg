@@ -6,6 +6,7 @@ jsonargparse[signatures]>=4.0.4
 tqdm
 ase
 e3nn
+networkx
 numpy
 h5py
 scipy
