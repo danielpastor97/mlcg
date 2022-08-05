@@ -129,7 +129,8 @@ import typing
 import itertools
 import warnings
 from torch_geometric.loader.dataloader import Collater as PyGCollater
-from typing import Dict
+import torch_geometric.loader.dataloader # for type hint
+from typing import Dict, List, Optional
 from mlcg.data import AtomicData
 
 
@@ -727,6 +728,24 @@ class H5SimpleDataset(H5Dataset):
             pin_memory=pin_memory,
         )
         return data_loader
+
+    @property
+    def n_mol(self):
+        return self.metaset.n_mol
+
+    @property
+    def n_total_samples(self):
+        return self.metaset.n_total_samples
+
+    @property
+    def n_mol_samples(self):
+        return self.metaset.n_mol_samples
+
+    def __len__(self):
+        return len(self.metaset)
+
+    def __getitem__(self, idx):
+        return self.metaset[idx]
 
     def __repr__(self):
         return (
