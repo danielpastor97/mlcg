@@ -129,7 +129,7 @@ import typing
 import itertools
 import warnings
 from torch_geometric.loader.dataloader import Collater as PyGCollater
-import torch_geometric.loader.dataloader # for type hint
+import torch_geometric.loader.dataloader  # for type hint
 from typing import Dict, List, Optional
 from mlcg.data import AtomicData
 
@@ -649,11 +649,11 @@ class H5SimpleDataset(H5Dataset):
     def __init__(
         self,
         h5_file_path: str,
-        stride: int=1,
-        detailed_indices: Optional[Dict[str,List]]=None,
-        metaset_name: str=None,
+        stride: int = 1,
+        detailed_indices: Optional[Dict[str, List]] = None,
+        metaset_name: str = None,
         mol_list: Optional[List[str]] = None,
-        hdf_key_mapping: Dict[str,str] = {
+        hdf_key_mapping: Dict[str, str] = {
             "embeds": "attrs:cg_embeds",
             "coords": "cg_coords",
             "forces": "cg_delta_forces",
@@ -708,7 +708,9 @@ class H5SimpleDataset(H5Dataset):
     def get_dataloader(
         self,
         batch_size: int,
-        collater_fn: torch_geometric.loader.dataloader.Collater = PyGCollater(None, None),
+        collater_fn: torch_geometric.loader.dataloader.Collater = PyGCollater(
+            None, None
+        ),
         shuffle: bool = True,
         pin_memory: bool = False,
     ):
