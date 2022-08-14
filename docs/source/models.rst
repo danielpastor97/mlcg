@@ -14,14 +14,23 @@ may find the class `StandardSchNet` to be helpful in getting started quickly.
 .. autoclass:: mlcg.nn.schnet.InteractionBlock
 .. autoclass:: mlcg.nn.schnet.CFConv
 
+MACE Utilities
+--------------
+
+`mlcg-tools` provides wrapper utitilies for [MACE]_ models, the base implementation of which is available `Link here <https://arxiv.org/abs/2206.07697>`.
+
+.. autoclass:: mlcg.nn.mace_interface.MACEInterface
+
 Radial Basis Functions
 ----------------------
 
-Sets of radial basis functions are used to expand the distances between atoms on a fixed-sized vector. For instance, this is the main transformation of the distances in the `SchNet` model.
+Sets of radial basis functions are used to expand the distances (or other molecular features) between atoms on a fixed-sized vector. For instance, this is the main transformation of the distances in the `SchNet` model.
 
 .. autoclass:: mlcg.nn.radial_basis.GaussianBasis
 .. autoclass:: mlcg.nn.radial_basis.ExpNormalBasis
 .. autoclass:: mlcg.nn.radial_basis.RIGTOBasis
+.. autoclass:: mlcg.nn.radial_basis.SpacedExpBasis
+.. autoclass:: mlcg.nn.angular_basis.SphericalHarmonics
 
 Cutoff Functions
 ----------------

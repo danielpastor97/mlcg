@@ -3,6 +3,14 @@ Geometry
 
 `mlcg.geometry` implements geometry and topology tools for CG systems.
 
+Internal Coordinate Functions
+-----------------------------
+
+.. autofunction:: mlcg.geometry.internal_coordinates.compute_distances
+.. autofunction:: mlcg.geometry.internal_coordinates.compute_distance_vectors
+.. autofunction:: mlcg.geometry.internal_coordinates.compute_angles
+.. autofunction:: mlcg.geometry.internal_coordinates.compute_torsions
+
 Topology Utilities
 ------------------
 
