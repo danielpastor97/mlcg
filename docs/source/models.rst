@@ -17,7 +17,7 @@ may find the class `StandardSchNet` to be helpful in getting started quickly.
 MACE Utilities
 --------------
 
-`mlcg-tools` provides wrapper utitilies for [MACE]_ models, the base implementation of which is available `Link here <https://arxiv.org/abs/2206.07697>`.
+`mlcg-tools` provides wrapper utitilies for [MACE]_ models, the base implementation of which is available `here <https://github.com/ACEsuit/mace>`_.
 
 .. autoclass:: mlcg.nn.mace_interface.MACEInterface
 
