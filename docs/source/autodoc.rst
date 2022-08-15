@@ -46,6 +46,12 @@ Radial basis functions
 .. automodule:: mlcg.nn.radial_basis.gaussian
    :members:
 
+.. automodule:: mlcg.nn.radial_basis.exp_spaced
+   :members:
+
+.. automodule:: mlcg.nn.angular_basis.spherical_harmonics
+   :members:
+
 Cutoff functions
 
 .. automodule:: mlcg.nn.cutoff
