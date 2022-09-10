@@ -129,7 +129,8 @@ import typing
 import itertools
 import warnings
 from torch_geometric.loader.dataloader import Collater as PyGCollater
-from typing import Dict
+import torch_geometric.loader.dataloader  # for type hint
+from typing import Dict, List, Optional
 from mlcg.data import AtomicData
 
 
@@ -507,8 +508,8 @@ class Partition:
         return {k: self._metasets[k].n_total_samples for k in self._metasets}
 
     def __repr__(self):
-        return f"Partition `self.name` with Metasets:\n" + "\n".join(
-            ['- "{k}": {v} samples' for k, v in self.sample_sizes.items()]
+        return f"Partition `{self.name}` with Metasets:\n" + "\n".join(
+            [f'- "{k}": {v} samples' for k, v in self.sample_sizes.items()]
         )
 
 
@@ -615,6 +616,143 @@ class H5Dataset:
         return (
             'H5Dataset:\nPath: "%s"\nPartitions:\n' % self._h5_path
             + "\n".join(['- "' + str(part) + '"' for part in self._partitions])
+        )
+
+
+class H5SimpleDataset(H5Dataset):
+    """The top-level class for handling a single dataset contained in a HDF5 file.
+    Will only load from one single type of molecules (i.e., one Metaset), and do
+    not support partition splits.
+    Use .get_dataloader for obtaining a dataloader for PyTorch training, etc.
+
+    Parameters
+    ----------
+    h5_file_path:
+        Path to the hdf5 file containing the dataset(s)
+    stride: default 1
+        Stride for loading the frames
+    detailed_indices: default `None`
+        Set this to manually define which frames to be included for each molecule.
+    metaset_name: default `None`
+        the name of the h5 group containing the molecule data. If kept `None` and
+        the given file consists of only one metaset, this parameter will be
+        inferred from the file.
+    mol_list: default `None`
+        A list of the molecules to be loaded. When kept `None`, all molecules will
+        be loaded.
+    hdf_key_mapping: default loading the delta forces
+        Key mapping for reading the data from h5 file.
+    parallel: default for single process
+        For DDP parallelism. Details see the head of this file.
+    """
+
+    def __init__(
+        self,
+        h5_file_path: str,
+        stride: int = 1,
+        detailed_indices: Optional[Dict[str, List]] = None,
+        metaset_name: str = None,
+        mol_list: Optional[List[str]] = None,
+        hdf_key_mapping: Dict[str, str] = {
+            "embeds": "attrs:cg_embeds",
+            "coords": "cg_coords",
+            "forces": "cg_delta_forces",
+        },
+        parallel={"rank": 0, "world_size": 1},
+    ):
+        # input checking
+        if not isinstance(stride, int) and stride > 0:
+            raise ValueError("Parameter `stride` is invalid.")
+        # load the h5 file
+        self._h5_path = h5_file_path
+        self._h5_root = h5py.File(h5_file_path, "r")
+        self._metaset_entries = {}
+        # ^ dict containing all metasets in the HDF5 file
+        self._partitions = None
+        self._partition_sample_info = None
+
+        # checking metaset
+        all_metasets = list(self._h5_root.keys())
+        if metaset_name == None:
+            if len(all_metasets) != 1:
+                raise ValueError(
+                    f"Given h5 dataset contains multiple entries:\n"
+                    f"{all_metasets}\n"
+                    f"Please select one via `metaset_name` or use "
+                    f"H5Dataset instead."
+                )
+            else:
+                metaset_name = all_metasets[0]
+        else:
+            if metaset_name not in all_metasets:
+                raise ValueError(
+                    f"Metaset {metaset_name} not found in given "
+                    f"h5 dataset. The following are available:\n"
+                    f"{all_metasets}."
+                )
+        self.metaset_name = metaset_name
+        if mol_list is None:
+            mol_list = list(self._h5_root[metaset_name].keys())
+
+        # load molecules
+        self._metaset_entries[metaset_name] = self._h5_root[metaset_name]
+        self.metaset = MetaSet.create_from_hdf5_group(
+            self._h5_root[metaset_name],
+            mol_list,
+            detailed_indices=detailed_indices,
+            stride=stride,
+            hdf_key_mapping=hdf_key_mapping,
+            parallel=parallel,
+        )
+
+    def get_dataloader(
+        self,
+        batch_size: int,
+        collater_fn: torch_geometric.loader.dataloader.Collater = PyGCollater(
+            None, None
+        ),
+        shuffle: bool = True,
+        pin_memory: bool = False,
+    ):
+        """
+        Parameters:
+        -----------
+        batch_size:
+        Size of the batches to draw from the metaset
+        collater_fn, shuffle, pin_memory:
+        See PyTorch documentations for dataloader options.
+        """
+        data_loader = H5MetasetDataLoader(
+            self.metaset,
+            batch_size,
+            collater_fn=collater_fn,
+            shuffle=shuffle,
+            pin_memory=pin_memory,
+        )
+        return data_loader
+
+    @property
+    def n_mol(self):
+        return self.metaset.n_mol
+
+    @property
+    def n_total_samples(self):
+        return self.metaset.n_total_samples
+
+    @property
+    def n_mol_samples(self):
+        return self.metaset.n_mol_samples
+
+    def __len__(self):
+        return len(self.metaset)
+
+    def __getitem__(self, idx):
+        return self.metaset[idx]
+
+    def __repr__(self):
+        return (
+            f'H5Dataset:\nPath: "{self._h5_path}"\nMetaset:\n'
+            f"- {self.metaset_name}: {self.metaset}"
         )
 
 
