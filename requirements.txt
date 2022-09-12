@@ -1,6 +1,7 @@
 mdtraj
 pyyaml>=6.0
-ruamel.yaml # mostly because it support scientific notation
+ # `ruamel.yaml` used mostly because it support scientific notation
+ruamel.yaml
 pytorch-lightning == 1.6.5
 jsonargparse[signatures]==4.7.3
 tqdm
