@@ -15,7 +15,7 @@ class ExpNormalBasis(_RadialBasis):
         f_n(r_{ij};\alpha, r_{low},r_{high}) = f_{cut}(r_{ij},r_{low},r_{high})
         \times \exp\left[-\beta_n \left(e^{\alpha (r_{ij} -r_{high}) }
         - \mu_n \right)^2\right]
-        
+
     where
 
     .. math::
@@ -27,7 +27,7 @@ class ExpNormalBasis(_RadialBasis):
     .. math::
 
         f_{cut} ( r_{ij},r_{low},r_{high} ) =  \cos{\left( r_{ij} \times \pi / r_{high}\right)} + 1.0
-    
+
     represents a cosine cutoff function (though users can specify their own cutoff function
     if they desire).
     Parameters
