@@ -5,7 +5,7 @@ from ..data._keys import *
 
 
 class SumOut(torch.nn.Module):
-    """Property pooling wrapper for models
+    r"""Property pooling wrapper for models
 
     Parameters
     ----------
@@ -53,7 +53,7 @@ class SumOut(torch.nn.Module):
         self.models = models
 
     def forward(self, data: AtomicData) -> AtomicData:
-        """Sums output properties from individual models into global
+        r"""Sums output properties from individual models into global
         property predictions
 
         Parameters
@@ -120,7 +120,7 @@ class SumOut(torch.nn.Module):
 
 
 class GradientsOut(torch.nn.Module):
-    """Gradient wrapper for models.
+    r"""Gradient wrapper for models.
 
     Parameters
     ----------
@@ -132,7 +132,7 @@ class GradientsOut(torch.nn.Module):
     Example
     -------
         To predict forces from an energy model, one would supply a model that
-        predicts a scalar atom property (an energy) and specify the FORCE_KEY
+        predicts a scalar atom property (an energy) and specify the `FORCE_KEY`
         in the targets.
     """
 

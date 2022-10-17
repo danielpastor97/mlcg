@@ -34,8 +34,11 @@ Neural network models for coarse grain property predictions
 .. automodule:: mlcg.nn.schnet
    :members:
 
+.. automodule:: mlcg.nn.mace_interface
+   :members:
 
 Radial basis functions
+----------------------
 
 .. automodule:: mlcg.nn.radial_basis.radial_integral_gto
    :members:
@@ -46,7 +49,14 @@ Radial basis functions
 .. automodule:: mlcg.nn.radial_basis.gaussian
    :members:
 
+.. automodule:: mlcg.nn.radial_basis.exp_spaced
+   :members:
+
+.. automodule:: mlcg.nn.angular_basis.spherical_harmonics
+   :members:
+
 Cutoff functions
+----------------
 
 .. automodule:: mlcg.nn.cutoff
    :members:
@@ -84,3 +94,15 @@ Utilities to compute the internal coordinates
 .. automodule:: mlcg.geometry.internal_coordinates
    :members:
    :undoc-members:
+
+Simulations
+-----------
+
+.. automodule:: mlcg.simulation.LangevinSimulation
+   :members:
+
+.. automodule:: mlcg.simulation.OverdampedSimulation
+   :members:
+
+.. automodule:: mlcg.simulation.PTSimulation
+   :members:

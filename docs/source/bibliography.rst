@@ -32,4 +32,4 @@ Neural Network Architectures & Implementations
 
 .. [Physnet] Unke, O. T. et al. `PhysNet: A Neural Network for Predicting Energies, Forces, Dipole Moments and Partial Charges. <https://doi.org/10.1021/acs.jctc.9b00181>`_ Journal of Chemical Theory and Computation, 15(6). 3678–3693. (2019).
 
-
+.. [MACE] Ilyes Batatia, Dávid Péter Kovács, Gregor N. C. Simm, Christoph Ortner, Gábor Csányi. https://arxiv.org/abs/2206.07697 (2022)
