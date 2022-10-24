@@ -254,6 +254,7 @@ def test_sum_outs(ASE_prior_model, network_model, out_targets):
     target_totals = {target: 0.00 for target in out_targets}
     for target in out_targets:
         for key in collated_data.out.keys():
+            print(key)
             target_totals[target] += collated_data.out[key][target]
 
     module_collection = torch.nn.ModuleDict()
@@ -268,5 +269,5 @@ def test_sum_outs(ASE_prior_model, network_model, out_targets):
         np.testing.assert_allclose(
             target_totals[target].detach().numpy(),
             collated_data_2.out[target].detach().numpy(),
-            rtol=1e-4,
+            rtol=1e-3,
         )

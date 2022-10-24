@@ -519,7 +519,7 @@ class Dihedral(torch.nn.Module, _Prior):
             tuple(*specific_types) : {
                 "k1s" : torch.Tensor that contains all k1 coefficients
                 "k2s" : torch.Tensor that contains all k2 coefficients
-                "v_0" : torch.Tensor that contains the constant offset
+                "V_0" : torch.Tensor that contains the constant offset
                 ...
                 }
         The keys must be tuples of 4 atoms.
@@ -545,7 +545,7 @@ class Dihedral(torch.nn.Module, _Prior):
         self.k2_names = ["k2_" + str(ii) for ii in range(1, self.n_degs + 1)]
         k1 = torch.zeros(self.n_degs, *sizes)
         k2 = torch.zeros(self.n_degs, *sizes)
-        v_0 = torch.zeros(*sizes)
+        V_0 = torch.zeros(*sizes)
 
         for key in statistics.keys():
             for ii in range(self.n_degs):
@@ -553,10 +553,10 @@ class Dihedral(torch.nn.Module, _Prior):
                 k2_name = self.k2_names[ii]
                 k1[ii][key] = statistics[key]["k1s"][k1_name]
                 k2[ii][key] = statistics[key]["k2s"][k2_name]
-            v_0[key] = statistics[key]["v_0"]
+            V_0[key] = statistics[key]["V_0"]
         self.register_buffer("k1s", k1)
         self.register_buffer("k2s", k2)
-        self.register_buffer("v_0", v_0)
+        self.register_buffer("V_0", V_0)
 
     def data2features(self, data: AtomicData) -> torch.Tensor:
         """Computes features for the harmonic interaction from
@@ -613,8 +613,8 @@ class Dihedral(torch.nn.Module, _Prior):
         k2s = torch.vstack(
             [self.k2s[ii][interaction_types] for ii in range(self.n_degs)]
         ).t()
-        v_0 = self.v_0[interaction_types].view(-1, 1)
-        return {"k1s": k1s, "k2s": k2s, "v_0": v_0}
+        V_0 = self.V_0[interaction_types].view(-1, 1)
+        return {"k1s": k1s, "k2s": k2s, "V_0": V_0}
 
     @staticmethod
     def compute_features(
@@ -625,18 +625,18 @@ class Dihedral(torch.nn.Module, _Prior):
     @staticmethod
     def wrapper_fit_func(theta: torch.Tensor, *args) -> torch.Tensor:
         args = args[0]
-        v_0 = torch.tensor(args[0])
+        V_0 = torch.tensor(args[0])
         k_args = args[1:]
         num_ks = len(k_args) // 2
         k1s, k2s = k_args[:num_ks], k_args[num_ks:]
         k1s = torch.tensor(k1s).view(-1, num_ks)
         k2s = torch.tensor(k2s).view(-1, num_ks)
-        return Dihedral.compute(theta, v_0, k1s, k2s)
+        return Dihedral.compute(theta, V_0, k1s, k2s)
 
     @staticmethod
     def compute(
         theta: torch.Tensor,
-        v_0: torch.Tensor,
+        V_0: torch.Tensor,
         k1s: torch.Tensor,
         k2s: torch.Tensor,
     ) -> torch.Tensor:
@@ -647,7 +647,7 @@ class Dihedral(torch.nn.Module, _Prior):
         ----------
         theta :
             angles to compute the value of the dihedral interaction on
-        v_0 :
+        V_0 :
             constant offset
         k1s :
             list of sin parameters
@@ -666,7 +666,7 @@ class Dihedral(torch.nn.Module, _Prior):
         # shape of k1s and k2s
         angles = theta.view(-1, 1) * n_degs.view(1, -1)
         V = k1s * torch.sin(angles) + k2s * torch.cos(angles)
-        return V.sum(dim=1) + v_0
+        return V.sum(dim=1) + V_0.view(-1)
 
     @staticmethod
     def neg_log_likelihood(y, yhat):
@@ -690,7 +690,7 @@ class Dihedral(torch.nn.Module, _Prior):
     @staticmethod
     def _init_parameter_dict(n_degs):
         """Helper method for initializing the parameter dictionary"""
-        stat = {"k1s": {}, "k2s": {}, "v_0": 0.00}
+        stat = {"k1s": {}, "k2s": {}, "V_0": 0.00}
         k1_names = ["k1_" + str(ii) for ii in range(1, n_degs + 1)]
         k2_names = ["k2_" + str(ii) for ii in range(1, n_degs + 1)]
         for ii in range(n_degs):
@@ -703,7 +703,7 @@ class Dihedral(torch.nn.Module, _Prior):
     @staticmethod
     def _make_parameter_dict(stat, popt, n_degs):
         """Helper method for constructing a fitted parameter dictionary"""
-        v_0 = popt[0]
+        V_0 = popt[0]
         k_popt = popt[1:]
         num_k1s = int(len(k_popt) / 2)
         k1_names = sorted(list(stat["k1s"].keys()))
@@ -719,7 +719,7 @@ class Dihedral(torch.nn.Module, _Prior):
             else:
                 stat["k1s"][k1_name] = 0
                 stat["k2s"][k2_name] = 0
-        stat["v_0"] = v_0
+        stat["V_0"] = V_0
         return stat
 
     @staticmethod
