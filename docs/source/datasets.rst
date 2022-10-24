@@ -16,8 +16,8 @@ Dataset of a single 1M step trajectory of alanine dipeptide in explicit water. T
 
 .. autoclass:: mlcg.datasets.alanine_dipeptide.AlanineDataset
 
-Coarse Graining Utilities
--------------------------
+Custom H5 Dataset
+-----------------
+Users may assemble their own curated dataset using an H5 format. This allows for the possiblity of training on multiple types of molecules or data from different system conditiions.
 
-.. autofunction:: mlcg.datasets.utils.remove_baseline_forces
-
+.. autoclass:: mlcg.datasets.H5Dataset

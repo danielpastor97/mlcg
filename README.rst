@@ -17,6 +17,10 @@ The dependencies are defined in `requirements.txt` but some packages are not wel
     conda install pytorch cudatoolkit=11.3 -c pytorch
     conda install pyg -c pyg -c conda-forge
 
+Support for the MACE model can be enabled with:: 
+
+     pip instal https://github.com/felixmusil/mace.git@develop
+
 .. end-install
 
 CLI
