@@ -666,8 +666,7 @@ class Dihedral(torch.nn.Module, _Prior):
         # shape of k1s and k2s
         angles = theta.view(-1, 1) * n_degs.view(1, -1)
         V = k1s * torch.sin(angles) + k2s * torch.cos(angles)
-        V = V + v_0
-        return V.sum(dim=1)
+        return V.sum(dim=1) + v_0
 
     @staticmethod
     def neg_log_likelihood(y, yhat):
