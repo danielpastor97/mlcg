@@ -501,14 +501,11 @@ class Dihedral(torch.nn.Module, _Prior):
     r"""
     Prior that constrains dihedral planar angles using
     the following energy ansatz:
-
     .. math::
-
-        V(\theta) = \sum_n^{n_{deg}} k1_n \sin{(n\theta)} + k2_n\cos{(n\theta)}
-
+        V(\theta) = v_0 + \sum_{n=1}^{n_{deg}} k1_n \sin{(n\theta)} + k2_n\cos{(n\theta)}
     where :math:`n_{deg}` is the maximum number of terms to take in the sinusoidal series,
-    and :math:`k1_n` and :math:`k2_n` are coefficients for each term number :math:`n`.
-
+    :math:`v_0` is a constant offset, and :math:`k1_n` and :math:`k2_n` are coefficients
+    for each term number :math:`n`.
     Parameters
     ----------
     statistics:
@@ -518,18 +515,14 @@ class Dihedral(torch.nn.Module, _Prior):
         Can be hand-designed or taken from the output of
         `mlcg.geometry.statistics.compute_statistics`, but must minimally
         contain the following information for each key:
-
         .. code-block:: python
-
             tuple(*specific_types) : {
                 "k1s" : torch.Tensor that contains all k1 coefficients
                 "k2s" : torch.Tensor that contains all k2 coefficients
+                "v_0" : torch.Tensor that contains the constant offset
                 ...
-
                 }
-
         The keys must be tuples of 4 atoms.
-
     """
 
     name: Final[str] = "dihedrals"
@@ -548,10 +541,11 @@ class Dihedral(torch.nn.Module, _Prior):
         sizes = tuple([max_type + 1 for _ in range(self.order)])
         # In principle we could extend this to include even more wells if needed.
         self.n_degs = n_degs
-        self.k1_names = ["k1_" + str(ii) for ii in range(0, self.n_degs)]
-        self.k2_names = ["k2_" + str(ii) for ii in range(0, self.n_degs)]
+        self.k1_names = ["k1_" + str(ii) for ii in range(1, self.n_degs + 1)]
+        self.k2_names = ["k2_" + str(ii) for ii in range(1, self.n_degs + 1)]
         k1 = torch.zeros(self.n_degs, *sizes)
         k2 = torch.zeros(self.n_degs, *sizes)
+        v_0 = torch.zeros(*sizes)
 
         for key in statistics.keys():
             for ii in range(self.n_degs):
@@ -559,18 +553,18 @@ class Dihedral(torch.nn.Module, _Prior):
                 k2_name = self.k2_names[ii]
                 k1[ii][key] = statistics[key]["k1s"][k1_name]
                 k2[ii][key] = statistics[key]["k2s"][k2_name]
+            v_0[key] = statistics[key]["v_0"]
         self.register_buffer("k1s", k1)
         self.register_buffer("k2s", k2)
+        self.register_buffer("v_0", v_0)
 
     def data2features(self, data: AtomicData) -> torch.Tensor:
         """Computes features for the harmonic interaction from
         an AtomicData instance)
-
         Parameters
         ----------
         data:
             Input `AtomicData` instance
-
         Returns
         -------
         torch.Tensor:
@@ -581,7 +575,6 @@ class Dihedral(torch.nn.Module, _Prior):
 
     def forward(self, data: AtomicData) -> AtomicData:
         """Forward pass through the dihedral interaction.
-
         Parameters
         ----------
         data:
@@ -591,7 +584,6 @@ class Dihedral(torch.nn.Module, _Prior):
             beads relevant to the interaction and scattering
             the interaction energies onto the correct example/structure
             respectively.
-
         Returns
         -------
         AtomicData:
@@ -600,42 +592,81 @@ class Dihedral(torch.nn.Module, _Prior):
             example/structure
         """
 
-        mapping = data.neighbor_list[self.name]["index_mapping"]
         mapping_batch = data.neighbor_list[self.name]["mapping_batch"]
-        interaction_types = [
-            data.atom_types[mapping[ii]] for ii in range(self.order)
-        ]
+
         features = self.data2features(data).flatten()
-        k1s = [self.k1s[ii][interaction_types] for ii in range(self.n_degs)]
-        k2s = [self.k2s[ii][interaction_types] for ii in range(self.n_degs)]
-        y = Dihedral.compute(
-            features,
-            k1s,
-            k2s,
-        )
+        params = self.data2parameters(data)
+        y = Dihedral.compute(features, **params)
         y = scatter(y, mapping_batch, dim=0, reduce="sum")
         data.out[self.name] = {"energy": y}
         return data
 
+    def data2parameters(self, data: AtomicData) -> Dict:
+        mapping = data.neighbor_list[self.name]["index_mapping"]
+        interaction_types = [
+            data.atom_types[mapping[ii]] for ii in range(self.order)
+        ]
+        # the parameters have shape n_features x n_degs
+        k1s = torch.vstack(
+            [self.k1s[ii][interaction_types] for ii in range(self.n_degs)]
+        ).t()
+        k2s = torch.vstack(
+            [self.k2s[ii][interaction_types] for ii in range(self.n_degs)]
+        ).t()
+        v_0 = self.v_0[interaction_types].view(-1, 1)
+        return {"k1s": k1s, "k2s": k2s, "v_0": v_0}
+
     @staticmethod
-    def compute_features(pos, mapping):
+    def compute_features(
+        pos: torch.Tensor, mapping: torch.Tensor
+    ) -> torch.Tensor:
         return compute_torsions(pos, mapping)
 
     @staticmethod
-    def wrapper_fit_func(theta, *args):
-        n_k1s = int(len(args[0]) / 2)
-        k1s, k2s = list(args[0][:n_k1s]), list(args[0][n_k1s:])
-        k1s = torch.tensor(k1s)
-        k2s = torch.tensor(k2s)
-        return Dihedral.compute(theta, k1s, k2s)
+    def wrapper_fit_func(theta: torch.Tensor, *args) -> torch.Tensor:
+        args = args[0]
+        v_0 = torch.tensor(args[0])
+        k_args = args[1:]
+        num_ks = len(k_args) // 2
+        k1s, k2s = k_args[:num_ks], k_args[num_ks:]
+        k1s = torch.tensor(k1s).view(-1, num_ks)
+        k2s = torch.tensor(k2s).view(-1, num_ks)
+        return Dihedral.compute(theta, v_0, k1s, k2s)
 
     @staticmethod
-    def compute(theta, k1s, k2s):
-        """Method computing the dihedral interaction"""
-        V = 0.00
-        for ii, (k1, k2) in enumerate(zip(k1s, k2s)):
-            V += k1 * torch.sin(ii * theta) + k2 * torch.cos(ii * theta)
-        return V
+    def compute(
+        theta: torch.Tensor,
+        v_0: torch.Tensor,
+        k1s: torch.Tensor,
+        k2s: torch.Tensor,
+    ) -> torch.Tensor:
+        """Compute the dihedral interaction for a list of angles and models
+        parameters. The ineraction is computed as a sin/cos basis expansion up
+        to N basis functions.
+        Parameters
+        ----------
+        theta :
+            angles to compute the value of the dihedral interaction on
+        v_0 :
+            constant offset
+        k1s :
+            list of sin parameters
+        k2s :
+            list of cos parameters
+        Returns
+        -------
+        torch.Tensor:
+            Dihedral interaction energy
+        """
+        _, n_k = k1s.shape
+        n_degs = torch.arange(
+            1, n_k + 1, dtype=theta.dtype, device=theta.device
+        )
+        # expand the features w.r.t the mult integer so that it has the
+        # shape of k1s and k2s
+        angles = theta.view(-1, 1) * n_degs.view(1, -1)
+        V = k1s * torch.sin(angles) + k2s * torch.cos(angles)
+        return V.sum(dim=1) + v_0.view(-1)
 
     @staticmethod
     def neg_log_likelihood(y, yhat):
@@ -649,22 +680,19 @@ class Dihedral(torch.nn.Module, _Prior):
     @staticmethod
     def _init_parameters(n_degs):
         """Helper method for guessing initial parameter values"""
-        p0 = []
+        p0 = [1.00]  # start with constant offset
         k1s_0 = [1 for _ in range(n_degs)]
         k2s_0 = [1 for _ in range(n_degs)]
-        p0.append(k1s_0)
-        p0.append(k2s_0)
+        p0.extend(k1s_0)
+        p0.extend(k2s_0)
         return p0
 
     @staticmethod
     def _init_parameter_dict(n_degs):
         """Helper method for initializing the parameter dictionary"""
-        stat = {
-            "k1s": {},
-            "k2s": {},
-        }
-        k1_names = ["k1_" + str(ii) for ii in range(n_degs)]
-        k2_names = ["k2_" + str(ii) for ii in range(n_degs)]
+        stat = {"k1s": {}, "k2s": {}, "v_0": 0.00}
+        k1_names = ["k1_" + str(ii) for ii in range(1, n_degs + 1)]
+        k2_names = ["k2_" + str(ii) for ii in range(1, n_degs + 1)]
         for ii in range(n_degs):
             k1_name = k1_names[ii]
             k2_name = k2_names[ii]
@@ -675,7 +703,9 @@ class Dihedral(torch.nn.Module, _Prior):
     @staticmethod
     def _make_parameter_dict(stat, popt, n_degs):
         """Helper method for constructing a fitted parameter dictionary"""
-        num_k1s = int(len(popt) / 2)
+        v_0 = popt[0]
+        k_popt = popt[1:]
+        num_k1s = int(len(k_popt) / 2)
         k1_names = sorted(list(stat["k1s"].keys()))
         k2_names = sorted(list(stat["k2s"].keys()))
         for ii in range(n_degs):
@@ -683,13 +713,31 @@ class Dihedral(torch.nn.Module, _Prior):
             k2_name = k2_names[ii]
             stat["k1s"][k1_name] = {}
             stat["k2s"][k2_name] = {}
-            if len(popt) > 2 * ii:
-                stat["k1s"][k1_name] = popt[ii]
-                stat["k2s"][k2_name] = popt[num_k1s + ii]
+            if len(k_popt) > 2 * ii:
+                stat["k1s"][k1_name] = k_popt[ii]
+                stat["k2s"][k2_name] = k_popt[num_k1s + ii]
             else:
                 stat["k1s"][k1_name] = 0
                 stat["k2s"][k2_name] = 0
+        stat["v_0"] = v_0
         return stat
+
+    @staticmethod
+    def _compute_adjusted_R2(
+        bin_centers_nz, dG_nz, mask, popt, free_parameters
+    ):
+        """
+        Method for model selection using adjusted R2
+        Higher values imply better model selection
+        """
+        dG_fit = Dihedral.wrapper_fit_func(bin_centers_nz[mask], *[popt])
+        SSres = torch.sum(torch.square(dG_nz[mask] - dG_fit))
+        SStot = torch.sum(torch.square(dG_nz[mask] - torch.mean(dG_nz[mask])))
+        n_samples = len(dG_nz[mask])
+        R2 = 1 - (SSres / (n_samples - free_parameters - 1)) / (
+            SStot / (n_samples - 1)
+        )
+        return R2
 
     @staticmethod
     def _compute_aic(bin_centers_nz, dG_nz, mask, popt, free_parameters):
@@ -705,17 +753,31 @@ class Dihedral(torch.nn.Module, _Prior):
         return aic
 
     @staticmethod
+    def _linear_regression(bin_centers, targets, n_degs):
+        """Vanilla linear regression"""
+        features = [torch.ones_like(bin_centers)]
+        for n in range(n_degs):
+            features.append(torch.sin((n + 1) * bin_centers))
+        for n in range(n_degs):
+            features.append(torch.cos((n + 1) * bin_centers))
+        features = torch.stack(features).t()
+        targets = targets.to(features.dtype)
+        sol = torch.linalg.lstsq(features, targets.t())
+        return sol
+
+    @staticmethod
     def fit_from_potential_estimates(
         bin_centers_nz: torch.Tensor,
         dG_nz: torch.Tensor,
         n_degs: int = 6,
         constrain_deg: Optional[int] = None,
+        regression_method: str = "linear",
+        metric: str = "aic",
     ) -> Dict:
         """
         Loop over n_degs basins and use either the AIC criterion
         or a prechosen degree to select best fit. Parameter fitting
         occurs over unmaksed regions of the free energy only.
-
         Parameters
         ----------
         bin_centers_nz:
@@ -729,7 +791,15 @@ class Dihedral(torch.nn.Module, _Prior):
             If not None, a single fit is produced for the specified integer
             degree instead of using the AIC criterion for fit selection between
             multiple degrees
-
+        regression_method:
+            String specifying which regression method to use. If "nonlinear",
+            the default `scipy.optimize.curve_fit` method is used. If 'linear',
+            linear regression via `torch.linalg.lstsq` is used
+        metric:
+            If a constrain deg is not specified, this string specifies whether to
+            use either AIC ('aic') or adjusted R squared ('r2') for automated degree
+            selection. If the automatic degree determination fails, users should
+            consider searching for a proper constrained degree.
         Returns
         -------
         Dict:
@@ -745,40 +815,82 @@ class Dihedral(torch.nn.Module, _Prior):
         if constrain_deg != None:
             assert isinstance(constrain_deg, int)
             stat = Dihedral._init_parameter_dict(constrain_deg)
-            p0 = Dihedral._init_parameters(constrain_deg)
-            popt, _ = curve_fit(
-                lambda theta, *p0: Dihedral.wrapper_fit_func(theta, p0),
-                bin_centers_nz[mask],
-                dG_nz[mask],
-                p0=p0,
-            )
-            stat = Dihedral._make_parameter_dict(stat, popt, n_degs)
+            if regression_method == "linear":
+                popt = (
+                    Dihedral._linear_regression(
+                        bin_centers_nz[mask], dG_nz[mask], constrain_deg
+                    )
+                    .solution.numpy()
+                    .tolist()
+                )
+            elif regression_method == "nonlinear":
+                p0 = Dihedral._init_parameters(constrain_deg)
+                popt, _ = curve_fit(
+                    lambda theta, *p0: Dihedral.wrapper_fit_func(theta, p0),
+                    bin_centers_nz[mask],
+                    dG_nz[mask],
+                    p0=p0,
+                )
+            else:
+                raise ValueError(
+                    "regression method {} is neither 'linear' nor 'nonlinear'".format(
+                        regression_method
+                    )
+                )
+            stat = Dihedral._make_parameter_dict(stat, popt, constrain_deg)
 
         else:
+            if metric == "aic":
+                metric_func = Dihedral._compute_aic
+                best_func = min
+            elif metric == "r2":
+                metric_func = Dihedral._compute_adjusted_R2
+                best_func = max
+            else:
+                raise ValueError(
+                    "metric {} is neither 'aic' nor 'r2'".format(metric)
+                )
+
+            # Determine best fit for unknown # of parameters
+            stat = Dihedral._init_parameter_dict(n_degs)
+            popts = []
+            metric_vals = []
+
             try:
-                # Determine best fit for unknown # of parameters
-                stat = Dihedral._init_parameter_dict(n_degs)
-                popts = []
-                aics = []
-
                 for deg in range(1, n_degs + 1):
-                    p0 = Dihedral._init_parameters(deg)
-                    free_parameters = 2 * (deg + 1)
-
-                    popt, _ = curve_fit(
-                        lambda theta, *p0: Dihedral.wrapper_fit_func(theta, p0),
-                        bin_centers_nz[mask],
-                        dG_nz[mask],
-                        p0=p0,
-                    )
-                    aic = Dihedral._compute_aic(
+                    free_parameters = 1 + (2 * deg)
+                    if regression_method == "linear":
+                        popt = (
+                            Dihedral._linear_regression(
+                                bin_centers_nz[mask], dG_nz[mask], deg
+                            )
+                            .solution.numpy()
+                            .tolist()
+                        )
+                    elif regression_method == "nonlinear":
+                        p0 = Dihedral._init_parameters(deg)
+                        popt, _ = curve_fit(
+                            lambda theta, *p0: Dihedral.wrapper_fit_func(
+                                theta, p0
+                            ),
+                            bin_centers_nz[mask],
+                            dG_nz[mask],
+                            p0=p0,
+                        )
+                    else:
+                        raise ValueError(
+                            "regression method {} is neither 'linear' nor 'nonlinear'".format(
+                                regression_method
+                            )
+                        )
+                    metric_val = metric_func(
                         bin_centers_nz, dG_nz, mask, popt, free_parameters
                     )
                     popts.append(popt)
-                    aics.append(aic)
-                min_aic = min(aics)
-                min_i_aic = aics.index(min_aic)
-                popt = popts[min_i_aic]
+                    metric_vals.append(metric_val)
+                best_val = best_func(metric_vals)
+                best_i_val = metric_vals.index(best_val)
+                popt = popts[best_i_val]
                 stat = Dihedral._make_parameter_dict(stat, popt, n_degs)
             except:
                 print(f"failed to fit potential estimate for Dihedral")
@@ -800,5 +912,5 @@ class Dihedral(torch.nn.Module, _Prior):
 
     @staticmethod
     def neighbor_list(topology) -> None:
-        nl = topology.neighbor_list("dihedrals")
-        return {Dihedral._name: nl}
+        nl = topology.neighbor_list(Dihedral.name)
+        return {Dihedral.name: nl}
