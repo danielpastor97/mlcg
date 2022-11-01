@@ -98,7 +98,7 @@ class PTSimulation(LangevinSimulation):
             self.n_replicas, self.n_replicas
         ).to(self.device)
 
-    def attach_configurations(
+    def _attach_configurations(
         self, configurations: List[AtomicData], betas: List[float]
     ):
         r"""Attaches the configurations at each of the temperatures defined for
@@ -143,7 +143,7 @@ class PTSimulation(LangevinSimulation):
             for configuration in configurations:
                 config = deepcopy(configuration)
                 new_configurations.append(config)
-        self.beta = torch.tensor(extended_betas).to(self.device)
+        self.beta = torch.tensor(extended_betas).to(self.device).to(self.dtype)
 
         self.validate_data_list(new_configurations)
         self.initial_data = self.collate(new_configurations).to(

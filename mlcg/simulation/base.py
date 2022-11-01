@@ -14,7 +14,13 @@ from copy import deepcopy
 from ..utils import tqdm
 
 from ..data.atomic_data import AtomicData
-from ..data._keys import ENERGY_KEY, FORCE_KEY, MASS_KEY, VELOCITY_KEY
+from ..data._keys import (
+    ENERGY_KEY, 
+    FORCE_KEY, 
+    MASS_KEY, 
+    VELOCITY_KEY,
+    POSITIONS_KEY,
+)
 
 
 # Physical Constants
@@ -38,8 +44,12 @@ class _Simulation(object):
     save_potential : bool, default=False
         Whether to save potential at the same saved interval as the simulation
         coordinates
+    create_checkpoints: bool, default=False
+        Save the atomic data object so it can be reloaded in. Overwrites previous object.
     n_timesteps : int, default=100
         The length of the simulation in simulation timesteps
+    first_timestep : int, default=0
+        where to start simulation file coordinate naming
     save_interval : int, default=10
         The interval at which simulation timesteps should be saved. Must be
         a factor of the simulation length
@@ -92,6 +102,7 @@ class _Simulation(object):
         save_energies: bool = False,
         n_timesteps: int = 100,
         save_interval: int = 10,
+        create_checkpoints: bool = False,
         random_seed: Optional[int] = None,
         device: str = "cpu",
         export_interval: Optional[int] = None,
@@ -102,6 +113,7 @@ class _Simulation(object):
         sim_subroutine: Optional[Callable] = None,
         sim_subroutine_interval: Optional[int] = None,
         save_subroutine: Optional[Callable] = None,
+        dtype: str = 'single',
     ):
         self.model = None
         self.initial_data = None
@@ -110,10 +122,15 @@ class _Simulation(object):
         self.n_timesteps = n_timesteps
         self.save_interval = save_interval
         self.dt = dt
+        if dtype == "single":
+            self.dtype = torch.float32
+        elif dtype == "double":
+            self.dtype = torch.float64
 
         self.device = torch.device(device)
         self.export_interval = export_interval
         self.log_interval = log_interval
+        self.create_checkpoints = create_checkpoints
 
         if log_type not in ["print", "write"]:
             raise ValueError("log_type can be either 'print' or 'write'")
@@ -136,7 +153,30 @@ class _Simulation(object):
         self.random_seed = random_seed
         self._simulated = False
 
-    def attach_model(self, model: torch.nn.Module):
+    def attach_model_and_configurations(
+        self,
+        model: torch.nn.Module,
+        configurations: List[AtomicData],
+        beta: Union[float, List[float]],
+    ):
+        # if self.specialize_priors:
+        #     model, configurations = condense_all_priors_for_simulation(
+        #         model, configurations
+        #     )
+        #     print("Prior models have been specialized for the simulation.")
+        # if self.filename is not None:
+        #     torch.save(
+        #         (model, configurations),
+        #         f"{self.filename}_specialized_model_and_config.pt",
+        #     )
+        self._attach_model(model)
+        self._attach_configurations(configurations, beta)
+
+        # if self.cuda_graph_priors and self.specialize_priors:
+        #     self.model = cgraph_static_priors(self.model, self.initial_data)
+        #     print(f"Prior models have been cuda graphed: {self.model}")
+
+    def _attach_model(self, model: torch.nn.Module):
         """setup the model to use in the simulation
 
         Parameters
@@ -147,7 +187,7 @@ class _Simulation(object):
         model = model.eval().to(device=self.device)
         self.model = model
 
-    def attach_configurations(
+    def _attach_configurations(
         self, configurations: List[AtomicData], beta: Union[float, List[float]]
     ):
         """Setup the starting atomic configurations.
@@ -162,6 +202,10 @@ class _Simulation(object):
         """
         self.validate_data_list(configurations)
         self.initial_data = self.collate(configurations).to(device=self.device)
+        self.initial_data[MASS_KEY] = self.initial_data[MASS_KEY].to(self.dtype)
+        self.initial_data[POSITIONS_KEY] = self.initial_data[POSITIONS_KEY].to(
+            self.dtype
+        )
         self.n_sims = len(configurations)
         self.n_atoms = len(configurations[0].atom_types)
         self.n_dims = configurations[0].pos.shape[1]
@@ -171,9 +215,9 @@ class _Simulation(object):
                 raise ValueError(
                     "Beta must be positive, but {} was supplied".format(beta)
                 )
-            self.beta = torch.tensor(self.n_sims * [beta]).to(self.device)
+            self.beta = torch.tensor(self.n_sims * [beta]).to(self.device).to(self.dtype)
         else:
-            self.beta = torch.tensor(beta).to(self.device)
+            self.beta = torch.tensor(beta).to(self.device).to(self.dtype)
             if not all([b >= 0 for b in self.beta]):
                 raise ValueError(
                     "All betas must be positive, but {} contains an illegal value.".format(
@@ -440,7 +484,7 @@ class _Simulation(object):
                     raise ValueError(
                         "Numpy saving must occur at a multiple of save_interval"
                     )
-                self._npy_file_index = 0
+                self._npy_file_index = self.first_timestep
                 self._npy_starting_index = 0
 
         # logging
@@ -472,8 +516,8 @@ class _Simulation(object):
             )
 
     def _get_numpy_count(self):
-        """Returns a string 000-999 for appending to numpy file outputs"""
-        return f"{self._npy_file_index:03d}"
+        """Returns a string 0000-9999 for appending to numpy file outputs"""
+        return f"{self._npy_file_index:04d}"
 
     def _swap_and_export(
         self, input_tensor: torch.Tensor, axis1: int = 0, axis2: int = 1
@@ -582,6 +626,9 @@ class _Simulation(object):
                 self.simulated_potential = torch.zeros((potential_dims))
 
             self.simulated_potential[t // self.save_interval] = potential
+        
+        if self.create_checkpoints:
+            self.checkpoint = deepcopy(data.detach())
 
     def write(self, iter_: int):
         """Utility to write numpy arrays to disk"""
@@ -611,6 +658,9 @@ class _Simulation(object):
                 "{}_potential_{}.npy".format(self.filename, key),
                 potentials_to_export,
             )
+
+        if self.create_checkpoints:
+            np.save('{}_checkpoint.npy'.format(self.filename), self.checkpoint.to_dict())
 
         self._npy_starting_index = iter_
         self._npy_file_index += 1
