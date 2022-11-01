@@ -15,9 +15,9 @@ from ..utils import tqdm
 
 from ..data.atomic_data import AtomicData
 from ..data._keys import (
-    ENERGY_KEY, 
-    FORCE_KEY, 
-    MASS_KEY, 
+    ENERGY_KEY,
+    FORCE_KEY,
+    MASS_KEY,
     VELOCITY_KEY,
     POSITIONS_KEY,
 )
@@ -113,7 +113,7 @@ class _Simulation(object):
         sim_subroutine: Optional[Callable] = None,
         sim_subroutine_interval: Optional[int] = None,
         save_subroutine: Optional[Callable] = None,
-        dtype: str = 'single',
+        dtype: str = "single",
     ):
         self.model = None
         self.initial_data = None
@@ -215,7 +215,11 @@ class _Simulation(object):
                 raise ValueError(
                     "Beta must be positive, but {} was supplied".format(beta)
                 )
-            self.beta = torch.tensor(self.n_sims * [beta]).to(self.device).to(self.dtype)
+            self.beta = (
+                torch.tensor(self.n_sims * [beta])
+                .to(self.device)
+                .to(self.dtype)
+            )
         else:
             self.beta = torch.tensor(beta).to(self.device).to(self.dtype)
             if not all([b >= 0 for b in self.beta]):
@@ -626,7 +630,7 @@ class _Simulation(object):
                 self.simulated_potential = torch.zeros((potential_dims))
 
             self.simulated_potential[t // self.save_interval] = potential
-        
+
         if self.create_checkpoints:
             self.checkpoint = deepcopy(data.detach())
 
@@ -660,7 +664,10 @@ class _Simulation(object):
             )
 
         if self.create_checkpoints:
-            np.save('{}_checkpoint.npy'.format(self.filename), self.checkpoint.to_dict())
+            np.save(
+                "{}_checkpoint.npy".format(self.filename),
+                self.checkpoint.to_dict(),
+            )
 
         self._npy_starting_index = iter_
         self._npy_file_index += 1
