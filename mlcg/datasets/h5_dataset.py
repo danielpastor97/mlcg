@@ -118,8 +118,10 @@ When the molecules in each Metaset have similar embedding vector lengths, the pr
 
 Note:
 1. Usually in a train-val split, each molecule goes to either the train or the test partition.
-In some special cases (e.g., non-transferable training) one molecule can be part of both partitions.
-In this situation, "detailed_indices" can be set to assign the corresponding frames to the desired partitions.
+     In some special cases (e.g., non-transferable training) one molecule can be part of both partitions.
+     In this situation, "detailed_indices" can be set to assign the corresponding frames to the desired partitions.
+     In addition one can pass in detailed_indices as a dictionary to split frames based on training/test
+
 """
 
 import h5py
@@ -132,6 +134,7 @@ from torch_geometric.loader.dataloader import Collater as PyGCollater
 import torch_geometric.loader.dataloader  # for type hint
 from typing import Dict, List, Optional
 from mlcg.data import AtomicData
+from mlcg.utils import make_splits
 
 
 class MolData:
@@ -216,6 +219,26 @@ class MetaSet:
         self._cumulate_indices = [0]
 
     @staticmethod
+    def grab_n_frames(
+      hdf5_group,
+      mol_name,  
+    ):
+        '''
+            Returns number of frames for each mol name
+        '''
+        def retrieve_hdf(hdf_grp, hdf_key):
+            """Unified hdf retriever for attributes and dataset."""
+
+            def is_attr(hdf_key):
+                return hdf_key[:6] == "attrs:"
+
+            if is_attr(hdf_key):
+                return hdf_grp.attrs[hdf_key[6:]]
+            else:
+                return hdf_grp[hdf_key]
+        return retrieve_hdf(hdf5_group[mol_name], "attrs:N_frames")
+    
+    @staticmethod
     def create_from_hdf5_group(
         hdf5_group,
         mol_list,
@@ -284,7 +307,6 @@ class MetaSet:
                 detailed_indices is not None
                 and detailed_indices.get(mol_name) is not None
             ):
-                # this molecule need to be splitted according to the detailed indices
                 par_range = detailed_indices[mol_name]
                 split_per_index = True
             else:
@@ -536,6 +558,7 @@ class H5Dataset:
         # ^ dict containing all metasets in the HDF5 file
         self._partitions = {}  # dict containing the configured metasets
         self._partition_sample_info = {}
+        self._detailed_indices = {}
 
         # processing the hdf5 file
         for metaset_name in self._h5_root:
@@ -555,7 +578,7 @@ class H5Dataset:
             },
         )  # if no parallel entry, then target for single process
         for part_name in partition_options:
-            ## create a partition
+            ## create a partition, typical names are train/val
             part = Partition(part_name)
             part_info = partition_options[part_name]
             # TODO: check option consistency
@@ -569,13 +592,47 @@ class H5Dataset:
                 detailed_indices = part_info["metasets"][metaset_name].get(
                     "detailed_indices", None
                 )
+                
+                if detailed_indices is not None and isinstance(detailed_indices,Dict):
+                    if self._detailed_indices == {}:
+                        # Split into training and validation at first instance, 
+                        #   write out if specified in yaml and save for later reference
+                        for partition_key in partition_options.keys():
+                            self._detailed_indices[partition_key] = {}
+                            self._detailed_indices[partition_key][metaset_name] = {}
+                        if 'test' not in [*partition_options.keys()]:
+                            self._detailed_indices['test'] = {}
+                            self._detailed_indices['test'][metaset_name] = {}
+                            
+                        for mol_name in mol_list:
+                            if mol_name not in [*self._detailed_indices['train'][metaset_name].keys()]:
+                                required_keys = ['val_ratio','test_ratio','seed']
+                                for required_key in required_keys:
+                                    assert required_key in [*detailed_indices[mol_name].keys()]
+                                dataset_len = MetaSet.grab_n_frames(self._metaset_entries[metaset_name],mol_name)
+                                idx_train, idx_val, idx_test = make_splits(
+                                    dataset_len,**detailed_indices[mol_name]
+                                )
+                                ## make_splits returns as tensor but can only index with numpy 
+                                ##   inside create_hdf5_group
+                                self._detailed_indices['train'][metaset_name][mol_name] = idx_train.sort().values.numpy()
+                                self._detailed_indices['val'][metaset_name][mol_name] = idx_val.sort().values.numpy()
+                                self._detailed_indices['test'][metaset_name][mol_name] = idx_test.sort().values.numpy()
+                        if 'filename' in [*detailed_indices.keys()]:
+                            np.savez(detailed_indices['filename'],**self._detailed_indices)
+                    detailed_inds = self._detailed_indices[part_name][metaset_name]
+                elif isinstance(detailed_indices, List):
+                    detailed_inds = detailed_indices
+                else:
+                    detailed_inds = None
+                
                 stride = part_info["metasets"][metaset_name].get("stride", 1)
                 part.add_metaset(
                     metaset_name,
                     MetaSet.create_from_hdf5_group(
                         self._metaset_entries[metaset_name],
                         mol_list,
-                        detailed_indices,
+                        detailed_inds,
                         stride=stride,
                         hdf_key_mapping=hdf_key_mapping,
                         parallel=parallel,
