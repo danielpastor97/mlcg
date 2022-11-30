@@ -220,12 +220,13 @@ class MetaSet:
 
     @staticmethod
     def grab_n_frames(
-      hdf5_group,
-      mol_name,  
+        hdf5_group,
+        mol_name,
     ):
-        '''
-            Returns number of frames for each mol name
-        '''
+        """
+        Returns number of frames for each mol name
+        """
+
         def retrieve_hdf(hdf_grp, hdf_key):
             """Unified hdf retriever for attributes and dataset."""
 
@@ -236,8 +237,9 @@ class MetaSet:
                 return hdf_grp.attrs[hdf_key[6:]]
             else:
                 return hdf_grp[hdf_key]
+
         return retrieve_hdf(hdf5_group[mol_name], "attrs:N_frames")
-    
+
     @staticmethod
     def create_from_hdf5_group(
         hdf5_group,
@@ -592,40 +594,68 @@ class H5Dataset:
                 detailed_indices = part_info["metasets"][metaset_name].get(
                     "detailed_indices", None
                 )
-                
-                if detailed_indices is not None and isinstance(detailed_indices,Dict):
+
+                if detailed_indices is not None and isinstance(
+                    detailed_indices, Dict
+                ):
                     if self._detailed_indices == {}:
-                        # Split into training and validation at first instance, 
+                        # Split into training and validation at first instance,
                         #   write out if specified in yaml and save for later reference
                         for partition_key in partition_options.keys():
                             self._detailed_indices[partition_key] = {}
-                            self._detailed_indices[partition_key][metaset_name] = {}
-                        if 'test' not in [*partition_options.keys()]:
-                            self._detailed_indices['test'] = {}
-                            self._detailed_indices['test'][metaset_name] = {}
-                            
+                            self._detailed_indices[partition_key][
+                                metaset_name
+                            ] = {}
+                        if "test" not in [*partition_options.keys()]:
+                            self._detailed_indices["test"] = {}
+                            self._detailed_indices["test"][metaset_name] = {}
+
                         for mol_name in mol_list:
-                            if mol_name not in [*self._detailed_indices['train'][metaset_name].keys()]:
-                                required_keys = ['val_ratio','test_ratio','seed']
+                            if mol_name not in [
+                                *self._detailed_indices["train"][
+                                    metaset_name
+                                ].keys()
+                            ]:
+                                required_keys = [
+                                    "val_ratio",
+                                    "test_ratio",
+                                    "seed",
+                                ]
                                 for required_key in required_keys:
-                                    assert required_key in [*detailed_indices[mol_name].keys()]
-                                dataset_len = MetaSet.grab_n_frames(self._metaset_entries[metaset_name],mol_name)
-                                idx_train, idx_val, idx_test = make_splits(
-                                    dataset_len,**detailed_indices[mol_name]
+                                    assert required_key in [
+                                        *detailed_indices[mol_name].keys()
+                                    ]
+                                dataset_len = MetaSet.grab_n_frames(
+                                    self._metaset_entries[metaset_name],
+                                    mol_name,
                                 )
-                                ## make_splits returns as tensor but can only index with numpy 
+                                idx_train, idx_val, idx_test = make_splits(
+                                    dataset_len, **detailed_indices[mol_name]
+                                )
+                                ## make_splits returns as tensor but can only index with numpy
                                 ##   inside create_hdf5_group
-                                self._detailed_indices['train'][metaset_name][mol_name] = idx_train.sort().values.numpy()
-                                self._detailed_indices['val'][metaset_name][mol_name] = idx_val.sort().values.numpy()
-                                self._detailed_indices['test'][metaset_name][mol_name] = idx_test.sort().values.numpy()
-                        if 'filename' in [*detailed_indices.keys()]:
-                            np.savez(detailed_indices['filename'],**self._detailed_indices)
-                    detailed_inds = self._detailed_indices[part_name][metaset_name]
+                                self._detailed_indices["train"][metaset_name][
+                                    mol_name
+                                ] = idx_train.sort().values.numpy()
+                                self._detailed_indices["val"][metaset_name][
+                                    mol_name
+                                ] = idx_val.sort().values.numpy()
+                                self._detailed_indices["test"][metaset_name][
+                                    mol_name
+                                ] = idx_test.sort().values.numpy()
+                        if "filename" in [*detailed_indices.keys()]:
+                            np.savez(
+                                detailed_indices["filename"],
+                                **self._detailed_indices,
+                            )
+                    detailed_inds = self._detailed_indices[part_name][
+                        metaset_name
+                    ]
                 elif isinstance(detailed_indices, List):
                     detailed_inds = detailed_indices
                 else:
                     detailed_inds = None
-                
+
                 stride = part_info["metasets"][metaset_name].get("stride", 1)
                 part.add_metaset(
                     metaset_name,
