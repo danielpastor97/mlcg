@@ -598,7 +598,7 @@ class H5Dataset:
                 if detailed_indices is not None and isinstance(
                     detailed_indices, Dict
                 ):
-                    if self._detailed_indices == {}:
+                    if len(self._detailed_indices) == 0:
                         # Split into training and validation at first instance,
                         #   write out if specified in yaml and save for later reference
                         for partition_key in partition_options.keys():
