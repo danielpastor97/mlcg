@@ -150,11 +150,11 @@ def test_data_list_raises(
     if isinstance(expected_raise, Exception):
         with pytest.raises(expected_raise):
             simulation = _Simulation()
-            simulation.attach_configurations(initial_data_list)
+            simulation._attach_configurations(initial_data_list)
     if isinstance(expected_raise, UserWarning):
         with pytest.warns(expected_raise):
             simulation = _Simulation()
-            simulation.attach_configurations(initial_data_list)
+            simulation._attach_configurations(initial_data_list)
 
 
 @pytest.mark.skipif(
@@ -225,8 +225,9 @@ def test_simulation_run(
         mol, neighbor_lists, corruptor=None, add_masses=add_masses
     )
     simulation = sim_class(*sim_args, **sim_kwargs)
-    simulation.attach_configurations(initial_data_list, betas)
-    simulation.attach_model(full_model)
+    simulation.attach_model_and_configurations(
+        full_model, initial_data_list, betas
+    )
     simulation.simulate()
 
 
@@ -286,7 +287,7 @@ def test_overwrite_protection(
         open(filename, "w").close()
         sim_kwargs["filename"] = filename
         simulation = sim_class(*sim_args, **sim_kwargs)
-        simulation.attach_configurations(initial_data_list, betas)
+        simulation._attach_configurations(initial_data_list, betas)
         simulation.attach_model(full_model)
         simulation.simulate()
 
@@ -317,7 +318,7 @@ def test_exchange_detection():
         ),
     ]
     simulation = PTSimulation()
-    simulation.attach_configurations(
+    simulation._attach_configurations(
         test_data, betas
     )  # necessary to populate some attributes
 
@@ -363,7 +364,7 @@ def test_exchange_and_rescale():
     }
 
     simulation = PTSimulation()
-    simulation.attach_configurations(configurations, betas)
+    simulation._attach_configurations(configurations, betas)
 
     # randomize coordinates and velocites - as if we had run some simulation and the replicas
     # evolved independently in time.
@@ -472,7 +473,7 @@ def test_pt_velocity_init():
         )
 
     simulation = PTSimulation()
-    simulation.attach_configurations(configurations, betas)
+    simulation._attach_configurations(configurations, betas)
     print(simulation.initial_data.velocities)
 
     mass = 1.00
