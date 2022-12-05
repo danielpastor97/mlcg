@@ -142,7 +142,7 @@ class LangevinSimulation(_Simulation):
 
         return data, potential, forces
 
-    def _attach_configurations(
+    def attach_configurations(
         self, configurations: List[AtomicData], beta: Union[float, List[float]]
     ):
         """Setup the starting atomic configurations.
@@ -287,7 +287,7 @@ class OverdampedSimulation(_Simulation):
         self.diffusion = diffusion
         self._dtau = self.diffusion * self.dt
 
-    def _attach_configurations(
+    def attach_configurations(
         self, configurations: List[AtomicData], beta: Union[float, List[float]]
     ):
         """Setup the starting atomic configurations.
