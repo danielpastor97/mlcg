@@ -188,7 +188,7 @@ class _Simulation(object):
         self.model = model
 
     def _attach_configurations(
-        self, configurations: List[AtomicData], beta: Union[float, List[float]]
+        self, configurations: List[AtomicData], beta: Union[float, List[float]], overdamped: bool = False
     ):
         """Setup the starting atomic configurations.
 
@@ -202,7 +202,8 @@ class _Simulation(object):
         """
         self.validate_data_list(configurations)
         self.initial_data = self.collate(configurations).to(device=self.device)
-        self.initial_data[MASS_KEY] = self.initial_data[MASS_KEY].to(self.dtype)
+        if not overdamped:
+            self.initial_data[MASS_KEY] = self.initial_data[MASS_KEY].to(self.dtype)
         self.initial_data[POSITIONS_KEY] = self.initial_data[POSITIONS_KEY].to(
             self.dtype
         )

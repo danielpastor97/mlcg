@@ -301,7 +301,7 @@ class OverdampedSimulation(_Simulation):
             Desired temperature(s) of the simulation.
         """
         super(OverdampedSimulation, self)._attach_configurations(
-            configurations, beta
+            configurations, beta, overdamped=True
         )
 
         if MASS_KEY in self.initial_data:
