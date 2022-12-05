@@ -142,6 +142,7 @@ def test_data_list_raises(
     full_model = data_dictionary["model"]
     mol = data_dictionary["molecule"]
     neighbor_lists = data_dictionary["neighbor_lists"]
+    beta = 1
 
     initial_data_list = get_initial_data(
         mol, neighbor_lists, corruptor, add_masses=add_masses
@@ -150,11 +151,11 @@ def test_data_list_raises(
     if isinstance(expected_raise, Exception):
         with pytest.raises(expected_raise):
             simulation = _Simulation()
-            simulation._attach_configurations(initial_data_list)
+            simulation._attach_configurations(initial_data_list, beta)
     if isinstance(expected_raise, UserWarning):
         with pytest.warns(expected_raise):
             simulation = _Simulation()
-            simulation._attach_configurations(initial_data_list)
+            simulation._attach_configurations(initial_data_list, beta)
 
 
 @pytest.mark.skipif(
@@ -287,8 +288,9 @@ def test_overwrite_protection(
         open(filename, "w").close()
         sim_kwargs["filename"] = filename
         simulation = sim_class(*sim_args, **sim_kwargs)
-        simulation._attach_configurations(initial_data_list, betas)
-        simulation.attach_model(full_model)
+        simulation.attach_model_and_configurations(
+            full_model, initial_data_list, betas
+        )
         simulation.simulate()
 
         with pytest.raises(RuntimeError):
