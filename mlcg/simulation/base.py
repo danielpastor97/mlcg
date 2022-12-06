@@ -159,22 +159,8 @@ class _Simulation(object):
         configurations: List[AtomicData],
         beta: Union[float, List[float]],
     ):
-        # if self.specialize_priors:
-        #     model, configurations = condense_all_priors_for_simulation(
-        #         model, configurations
-        #     )
-        #     print("Prior models have been specialized for the simulation.")
-        # if self.filename is not None:
-        #     torch.save(
-        #         (model, configurations),
-        #         f"{self.filename}_specialized_model_and_config.pt",
-        #     )
         self._attach_model(model)
         self._attach_configurations(configurations, beta)
-
-        # if self.cuda_graph_priors and self.specialize_priors:
-        #     self.model = cgraph_static_priors(self.model, self.initial_data)
-        #     print(f"Prior models have been cuda graphed: {self.model}")
 
     def _attach_model(self, model: torch.nn.Module):
         """setup the model to use in the simulation
