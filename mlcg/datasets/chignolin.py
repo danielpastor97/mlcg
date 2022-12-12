@@ -52,7 +52,9 @@ class ChignolinDataset(InMemoryDataset):
 
     def download(self):
         # Download to `self.raw_dir`.
-        host_link = "http://ftp.mi.fu-berlin.de/pub/cmb-data/chignolin_trajectories/"
+        host_link = (
+            "http://ftp.mi.fu-berlin.de/pub/cmb-data/chignolin_trajectories/"
+        )
         url_forces = f"{host_link}/chignolin_forces_nowater.tar.gz"
         url_coords = f"{host_link}/chignolin_coords_nowater.tar.gz"
         url_inputs = f"{host_link}/chignolin_generators.tar.gz"
