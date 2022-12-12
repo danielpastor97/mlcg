@@ -52,10 +52,10 @@ class ChignolinDataset(InMemoryDataset):
 
     def download(self):
         # Download to `self.raw_dir`.
-        url_trajectory = "http://pub.htmd.org/chignolin_trajectories.tar.gz"
-        url_forces = "http://pub.htmd.org/chignolin_forces_nowater.tar.gz"
-        url_coords = "http://pub.htmd.org/chignolin_coords_nowater.tar.gz"
-        url_inputs = "http://pub.htmd.org/chignolin_generators.tar.gz"
+        host_link = "http://ftp.mi.fu-berlin.de/pub/cmb-data/chignolin_trajectories/"
+        url_forces = f"{host_link}/chignolin_forces_nowater.tar.gz"
+        url_coords = f"{host_link}/chignolin_coords_nowater.tar.gz"
+        url_inputs = f"{host_link}/chignolin_generators.tar.gz"
         path_inputs = download_url(url_inputs, self.raw_dir)
         path_coord = download_url(url_coords, self.raw_dir)
         path_forces = download_url(url_forces, self.raw_dir)
