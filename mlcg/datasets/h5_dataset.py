@@ -607,7 +607,6 @@ class H5Dataset:
                             part_name,
                             metaset_name,
                             mol_list,
-                            list(partition_options.keys()),
                         )
                     elif isinstance(input_detailed_indices, List):
                         detailed_indices = input_detailed_indices
@@ -728,9 +727,9 @@ class H5Dataset:
                         mol_name
                     ] = idx_test.sort().values.numpy()
             if "filename" in input_detailed_indices:
-                np.savez(
+                np.save(
                     input_detailed_indices["filename"],
-                    **self._detailed_indices,
+                    self._detailed_indices,
                 )
             assert (
                 part_name in self._detailed_indices
