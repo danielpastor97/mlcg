@@ -538,7 +538,10 @@ class Partition:
 
     def __repr__(self):
         return f"Partition `{self.name}` with Metasets:\n" + "\n".join(
-            [f'- "{k}": {v} samples' for k, v in sorted(self.sample_sizes.items())]
+            [
+                f'- "{k}": {v} samples'
+                for k, v in sorted(self.sample_sizes.items())
+            ]
         )
 
 
@@ -887,7 +890,9 @@ class H5PartitionDataLoader:
         self._metasets = []
         self._samplers = []
         self._pin_memory = pin_memory
-        for (metaset_name, batch_size) in sorted(data_partition.batch_sizes.items()):
+        for (metaset_name, batch_size) in sorted(
+            data_partition.batch_sizes.items()
+        ):
             metaset = data_partition.get_metaset(metaset_name)
             # ^ automatically checks whether the partition is sample_ready()
             self._metasets.append(metaset)
