@@ -878,7 +878,9 @@ class H5SimpleDataset(H5Dataset):
 
 
 class H5PartitionDataLoader:
-    """Load batches from one or multiple Metasets in a Partition."""
+    """Load batches from one or multiple Metasets in a Partition.
+    In multiple Metasets scenario, the order of data loaders will be
+    alphabetically ascending with respect to the Metaset names."""
 
     def __init__(
         self,
