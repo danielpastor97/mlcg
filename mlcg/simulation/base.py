@@ -213,7 +213,6 @@ class _Simulation(object):
 
             # save to arrays if relevant
             if (t + 1) % self.save_interval == 0:
-
                 # save arrays
                 self.save(
                     data=data,

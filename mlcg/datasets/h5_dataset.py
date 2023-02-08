@@ -892,7 +892,7 @@ class H5PartitionDataLoader:
         self._metasets = []
         self._samplers = []
         self._pin_memory = pin_memory
-        for (metaset_name, batch_size) in sorted(
+        for metaset_name, batch_size in sorted(
             data_partition.batch_sizes.items()
         ):
             metaset = data_partition.get_metaset(metaset_name)
@@ -920,7 +920,9 @@ class H5PartitionDataLoader:
                     )
                 )
             )
-        except RuntimeError as e:  # catch RuntimeError raised by drained sampler iterater
+        except (
+            RuntimeError
+        ) as e:  # catch RuntimeError raised by drained sampler iterater
             raise StopIteration()
         output = self._collater_fn(merged_samples)
         if self._pin_memory:

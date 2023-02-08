@@ -394,7 +394,8 @@ class PTSimulation(LangevinSimulation):
     def save_exchanges(self, data: AtomicData, save_step: int) -> None:
         """Save routine to record the ratio of acceptances/attempts for each temperature during the simulation.
         After saving to file, the acceptances/attempts are reset. For this particular method, the AtomicData
-        and save_step are not used, though they are included as arguments for the sake of saving"""
+        and save_step are not used, though they are included as arguments for the sake of saving
+        """
         key = self._get_numpy_count()
         np.save(
             "{}_acceptance_{}.npy".format(self.filename, key),

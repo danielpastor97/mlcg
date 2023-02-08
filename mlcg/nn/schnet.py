@@ -57,7 +57,6 @@ class SchNet(torch.nn.Module):
         self_interaction: bool = False,
         max_num_neighbors: int = 1000,
     ):
-
         super(SchNet, self).__init__()
 
         self.embedding_layer = embedding_layer
@@ -379,7 +378,6 @@ class StandardSchNet(SchNet):
         max_num_neighbors: int = 1000,
         aggr: str = "add",
     ):
-
         if num_interactions < 1:
             raise ValueError("At least one interaction block must be specified")
 

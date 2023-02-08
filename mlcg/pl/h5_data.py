@@ -152,7 +152,7 @@ class H5DataModule(pl.LightningDataModule):
             combined_loader = H5PartitionDataLoader(part)
         else:
             loaders = []
-            for (metaset_name, batch_size) in sorted(part.batch_sizes.items()):
+            for metaset_name, batch_size in sorted(part.batch_sizes.items()):
                 metaset = part.get_metaset(metaset_name)
                 loaders.append(
                     H5MetasetDataLoader(metaset, batch_size, shuffle=False)

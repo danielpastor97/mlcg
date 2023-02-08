@@ -87,7 +87,6 @@ class ForceRMSE(_Loss):
         reduce: Optional[bool] = None,
         reduction: str = "mean",
     ) -> None:
-
         super(ForceRMSE, self).__init__(
             size_average=size_average, reduce=reduce, reduction=reduction
         )
@@ -158,7 +157,6 @@ class ForceMSE(_Loss):
         reduce: Optional[bool] = None,
         reduction: str = "mean",
     ) -> None:
-
         super(ForceMSE, self).__init__(
             size_average=size_average, reduce=reduce, reduction=reduction
         )
@@ -166,7 +164,6 @@ class ForceMSE(_Loss):
         self.force_kwd = force_kwd
 
     def forward(self, data: AtomicData) -> torch.Tensor:
-
         if self.force_kwd not in data.out:
             raise RuntimeError(
                 f"target property {self.force_kwd} has not been computed in data.out {list(data.out.keys())}"
