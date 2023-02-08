@@ -64,9 +64,9 @@ An example "partition_options" (as a Python Mappable (e.g., dict)):
 						...
 					],
 					"stride": 1, # optional, default 1
-					"detailed_indices": { 
+					"detailed_indices": {
                         # optional, providing the indices of frames to work with (before striding and splitting for parallel processes).
-						# optional, 
+						# optional,
                             "opep_0000":
                                 val_ratio: 0.1
                                 test_ratio: 0.1
@@ -75,8 +75,8 @@ An example "partition_options" (as a Python Mappable (e.g., dict)):
                                 val_ratio: 0.1
                                 test_ratio: 0.1
                                 seed: 12345
-                            "filename": ./splits 
-                        
+                            "filename": ./splits
+
                         # If detailed_indices are not provided for a given molecule, then it is equivalent to np.arange(N_frames)
 						    "opep_0000": [1, 3, 5, 7, 9, ...],
 

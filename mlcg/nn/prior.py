@@ -4,6 +4,7 @@ from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit
 from typing import Final, Optional, Dict
 from math import pi
+import numpy as np
 
 from ..geometry.topology import Topology
 from ..geometry.internal_coordinates import (
@@ -65,12 +66,18 @@ class Harmonic(torch.nn.Module, _Prior):
         "bonds": 2,
         "angles": 3,
         "impropers": 4,
+        "omega": 4,
+        "gamma_1": 4,
+        "gamma_2": 4,
         "dihedrals": 4,
     }
     _compute_map = {
         "bonds": compute_distances,
         "angles": compute_angles,
         "impropers": compute_torsions,
+        "omega": compute_torsions,
+        "gamma_1": compute_torsions,
+        "gamma_2": compute_torsions,
         "dihedrals": compute_torsions,
     }
 
@@ -111,6 +118,18 @@ class Harmonic(torch.nn.Module, _Prior):
         mapping = data.neighbor_list[self.name]["index_mapping"]
         return Harmonic.compute_features(data.pos, mapping, self.name)
 
+    def data2parameters(self, data):
+        mapping = data.neighbor_list[self.name]["index_mapping"]
+        interaction_types = [
+            data.atom_types[mapping[ii]] for ii in range(self.order)
+        ]
+        params = {
+            "x0": self.x_0[interaction_types].flatten(),
+            "k": self.k[interaction_types].flatten(),
+        }
+        params["V0"] = torch.zeros_like(params["x0"])
+        return params
+
     def forward(self, data: AtomicData) -> AtomicData:
         """Forward pass through the harmonic interaction.
 
@@ -131,16 +150,10 @@ class Harmonic(torch.nn.Module, _Prior):
             populated with the predicted energies for each
             example/structure
         """
-
-        mapping = data.neighbor_list[self.name]["index_mapping"]
         mapping_batch = data.neighbor_list[self.name]["mapping_batch"]
-        interaction_types = [
-            data.atom_types[mapping[ii]] for ii in range(self.order)
-        ]
+        params = self.data2parameters(data)
         features = self.data2features(data).flatten()
-        y = Harmonic.compute(
-            features, self.x_0[interaction_types], self.k[interaction_types], 0
-        )
+        y = Harmonic.compute(features, **params)
         y = scatter(y, mapping_batch, dim=0, reduce="sum")
         data.out[self.name] = {"energy": y}
         return data
@@ -150,8 +163,7 @@ class Harmonic(torch.nn.Module, _Prior):
         return Harmonic._compute_map[target](pos, mapping)
 
     @staticmethod
-    def compute(x, x0, k, V0):
-        """Method defining the harmonic interaction"""
+    def compute(x, x0, k, V0=0):
         return k * (x - x0) ** 2 + V0
 
     @staticmethod
