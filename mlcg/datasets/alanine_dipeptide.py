@@ -74,7 +74,6 @@ class AlanineDataset(InMemoryDataset):
         pre_transform=None,
         pre_filter=None,
     ):
-
         self.stride = stride
         self.priors_cls = AlanineDataset._priors_cls
         self.beta = 1 / (AlanineDataset.temperature * AlanineDataset.kB)
@@ -169,7 +168,6 @@ class AlanineDataset(InMemoryDataset):
         for i, (cg_coord, cg_force) in enumerate(
             zip(cg_coords[:: self.stride], cg_forces[:: self.stride])
         ):
-
             pos = torch.from_numpy(cg_coord)
             z = torch.from_numpy(embeddings).long()
             force = torch.from_numpy(cg_force)

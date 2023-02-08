@@ -164,7 +164,7 @@ def multimol_split(
 
         split_prop = 0.0
         last_split_index = 0
-        for (part, prop) in sorted(
+        for part, prop in sorted(
             list(proportions.items()), key=lambda tup: -tup[1]
         ):
             target_prop = split_prop + prop

@@ -180,6 +180,9 @@ class PLModel(pl.LightningModule):
     def validation_step(
         self, data: AtomicData, batch_idx, dataloader_idx=0
     ) -> Tuple[torch.Tensor, int]:
+        """The order of separate validation losses (bearing the name `dataloader_idx_?`) will
+        be alphabetically ascending with respect to the Metaset names in the multi-metaset scenario.
+        """
         loss, batch_size = self.step(data, "validation")
         return loss, batch_size
 

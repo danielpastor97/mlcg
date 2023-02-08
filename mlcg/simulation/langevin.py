@@ -62,7 +62,6 @@ class LangevinSimulation(_Simulation):
     """
 
     def __init__(self, friction: float = 1e-3, **kwargs: Any):
-
         super(LangevinSimulation, self).__init__(**kwargs)
 
         assert friction > 0
@@ -279,7 +278,6 @@ class OverdampedSimulation(_Simulation):
     """
 
     def __init__(self, diffusion: float = 1.0, **kwargs: Any):
-
         super(OverdampedSimulation, self).__init__(**kwargs)
 
         assert diffusion is not None

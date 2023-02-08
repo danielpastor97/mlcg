@@ -538,7 +538,10 @@ class Partition:
 
     def __repr__(self):
         return f"Partition `{self.name}` with Metasets:\n" + "\n".join(
-            [f'- "{k}": {v} samples' for k, v in self.sample_sizes.items()]
+            [
+                f'- "{k}": {v} samples'
+                for k, v in sorted(self.sample_sizes.items())
+            ]
         )
 
 
@@ -875,7 +878,9 @@ class H5SimpleDataset(H5Dataset):
 
 
 class H5PartitionDataLoader:
-    """Load batches from one or multiple Metasets in a Partition."""
+    """Load batches from one or multiple Metasets in a Partition.
+    In multiple Metasets scenario, the order of data loaders will be
+    alphabetically ascending with respect to the Metaset names."""
 
     def __init__(
         self,
@@ -887,7 +892,9 @@ class H5PartitionDataLoader:
         self._metasets = []
         self._samplers = []
         self._pin_memory = pin_memory
-        for (metaset_name, batch_size) in data_partition.batch_sizes.items():
+        for metaset_name, batch_size in sorted(
+            data_partition.batch_sizes.items()
+        ):
             metaset = data_partition.get_metaset(metaset_name)
             # ^ automatically checks whether the partition is sample_ready()
             self._metasets.append(metaset)
@@ -913,7 +920,9 @@ class H5PartitionDataLoader:
                     )
                 )
             )
-        except RuntimeError as e:  # catch RuntimeError raised by drained sampler iterater
+        except (
+            RuntimeError
+        ) as e:  # catch RuntimeError raised by drained sampler iterater
             raise StopIteration()
         output = self._collater_fn(merged_samples)
         if self._pin_memory:

@@ -14,7 +14,6 @@ from mlcg.pl import PLModel, DataModule, LightningCLI
 
 
 if __name__ == "__main__":
-
     git = {
         "log": subprocess.getoutput('git log --format="%H" -n 1 -z'),
         "status": subprocess.getoutput("git status -z"),
