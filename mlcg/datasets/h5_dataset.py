@@ -145,7 +145,7 @@ import itertools
 import warnings
 from torch_geometric.loader.dataloader import Collater as PyGCollater
 import torch_geometric.loader.dataloader  # for type hint
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 from mlcg.data import AtomicData
 from mlcg.utils import make_splits
 
@@ -605,14 +605,26 @@ class H5Dataset:
 
                 if input_detailed_indices is not None:
                     if isinstance(input_detailed_indices, Dict):
-                        detailed_indices = self.training_validation_splitting(
-                            input_detailed_indices,
-                            part_name,
-                            metaset_name,
-                            mol_list,
-                        )
-                    elif isinstance(input_detailed_indices, List):
-                        detailed_indices = input_detailed_indices
+                        is_simple_detailed_indices = False
+                        for mol_name in mol_list:
+                            if isinstance(
+                                input_detailed_indices[mol_name], Sequence
+                            ):
+                                is_simple_detailed_indices = True
+                        if is_simple_detailed_indices:
+                            detailed_indices = dict(input_detailed_indices)
+                        else:
+                            detailed_indices = (
+                                self.training_validation_splitting(
+                                    input_detailed_indices,
+                                    part_name,
+                                    metaset_name,
+                                    mol_list,
+                                )
+                            )
+                    elif isinstance(input_detailed_indices, Sequence):
+                        assert len(mol_list) == 1
+                        detailed_indices = {mol_list[0]: input_detailed_indices}
                 else:
                     detailed_indices = None
 
@@ -698,6 +710,8 @@ class H5Dataset:
                 self._detailed_indices[partition_key][metaset_name] = {}
 
             for mol_name in mol_list:
+                # if isinstance(input_detailed_indices[mol_name], Sequence):
+
                 if (
                     mol_name
                     not in self._detailed_indices["train"][metaset_name]

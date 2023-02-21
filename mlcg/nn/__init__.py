@@ -5,6 +5,7 @@ from .cutoff import CosineCutoff, IdentityCutoff
 from .losses import ForceMSE, ForceRMSE, Loss
 from .prior import Harmonic, HarmonicAngles, HarmonicBonds, Repulsion, Dihedral
 from .mlp import MLP
+from .attention import ExactAttention, FavorAttention, Nonlocalinteractionblock
 
 try:
     from .mace_interface import MACEInterface
@@ -29,4 +30,11 @@ __all__ = [
     "HarmonicBonds",
     "Repulsion",
     "MLP",
+    "Attention",
+    "Residual",
+    "Residual_MLP",
+    "ResidualStack",
+    "ExactAttention",
+    "FavorAttention",
+    "Nonlocalinteractionblock",
 ]

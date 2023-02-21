@@ -172,10 +172,10 @@ class PLModel(pl.LightningModule):
             self.manual_backward(loss_2)
             optimizer.second_step(zero_grad=True)
 
-            return loss
         else:
             loss, _ = self.step(data, "training")
-            return loss
+
+        return loss
 
     def validation_step(
         self, data: AtomicData, batch_idx, dataloader_idx=0

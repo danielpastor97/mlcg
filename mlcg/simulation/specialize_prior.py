@@ -10,6 +10,8 @@ from ..data import AtomicData
 from ..nn.prior import (
     _Prior,
     Dihedral,
+    HarmonicBonds,
+    HarmonicAngles,
     HarmonicImpropers,
 )
 
@@ -35,6 +37,8 @@ with `Static` prepended and they are inherit from :obj:`StaticPrior`.
 #: register the types of prior that can be reduced
 to_reduce = {
     "Dihedral": Dihedral,
+    "HarmonicBonds": HarmonicBonds,
+    "HarmonicAngles": HarmonicAngles,
     "HarmonicImpropers": HarmonicImpropers,
 }
 
@@ -167,7 +171,6 @@ def condense_prior_for_simulation(
         for k, prior in priors.models.items():
             if isinstance(prior.model, TargetPrior):
                 pp = prior.model.data2parameters(data)
-
                 for kv, v in pp.items():
                     if v.ndim == 1:
                         v = torch.unsqueeze(v, dim=-1)

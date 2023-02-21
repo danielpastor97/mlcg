@@ -22,7 +22,8 @@ if __name__ == "__main__":
         PTSimulation
     )
 
-    simulation.attach_configurations(initial_data_list, betas=betas)
-    simulation.attach_model(model)
+    simulation.attach_model_and_configurations(
+        model, initial_data_list, beta=betas
+    )
     simulation.simulate()
     print(f"Ending simulation at {ctime()}")

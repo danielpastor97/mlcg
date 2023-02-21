@@ -514,10 +514,13 @@ class Dihedral(torch.nn.Module, _Prior):
     Prior that constrains dihedral planar angles using
     the following energy ansatz:
     .. math::
+
         V(\theta) = v_0 + \sum_{n=1}^{n_{deg}} k1_n \sin{(n\theta)} + k2_n\cos{(n\theta)}
+
     where :math:`n_{deg}` is the maximum number of terms to take in the sinusoidal series,
     :math:`v_0` is a constant offset, and :math:`k1_n` and :math:`k2_n` are coefficients
     for each term number :math:`n`.
+
     Parameters
     ----------
     statistics:
@@ -655,6 +658,7 @@ class Dihedral(torch.nn.Module, _Prior):
         """Compute the dihedral interaction for a list of angles and models
         parameters. The ineraction is computed as a sin/cos basis expansion up
         to N basis functions.
+
         Parameters
         ----------
         theta :
@@ -678,7 +682,12 @@ class Dihedral(torch.nn.Module, _Prior):
         # shape of k1s and k2s
         angles = theta.view(-1, 1) * n_degs.view(1, -1)
         V = k1s * torch.sin(angles) + k2s * torch.cos(angles)
-        return V.sum(dim=1) + v_0.view(-1)
+        # HOTFIX to avoid shape mismatch when using specialized priors
+        # TODO: think of a better fix
+        if v_0.ndim > 1:
+            v_0 = v_0[:, 0]
+
+        return V.sum(dim=1) + v_0
 
     @staticmethod
     def neg_log_likelihood(y, yhat):
@@ -812,6 +821,7 @@ class Dihedral(torch.nn.Module, _Prior):
             use either AIC ('aic') or adjusted R squared ('r2') for automated degree
             selection. If the automatic degree determination fails, users should
             consider searching for a proper constrained degree.
+
         Returns
         -------
         Dict:
