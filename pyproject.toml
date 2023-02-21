@@ -22,19 +22,3 @@ filterwarnings = [
     "ignore::DeprecationWarning"
 ]
 
-[tool.coverage.run]
-branch = true
-source = ["mlcg/"]
-omit = [
-    "**/test_*.py",
-    "**/__init__.py",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "if self.debug:" ,
-    "pragma: no cover" ,
-    "raise NotImplementedError" ,
-    "@(abc\\.)?abstractmethod" ,
-]
-ignore_errors = true
