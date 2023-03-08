@@ -120,7 +120,6 @@ class _Simulation(object):
         sim_subroutine: Optional[Callable] = None,
         sim_subroutine_interval: Optional[int] = None,
         save_subroutine: Optional[Callable] = None,
-        dtype: str = "single",
     ):
         self.model = None
         self.initial_data = None
