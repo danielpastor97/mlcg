@@ -172,14 +172,17 @@ class PLModel(pl.LightningModule):
             self.manual_backward(loss_2)
             optimizer.second_step(zero_grad=True)
 
-            return loss
         else:
             loss, _ = self.step(data, "training")
-            return loss
+
+        return loss
 
     def validation_step(
         self, data: AtomicData, batch_idx, dataloader_idx=0
     ) -> Tuple[torch.Tensor, int]:
+        """The order of separate validation losses (bearing the name `dataloader_idx_?`) will
+        be alphabetically ascending with respect to the Metaset names in the multi-metaset scenario.
+        """
         loss, batch_size = self.step(data, "validation")
         return loss, batch_size
 

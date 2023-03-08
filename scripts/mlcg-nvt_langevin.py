@@ -18,11 +18,16 @@ from mlcg.simulation import (
 
 if __name__ == "__main__":
     print(f"Starting simulation at {ctime()} with {LangevinSimulation}")
-    model, initial_data_list, betas, simulation = parse_simulation_config(
-        LangevinSimulation
-    )
+    (
+        model,
+        initial_data_list,
+        betas,
+        simulation,
+        profile,
+    ) = parse_simulation_config(LangevinSimulation)
 
-    simulation.attach_configurations(initial_data_list, beta=betas)
-    simulation.attach_model(model)
+    simulation.attach_model_and_configurations(
+        model, initial_data_list, beta=betas
+    )
     simulation.simulate()
     print(f"Ending simulation at {ctime()}")

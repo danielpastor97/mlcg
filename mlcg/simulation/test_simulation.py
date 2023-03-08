@@ -181,7 +181,7 @@ def test_simulation_device(seed, device):
         (
             ASE_prior_model,
             get_initial_data,
-            False,
+            True,
             OverdampedSimulation,
             [],
             1.0,
@@ -238,7 +238,7 @@ def test_simulation_run(
         (
             ASE_prior_model,
             get_initial_data,
-            False,
+            True,
             OverdampedSimulation,
             [],
             1.0,

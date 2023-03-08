@@ -4,6 +4,7 @@ from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit
 from typing import Final, Optional, Dict
 from math import pi
+import numpy as np
 
 from ..geometry.topology import Topology
 from ..geometry.internal_coordinates import (
@@ -65,12 +66,18 @@ class Harmonic(torch.nn.Module, _Prior):
         "bonds": 2,
         "angles": 3,
         "impropers": 4,
+        "omega": 4,
+        "gamma_1": 4,
+        "gamma_2": 4,
         "dihedrals": 4,
     }
     _compute_map = {
         "bonds": compute_distances,
         "angles": compute_angles,
         "impropers": compute_torsions,
+        "omega": compute_torsions,
+        "gamma_1": compute_torsions,
+        "gamma_2": compute_torsions,
         "dihedrals": compute_torsions,
     }
 
@@ -111,6 +118,18 @@ class Harmonic(torch.nn.Module, _Prior):
         mapping = data.neighbor_list[self.name]["index_mapping"]
         return Harmonic.compute_features(data.pos, mapping, self.name)
 
+    def data2parameters(self, data):
+        mapping = data.neighbor_list[self.name]["index_mapping"]
+        interaction_types = [
+            data.atom_types[mapping[ii]] for ii in range(self.order)
+        ]
+        params = {
+            "x0": self.x_0[interaction_types].flatten(),
+            "k": self.k[interaction_types].flatten(),
+        }
+        params["V0"] = torch.zeros_like(params["x0"])
+        return params
+
     def forward(self, data: AtomicData) -> AtomicData:
         """Forward pass through the harmonic interaction.
 
@@ -131,16 +150,10 @@ class Harmonic(torch.nn.Module, _Prior):
             populated with the predicted energies for each
             example/structure
         """
-
-        mapping = data.neighbor_list[self.name]["index_mapping"]
         mapping_batch = data.neighbor_list[self.name]["mapping_batch"]
-        interaction_types = [
-            data.atom_types[mapping[ii]] for ii in range(self.order)
-        ]
+        params = self.data2parameters(data)
         features = self.data2features(data).flatten()
-        y = Harmonic.compute(
-            features, self.x_0[interaction_types], self.k[interaction_types], 0
-        )
+        y = Harmonic.compute(features, **params)
         y = scatter(y, mapping_batch, dim=0, reduce="sum")
         data.out[self.name] = {"energy": y}
         return data
@@ -150,8 +163,7 @@ class Harmonic(torch.nn.Module, _Prior):
         return Harmonic._compute_map[target](pos, mapping)
 
     @staticmethod
-    def compute(x, x0, k, V0):
-        """Method defining the harmonic interaction"""
+    def compute(x, x0, k, V0=0):
         return k * (x - x0) ** 2 + V0
 
     @staticmethod
@@ -502,10 +514,13 @@ class Dihedral(torch.nn.Module, _Prior):
     Prior that constrains dihedral planar angles using
     the following energy ansatz:
     .. math::
+
         V(\theta) = v_0 + \sum_{n=1}^{n_{deg}} k1_n \sin{(n\theta)} + k2_n\cos{(n\theta)}
+
     where :math:`n_{deg}` is the maximum number of terms to take in the sinusoidal series,
     :math:`v_0` is a constant offset, and :math:`k1_n` and :math:`k2_n` are coefficients
     for each term number :math:`n`.
+
     Parameters
     ----------
     statistics:
@@ -643,6 +658,7 @@ class Dihedral(torch.nn.Module, _Prior):
         """Compute the dihedral interaction for a list of angles and models
         parameters. The ineraction is computed as a sin/cos basis expansion up
         to N basis functions.
+
         Parameters
         ----------
         theta :
@@ -666,7 +682,12 @@ class Dihedral(torch.nn.Module, _Prior):
         # shape of k1s and k2s
         angles = theta.view(-1, 1) * n_degs.view(1, -1)
         V = k1s * torch.sin(angles) + k2s * torch.cos(angles)
-        return V.sum(dim=1) + v_0.view(-1)
+        # HOTFIX to avoid shape mismatch when using specialized priors
+        # TODO: think of a better fix
+        if v_0.ndim > 1:
+            v_0 = v_0[:, 0]
+
+        return V.sum(dim=1) + v_0
 
     @staticmethod
     def neg_log_likelihood(y, yhat):
@@ -800,6 +821,7 @@ class Dihedral(torch.nn.Module, _Prior):
             use either AIC ('aic') or adjusted R squared ('r2') for automated degree
             selection. If the automatic degree determination fails, users should
             consider searching for a proper constrained degree.
+
         Returns
         -------
         Dict:

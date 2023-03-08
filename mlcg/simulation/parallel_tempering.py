@@ -18,6 +18,7 @@ from ..data._keys import (
 )
 from .base import _Simulation
 from .langevin import LangevinSimulation
+from .specialize_prior import condense_all_priors_for_simulation
 
 
 class PTSimulation(LangevinSimulation):
@@ -98,12 +99,63 @@ class PTSimulation(LangevinSimulation):
             self.n_replicas, self.n_replicas
         ).to(self.device)
 
+    def attach_model_and_configurations(
+        self,
+        model: torch.nn.Module,
+        configurations: List[AtomicData],
+        betas: List[float],
+    ):
+        if self.specialize_priors:
+            new_configurations = self._attach_configurations(
+                configurations, betas=betas
+            )
+            (
+                model,
+                condensed_configurations,
+            ) = condense_all_priors_for_simulation(model, new_configurations)
+            # Repeat attachment, this time with the condensed configurations
+            self._manually_reattach_configurations(condensed_configurations)
+            self._attach_model(model)
+            print("Prior models have been specialized for the simulation.")
+        else:
+            self._attach_configurations(configurations, betas=betas)
+            self._attach_model(model)
+
+        if self.filename is not None:
+            torch.save(
+                (deepcopy(model), deepcopy(configurations)),
+                f"{self.filename}_specialized_model_and_config.pt",
+            )
+
+    def _manually_reattach_configurations(
+        self, configurations: List[AtomicData]
+    ):
+        """Helper method that allows for re-attachment of prior-condensed configurations"""
+        self.validate_data_list(configurations)
+        self.initial_data = self.collate(configurations).to(device=self.device)
+        # Initialize velocities according to Maxwell-Boltzmann distribution
+        self.initial_data[
+            VELOCITY_KEY
+        ] = LangevinSimulation.sample_maxwell_boltzmann(
+            self.beta.repeat_interleave(self.n_atoms),
+            self.initial_data[MASS_KEY],
+        ).to(
+            self.dtype
+        )
+        self.initial_data[MASS_KEY] = self.initial_data[MASS_KEY].to(self.dtype)
+        self.initial_data[POSITIONS_KEY] = self.initial_data[POSITIONS_KEY].to(
+            self.dtype
+        )
+
     def _attach_configurations(
         self, configurations: List[AtomicData], betas: List[float]
-    ):
+    ) -> List[AtomicData]:
         r"""Attaches the configurations at each of the temperatures defined for
         parallel tempering simulations. If the initial configurations do not contain
-        specified velocities, all velocities will be initialized to zero.
+        specified velocities, all velocities will be initialized to zero. Unlike
+        other `_attach_configurations` methods of the other simulation classes,
+        this method also returns the extended configurations across all temperatures
+        for use in condensing the priors if specified for the simulation.
 
         Parameters
         ----------
@@ -112,6 +164,11 @@ class PTSimulation(LangevinSimulation):
         betas:
             List of floats, from largest to smallest, representing beta values
             for each subset of replicas
+
+        Returns
+        -------
+        new_configurations:
+            List of extended initial configurations across all temperatures
         """
 
         # beta checks
@@ -159,8 +216,14 @@ class PTSimulation(LangevinSimulation):
         ] = LangevinSimulation.sample_maxwell_boltzmann(
             self.beta.repeat_interleave(self.n_atoms),
             self.initial_data[MASS_KEY],
+        ).to(
+            self.dtype
         )
 
+        self.initial_data[MASS_KEY] = self.initial_data[MASS_KEY].to(self.dtype)
+        self.initial_data[POSITIONS_KEY] = self.initial_data[POSITIONS_KEY].to(
+            self.dtype
+        )
         self.beta_mass_ratio = torch.sqrt(
             1.0
             / self.beta.repeat_interleave(self.n_atoms)
@@ -204,6 +267,30 @@ class PTSimulation(LangevinSimulation):
         self.acceptance_matrix = torch.zeros(
             self.n_replicas, self.n_replicas
         ).to(self.device)
+
+        self.initial_pos_spread = (
+            torch.cat([data.pos.std(dim=1) for data in new_configurations])
+            .max()
+            .detach()
+            .cpu()
+        )
+        return new_configurations
+
+    def attach_model(self, model: torch.nn.Module):
+        warnings.warn(
+            "using 'attach_model' is deprecated, use 'attach_model_and_configurations' instead.",
+            DeprecationWarning,
+        )
+        self._attach_model(model)
+
+    def attach_configurations(
+        self, configurations: List[AtomicData], betas: List[float]
+    ):
+        warnings.warn(
+            "using 'attach_configurations' is deprecated, use 'attach_model_and_configurations' instead.",
+            DeprecationWarning,
+        )
+        self._attach_configurations(configurations, betas)
 
     def get_replica_info(self, replica_num: int = 0) -> Dict:
         """Returns information for the specified replica after the
@@ -394,7 +481,8 @@ class PTSimulation(LangevinSimulation):
     def save_exchanges(self, data: AtomicData, save_step: int) -> None:
         """Save routine to record the ratio of acceptances/attempts for each temperature during the simulation.
         After saving to file, the acceptances/attempts are reset. For this particular method, the AtomicData
-        and save_step are not used, though they are included as arguments for the sake of saving"""
+        and save_step are not used, though they are included as arguments for the sake of saving
+        """
         key = self._get_numpy_count()
         np.save(
             "{}_acceptance_{}.npy".format(self.filename, key),

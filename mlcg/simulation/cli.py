@@ -73,6 +73,14 @@ def parse_simulation_config(
         help="path to the starting configurations in pytorch format",
     )
 
+    parser.add_argument(
+        "-p",
+        "--profile",
+        type=str,
+        default="",
+        help="filename for the output profiling file",
+    )
+
     config = parser.parse_args()
 
     # Sanitize PTSimulation kwargs
@@ -91,8 +99,9 @@ def parse_simulation_config(
     betas = config.pop("betas")
     if len(betas) == 1:
         betas = betas[0]
+    profile = config.pop("profile")
 
-    return model, initial_data_list, betas, simulation
+    return model, initial_data_list, betas, simulation, profile
 
 
 class ConfigurationException(Exception):

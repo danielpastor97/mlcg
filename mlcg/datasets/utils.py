@@ -104,12 +104,12 @@ def write_PDB(
         modelIndex = 0
         file.write("MODEL     %4d \n" % modelIndex)
 
-        for (chainIndex, chain) in enumerate(topology.chains):
+        for chainIndex, chain in enumerate(topology.chains):
             chainName = chains[chainIndex].index
             # converts int to alphabet (0->a,1->b, etc.) to match convention
             chainName = chr(chainName + 97).upper()
             residues = list(chain.residues)
-            for (resIndex, res) in enumerate(residues):
+            for resIndex, res in enumerate(residues):
                 if len(res.name) > 3:
                     resName = res.name[:3]
                 else:
@@ -227,7 +227,6 @@ def _write_footer(file: TextIO, topology: Optional[md.Topology] = None):
         for atom1, atom2 in topology.bonds:
             conectBonds.append((atom1, atom2))
     if len(conectBonds) > 0:
-
         # Work out the index used in the PDB file for each atom.
 
         atomIndex = {}
@@ -322,10 +321,10 @@ def write_PSF(
         atom_index = 1
         pos_index = 0
         file.write("{:>8d} !NATOM \n".format(n_atoms))
-        for (_, chain) in enumerate(topology.chains):
+        for _, chain in enumerate(topology.chains):
             # converts int to alphabet (0->a,1->b, etc.) to match convention
             residues = list(chain.residues)
-            for (_, res) in enumerate(residues):
+            for _, res in enumerate(residues):
                 for atom in res.atoms:
                     atom_type = atom.name
                     atom_name = atom.name

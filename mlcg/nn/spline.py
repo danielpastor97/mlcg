@@ -21,7 +21,6 @@ class NaturalCubicSpline(nn.Module):
     """
 
     def __init__(self, coeffs: List[torch.Tensor]):
-
         super(NaturalCubicSpline, self).__init__()
         t, a, b, c, d = coeffs
 

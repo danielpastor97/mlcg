@@ -11,6 +11,11 @@ from ..data.atomic_data import AtomicData, ENERGY_KEY
 from ..geometry.internal_coordinates import compute_distances
 from .mlp import MLP
 from ._module_init import init_xavier_uniform
+from .attention import (
+    AttentiveInteractionBlock,
+    AttentiveInteractionBlock2,
+    Nonlocalinteractionblock,
+)
 
 
 class SchNet(torch.nn.Module):
@@ -57,7 +62,6 @@ class SchNet(torch.nn.Module):
         self_interaction: bool = False,
         max_num_neighbors: int = 1000,
     ):
-
         super(SchNet, self).__init__()
 
         self.embedding_layer = embedding_layer
@@ -118,9 +122,11 @@ class SchNet(torch.nn.Module):
         )
 
         rbf_expansion = self.rbf_layer(distances)
-
+        num_batch = data.batch[-1] + 1
         for block in self.interaction_blocks:
-            x = x + block(x, edge_index, distances, rbf_expansion)
+            x = x + block(
+                x, edge_index, distances, rbf_expansion, num_batch, data.batch
+            )
 
         energy = self.output_network(x)
         energy = scatter(energy, data.batch, dim=0, reduce="sum")
@@ -195,6 +201,7 @@ class InteractionBlock(torch.nn.Module):
         edge_index: torch.Tensor,
         edge_weight: torch.Tensor,
         edge_attr: torch.Tensor,
+        *args,
     ) -> torch.Tensor:
         r"""Forward pass through the interaction block.
 
@@ -379,7 +386,6 @@ class StandardSchNet(SchNet):
         max_num_neighbors: int = 1000,
         aggr: str = "add",
     ):
-
         if num_interactions < 1:
             raise ValueError("At least one interaction block must be specified")
 
@@ -420,11 +426,204 @@ class StandardSchNet(SchNet):
         output_layer_widths = (
             [hidden_channels] + output_hidden_layer_widths + [1]
         )
-        output_network = MLP(output_layer_widths, activation_func=activation)
+        output_network = MLP(
+            output_layer_widths, activation_func=activation, last_bias=False
+        )
         super(StandardSchNet, self).__init__(
             embedding_layer,
             interaction_blocks,
             rbf_layer,
             output_network,
+            max_num_neighbors=max_num_neighbors,
+        )
+
+
+class AttentiveSchNet(SchNet):
+    """Small wrapper class for :ref:`SchNet` to simplify the definition of the
+    SchNet model with an Interaction block that includes attention through an input file. The upper distance cutoff attribute
+    in is set by default to match the upper cutoff value in the cutoff function.
+
+    Parameters
+    ----------
+    rbf_layer:
+        radial basis function used to project the distances :math:`r_{ij}`.
+    cutoff:
+        smooth cutoff function to supply to the CFConv
+    output_hidden_layer_widths:
+        List giving the number of hidden nodes of each hidden layer of the MLP
+        used to predict the target property from the learned representation.
+    num_features_in:
+        size of each input sample for linear layer
+    num_features_out:
+        size of each output sample for liner layer
+    num_residuals_q, num_residuals_k, num_residuals_v:
+        Number of residual blocks applied to features via self-attention
+        for queries, keys, and values
+    attention_block:
+        Specify if you want to use softmax attention (input: ExactAttention) or favor+ (input: FavorAttention)
+    hidden_channels:
+        dimension of the learned representation, i.e. dimension of the embeding projection, convolution layers, and interaction block.
+    embedding_size:
+        dimension of the input embeddings (should be larger than :obj:`AtomicData.atom_types.max()+1`).
+    num_filters:
+        number of nodes of the networks used to filter the projected distances
+    num_interactions:
+        number of interaction blocks
+    activation:
+        activation function
+    max_num_neighbors:
+        The maximum number of neighbors to return for each atom in :obj:`data`.
+        If the number of actual neighbors is greater than
+        :obj:`max_num_neighbors`, returned neighbors are picked randomly.
+    aggr:
+        Aggregation scheme for continuous filter output. For all options,
+        see `here <https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class>`_
+        for more options.
+    activation_first:
+        Inverting the order of linear layers and activation functions.
+    attention_version:
+        Specifiy which interaction block architecture to choose. By default normal.
+
+    """
+
+    def __init__(
+        self,
+        rbf_layer: torch.nn.Module,
+        cutoff: torch.nn.Module,
+        output_hidden_layer_widths: List[int],
+        num_features_in: int,
+        num_features_out: int,
+        num_residual_q: int,
+        num_residual_k: int,
+        num_residual_v: int,
+        attention_block: torch.nn.Module,
+        hidden_channels: int = 128,
+        embedding_size: int = 100,
+        num_filters: int = 128,
+        num_interactions: int = 3,
+        activation_func: torch.nn.Module = torch.torch.nn.Tanh(),
+        max_num_neighbors: int = 1000,
+        layer_widths: List[int] = [128, 128],
+        activation_first: bool = False,
+        aggr: str = "add",
+        attention_version: str = "normal",
+    ):
+        if num_interactions < 1:
+            raise ValueError("At least one interaction block must be specified")
+
+        if cutoff.cutoff_lower != rbf_layer.cutoff.cutoff_lower:
+            warnings.warn(
+                "Cutoff function lower cutoff, {}, and radial basis function "
+                " lower cutoff, {}, do not match.".format(
+                    cutoff.cutoff_lower, rbf_layer.cutoff.cutoff_lower
+                )
+            )
+        if cutoff.cutoff_upper != rbf_layer.cutoff.cutoff_upper:
+            warnings.warn(
+                "Cutoff function upper cutoff, {}, and radial basis function "
+                " upper cutoff, {}, do not match.".format(
+                    cutoff.cutoff_upper, rbf_layer.cutoff.cutoff_upper
+                )
+            )
+
+        embedding_layer = torch.nn.Embedding(embedding_size, hidden_channels)
+
+        if attention_version == "normal":
+            attention_cls = AttentiveInteractionBlock
+        elif attention_version == "2":
+            attention_cls = AttentiveInteractionBlock2
+        else:
+            raise RuntimeError("attention_version not recognized")
+
+        interaction_blocks = []
+        for _ in range(num_interactions):
+            filter_network = MLP(
+                layer_widths=[rbf_layer.num_rbf, num_filters, num_filters],
+                activation_func=activation_func,
+            )
+
+            cfconv = CFConv(
+                filter_network,
+                cutoff=cutoff,
+                num_filters=num_filters,
+                in_channels=hidden_channels,
+                out_channels=hidden_channels,
+                aggr=aggr,
+            )
+
+            if all(
+                [
+                    arg != None
+                    for arg in [
+                        num_features_in,
+                        num_features_out,
+                        num_residual_q,
+                        num_residual_k,
+                        num_residual_v,
+                        attention_block,
+                    ]
+                ]
+            ):
+                int_block = Nonlocalinteractionblock(
+                    num_features_in,
+                    num_features_out,
+                    num_residual_q,
+                    num_residual_k,
+                    num_residual_v,
+                    attention_block,
+                )
+            elif all(
+                [
+                    arg == None
+                    for arg in [
+                        num_features_in,
+                        num_features_out,
+                        num_residual_q,
+                        num_residual_k,
+                        num_residual_v,
+                        attention_block,
+                    ]
+                ]
+            ):
+                int_block = None
+            else:
+                raise ValueError(
+                    "To use Attention, you must specify 'num_features_in','num_features_out','num_residual_q','num_residual_k', 'num_residual_v' and 'attention_block', but only {} was specified".format(
+                        [
+                            arg
+                            for arg in [
+                                num_features_in,
+                                num_features_out,
+                                num_residual_q,
+                                num_residual_k,
+                                num_residual_v,
+                                attention_block,
+                            ]
+                            if arg != None
+                        ]
+                    )
+                )
+
+            block = attention_cls(
+                cfconv_layer=cfconv,
+                hidden_channels=hidden_channels,
+                activation_func=activation_func,
+                attention_block=int_block,
+            )
+
+            interaction_blocks.append(block)
+        output_layer_widths = (
+            [hidden_channels] + output_hidden_layer_widths + [1]
+        )
+        output_network = MLP(
+            output_layer_widths,
+            activation_func=activation_func,
+            last_bias=False,
+        )
+        super(AttentiveSchNet, self).__init__(
+            interaction_blocks=interaction_blocks,
+            rbf_layer=rbf_layer,
+            embedding_layer=embedding_layer,
+            output_network=output_network,
             max_num_neighbors=max_num_neighbors,
         )

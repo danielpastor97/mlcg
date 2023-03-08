@@ -50,7 +50,6 @@ class DataModule(pl.LightningDataModule):
         loading_stride: int = 1,
         save_local_copy: bool = False,
     ) -> None:
-
         super(DataModule, self).__init__()
         # self.save_hyperparameters()
 

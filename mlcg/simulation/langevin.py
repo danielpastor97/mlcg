@@ -62,7 +62,6 @@ class LangevinSimulation(_Simulation):
     """
 
     def __init__(self, friction: float = 1e-3, **kwargs: Any):
-
         super(LangevinSimulation, self).__init__(**kwargs)
 
         assert friction > 0
@@ -167,6 +166,8 @@ class LangevinSimulation(_Simulation):
             ] = LangevinSimulation.sample_maxwell_boltzmann(
                 self.beta.repeat_interleave(self.n_atoms),
                 self.initial_data[MASS_KEY],
+            ).to(
+                self.dtype
             )
         assert (
             self.initial_data[VELOCITY_KEY].shape
@@ -176,7 +177,7 @@ class LangevinSimulation(_Simulation):
             1.0
             / self.beta.repeat_interleave(self.n_atoms)
             / self.initial_data[MASS_KEY]
-        )[:, None]
+        )[:, None].to(self.dtype)
 
     def _set_up_simulation(self, overwrite: bool = False):
         """Method to setup up saving and logging options"""
@@ -250,6 +251,15 @@ class LangevinSimulation(_Simulation):
                 self.simulated_kinetic_energies
             )
 
+    def attach_configurations(
+        self, configurations: List[AtomicData], beta: Union[float, List[float]]
+    ):
+        warnings.warn(
+            "using 'attach_configurations' is deprecated, use 'attach_model_and_configurations' instead.",
+            DeprecationWarning,
+        )
+        self._attach_configurations(configurations, beta)
+
 
 # pipe the doc from the base class into the child class so that it's properly
 # displayed by sphinx
@@ -279,7 +289,6 @@ class OverdampedSimulation(_Simulation):
     """
 
     def __init__(self, diffusion: float = 1.0, **kwargs: Any):
-
         super(OverdampedSimulation, self).__init__(**kwargs)
 
         assert diffusion is not None
@@ -342,6 +351,15 @@ class OverdampedSimulation(_Simulation):
         data[POSITIONS_KEY] = x_new
         potential, forces = self.calculate_potential_and_forces(data)
         return data, potential, forces
+
+    def attach_configurations(
+        self, configurations: List[AtomicData], beta: Union[float, List[float]]
+    ):
+        warnings.warn(
+            "using 'attach_configurations' is deprecated, use 'attach_model_and_configurations' instead.",
+            DeprecationWarning,
+        )
+        self._attach_configurations(configurations, beta)
 
 
 # pipe the doc from the base class into the child class so that it's properly

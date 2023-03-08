@@ -64,7 +64,7 @@ data_list = []
 
 for frame in range(mock_data_frames.shape[0]):
     neighbor_lists = {}
-    for (tag, order, edge_list) in zip(nls_tags, nls_orders, nls_edges):
+    for tag, order, edge_list in zip(nls_tags, nls_orders, nls_edges):
         neighbor_lists[tag] = make_neighbor_list(tag, order, edge_list)
         data_point = AtomicData(
             pos=mock_data_frames[frame],

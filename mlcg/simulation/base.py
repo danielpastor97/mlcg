@@ -5,7 +5,7 @@
 from typing import List, Optional, Tuple, Union, Callable
 import torch
 import numpy as np
-
+import warnings
 from torch_geometric.data.collate import collate
 import os
 import time
@@ -21,6 +21,7 @@ from ..data._keys import (
     VELOCITY_KEY,
     POSITIONS_KEY,
 )
+from .specialize_prior import condense_all_priors_for_simulation
 
 
 # Physical Constants
@@ -81,6 +82,10 @@ class _Simulation(object):
         is not None and log_type is 'write'. This provides the base file name;
         for numpy outputs, '_coords_000.npy' or similar is added. For log
         outputs, '_log.txt' is added.
+    specialize_priors: bool, default=False
+        use optimized version of the priors for a particular molecule
+    dtype : str, default='single'
+        precision to run the simulation with (single or double)
     sim_subroutine :
         Optional subroutine to run at at the interval specified by
         subroutine_interval after simulation updates. The subroutine should
@@ -105,10 +110,12 @@ class _Simulation(object):
         create_checkpoints: bool = False,
         random_seed: Optional[int] = None,
         device: str = "cpu",
+        dtype: str = "single",
         export_interval: Optional[int] = None,
         log_interval: Optional[int] = None,
         log_type: str = "write",
         filename: Optional[str] = None,
+        specialize_priors: bool = False,
         tqdm_refresh: float = 10,
         sim_subroutine: Optional[Callable] = None,
         sim_subroutine_interval: Optional[int] = None,
@@ -117,6 +124,7 @@ class _Simulation(object):
     ):
         self.model = None
         self.initial_data = None
+        self.specialize_priors = specialize_priors
         self.save_forces = save_forces
         self.save_energies = save_energies
         self.n_timesteps = n_timesteps
@@ -159,6 +167,16 @@ class _Simulation(object):
         configurations: List[AtomicData],
         beta: Union[float, List[float]],
     ):
+        if self.specialize_priors:
+            model, configurations = condense_all_priors_for_simulation(
+                model, configurations
+            )
+            print("Prior models have been specialized for the simulation.")
+        if self.filename is not None:
+            torch.save(
+                (model, configurations),
+                f"{self.filename}_specialized_model_and_config.pt",
+            )
         self._attach_model(model)
         self._attach_configurations(configurations, beta)
 
@@ -170,8 +188,7 @@ class _Simulation(object):
         model : torch.nn.Module
             Trained model used to generate simulation data
         """
-        model = model.eval().to(device=self.device)
-        self.model = model
+        self.model = model.eval().to(device=self.device, dtype=self.dtype)
 
     def _attach_configurations(
         self,
@@ -180,7 +197,6 @@ class _Simulation(object):
         overdamped: bool = False,
     ):
         """Setup the starting atomic configurations.
-
         Parameters
         ----------
         configurations : List[AtomicData]
@@ -201,6 +217,12 @@ class _Simulation(object):
         self.n_sims = len(configurations)
         self.n_atoms = len(configurations[0].atom_types)
         self.n_dims = configurations[0].pos.shape[1]
+        self.initial_pos_spread = (
+            torch.cat([data.pos.std(dim=1) for data in configurations])
+            .max()
+            .detach()
+            .cpu()
+        )
 
         if isinstance(beta, float):
             if beta <= 0:
@@ -220,10 +242,11 @@ class _Simulation(object):
                         self.beta
                     )
                 )
+        self.beta = self.beta.to(self.dtype)
         assert all([torch.isfinite(b) for b in self.beta])
         assert len(self.beta) == len(configurations)
 
-    def simulate(self, overwrite: bool = False) -> np.ndarray:
+    def simulate(self, overwrite: bool = False, prof=None) -> np.ndarray:
         """Generates independent simulations.
 
         Parameters
@@ -253,7 +276,6 @@ class _Simulation(object):
 
             # save to arrays if relevant
             if (t + 1) % self.save_interval == 0:
-
                 # save arrays
                 self.save(
                     data=data,
@@ -284,7 +306,8 @@ class _Simulation(object):
 
             # reset data outputs to collect the new forces/energies
             data.out = {}
-
+            if prof:
+                prof.step()
         # if relevant, save the remainder of the simulation
         if self.export_interval is not None:
             if int(t + 1) % self.export_interval > 0:
@@ -675,3 +698,19 @@ class _Simulation(object):
             self.simulated_potential = self._swap_and_export(
                 self.simulated_potential
             )
+
+    def attach_model(self, model: torch.nn.Module):
+        warnings.warn(
+            "using 'attach_model' is deprecated, use 'attach_model_and_configurations' instead.",
+            DeprecationWarning,
+        )
+        self._attach_model(model)
+
+    def attach_configurations(
+        self, configurations: List[AtomicData], beta: Union[float, List[float]]
+    ):
+        warnings.warn(
+            "using 'attach_configurations' is deprecated, use 'attach_model_and_configurations' instead.",
+            DeprecationWarning,
+        )
+        self._attach_configurations(configurations, beta)

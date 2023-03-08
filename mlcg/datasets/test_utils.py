@@ -26,7 +26,6 @@ def test_mdtraj_dump():
     correctly when it is later loaded by MDTraj later"""
 
     with tempfile.TemporaryDirectory() as temp_dir:
-
         ala2_pdb = (
             "MODEL        0\n"
             "ATOM      5  C   ACE A   1       2.770  25.800   1.230  1.00  0.00           C\n"

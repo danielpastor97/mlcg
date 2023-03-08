@@ -43,7 +43,6 @@ def make_hdf5(tdir, detailed_idx=True):
 
 
 def test_metaset_props():
-
     # Test attributes and trimming
     with tempfile.TemporaryDirectory() as tdir:
         f, mol_list, _ = make_hdf5(tdir)
