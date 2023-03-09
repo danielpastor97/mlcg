@@ -1,6 +1,6 @@
 # This code is adapted from https://github.com/coarse-graining/cgnet
 # Authors: Brooke Husic, Nick Charron, Jiang Wang
-# Contributors: Dominik Lemm, Andreas Kraemer
+# Contributors: Dominik Lemm, Andreas Kraemer, Clark Templeton
 
 from typing import List, Optional, Tuple, Union, Callable
 import torch
@@ -47,10 +47,10 @@ class _Simulation(object):
         coordinates
     create_checkpoints: bool, default=False
         Save the atomic data object so it can be reloaded in. Overwrites previous object.
+    current_timstep: int, default=0
+        index of filename to initiate simulation from
     n_timesteps : int, default=100
         The length of the simulation in simulation timesteps
-    first_timestep : int, default=0
-        where to start simulation file coordinate naming
     save_interval : int, default=10
         The interval at which simulation timesteps should be saved. Must be
         a factor of the simulation length
@@ -108,6 +108,7 @@ class _Simulation(object):
         n_timesteps: int = 100,
         save_interval: int = 10,
         create_checkpoints: bool = False,
+        current_timstep: Optional[int] = 0,
         random_seed: Optional[int] = None,
         device: str = "cpu",
         dtype: str = "single",
@@ -138,6 +139,7 @@ class _Simulation(object):
         self.export_interval = export_interval
         self.log_interval = log_interval
         self.create_checkpoints = create_checkpoints
+        self.current_timstep = current_timstep
 
         if log_type not in ["print", "write"]:
             raise ValueError("log_type can be either 'print' or 'write'")
@@ -485,15 +487,15 @@ class _Simulation(object):
 
         # saving numpys
         if self.export_interval is not None:
-            if self.n_timesteps // self.export_interval >= 1000:
+            if self.n_timesteps // self.export_interval >= 10000:
                 raise ValueError(
-                    "Simulation saving is not implemented if more than 1000 files will be generated"
+                    "Simulation saving is not implemented if more than 10000 files will be generated"
                 )
 
-            if os.path.isfile("{}_coords_000.npy".format(self.filename)):
+            if os.path.isfile("{}_coords_{}.npy".format(self.filename,self.current_timstep)):
                 raise ValueError(
                     "{} already exists; choose a different filename.".format(
-                        "{}_coords_000.npy".format(self.filename)
+                        "{}_coords_{}.npy".format(self.filename,self.current_timstep)
                     )
                 )
 
@@ -502,7 +504,7 @@ class _Simulation(object):
                     raise ValueError(
                         "Numpy saving must occur at a multiple of save_interval"
                     )
-                self._npy_file_index = self.first_timestep
+                self._npy_file_index = self.current_timstep
                 self._npy_starting_index = 0
 
         # logging
@@ -678,9 +680,11 @@ class _Simulation(object):
             )
 
         if self.create_checkpoints:
-            np.save(
-                "{}_checkpoint.npy".format(self.filename),
-                self.checkpoint.to_dict(),
+            checkpoint_dict = self.checkpoint.to_dict()
+            checkpoint_dict['current_timestep'] = int(key)+1
+            torch.save(
+                checkpoint_dict,
+                "{}_checkpoint.pt".format(self.filename),
             )
 
         self._npy_starting_index = iter_

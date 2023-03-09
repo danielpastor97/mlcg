@@ -288,13 +288,11 @@ class OverdampedSimulation(_Simulation):
         parameters in the case that they have some estimate of the diffusion.
     """
 
-    def __init__(self, diffusion: float = 1.0, **kwargs: Any):
+    def __init__(self, friction: float = 1.0, **kwargs: Any):
         super(OverdampedSimulation, self).__init__(**kwargs)
 
-        assert diffusion is not None
-        assert diffusion > 0
-        self.diffusion = diffusion
-        self._dtau = self.diffusion * self.dt
+        assert friction > 0
+        self.friction = friction
 
     def _attach_configurations(
         self, configurations: List[AtomicData], beta: Union[float, List[float]]
@@ -319,6 +317,8 @@ class OverdampedSimulation(_Simulation):
                 "an overdamped Langevin scheme is being used for integration."
             )
         self.expanded_beta = self.beta.repeat_interleave(self.n_atoms)[:, None]
+        self.diffusion = 1/self.expanded_beta/self.friction
+        self._dtau = self.diffusion * self.dt
 
     def timestep(
         self, data: AtomicData, forces: torch.Tensor
@@ -346,7 +346,7 @@ class OverdampedSimulation(_Simulation):
         x_new = (
             x_old.detach()
             + forces * self._dtau
-            + np.sqrt(2 * self._dtau / self.expanded_beta) * noise
+            + np.sqrt(2 * self._dtau) * noise
         )
         data[POSITIONS_KEY] = x_new
         potential, forces = self.calculate_potential_and_forces(data)
