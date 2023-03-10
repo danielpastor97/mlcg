@@ -48,7 +48,7 @@ class _Simulation(object):
     create_checkpoints: bool, default=False
         Save the atomic data object so it can be reloaded in. Overwrites previous object.
     read_checkpoint_file: [str,bool], default=None
-        Whether to read in checkpoint file from. Can specify explicit file path or try to infer from self.filename 
+        Whether to read in checkpoint file from. Can specify explicit file path or try to infer from self.filename
     n_timesteps : int, default=100
         The length of the simulation in simulation timesteps
     save_interval : int, default=10
@@ -140,6 +140,8 @@ class _Simulation(object):
         self.log_interval = log_interval
         self.create_checkpoints = create_checkpoints
         self.read_checkpoint_file = read_checkpoint_file
+        if self.read_checkpoint_file == False:
+            self.read_checkpoint_file = None
 
         if log_type not in ["print", "write"]:
             raise ValueError("log_type can be either 'print' or 'write'")
@@ -227,8 +229,12 @@ class _Simulation(object):
 
         # Load in checkpointed data values and then wipe to conserve space
         if self.checkpointed_data is not None:
-            self.initial_data[VELOCITY_KEY] = self.checkpointed_data[VELOCITY_KEY]
-            self.initial_data[POSITIONS_KEY] = self.checkpointed_data[POSITIONS_KEY]
+            self.initial_data[VELOCITY_KEY] = self.checkpointed_data[
+                VELOCITY_KEY
+            ]
+            self.initial_data[POSITIONS_KEY] = self.checkpointed_data[
+                POSITIONS_KEY
+            ]
             self.checkpointed_data = None
 
         if isinstance(beta, float):
@@ -490,17 +496,17 @@ class _Simulation(object):
                 raise RuntimeError(
                     "Must specify filename if log_interval isn't None and log_type=='write'"
                 )
-            
+
         # checkpoint loading
         if self.read_checkpoint_file is not None:
-            if isinstance(self.read_checkpoint_file,str):
+            if isinstance(self.read_checkpoint_file, str):
                 checkpointed_data = torch.load(self.read_checkpoint_file)
             elif self.read_checkpoint_file:
                 fn = "{}_checkpoint.pt".format(self.filename)
                 assert os.path.exists(fn), "{fn} does not exist"
                 checkpointed_data = torch.load(fn)
-            self.checkpointed_data = checkpointed_data 
-            self.current_timestep = self.checkpointed_data['current_timestep']
+            self.checkpointed_data = checkpointed_data
+            self.current_timestep = self.checkpointed_data["current_timestep"]
         else:
             self.checkpointed_data = None
             self.current_timestep = 0
@@ -512,10 +518,14 @@ class _Simulation(object):
                     "Simulation saving is not implemented if more than 10000 files will be generated"
                 )
 
-            if os.path.isfile("{}_coords_{}.npy".format(self.filename,self.current_timestep)):
+            if os.path.isfile(
+                "{}_coords_{}.npy".format(self.filename, self.current_timestep)
+            ):
                 raise ValueError(
                     "{} already exists; choose a different filename.".format(
-                        "{}_coords_{}.npy".format(self.filename,self.current_timestep)
+                        "{}_coords_{}.npy".format(
+                            self.filename, self.current_timestep
+                        )
                     )
                 )
 
@@ -702,7 +712,7 @@ class _Simulation(object):
 
         if self.create_checkpoints:
             checkpoint_dict = self.checkpoint.to_dict()
-            checkpoint_dict['current_timestep'] = int(key)+1
+            checkpoint_dict["current_timestep"] = int(key) + 1
             torch.save(
                 checkpoint_dict,
                 "{}_checkpoint.pt".format(self.filename),
