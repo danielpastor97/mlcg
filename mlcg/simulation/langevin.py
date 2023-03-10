@@ -317,7 +317,7 @@ class OverdampedSimulation(_Simulation):
                 "an overdamped Langevin scheme is being used for integration."
             )
         self.expanded_beta = self.beta.repeat_interleave(self.n_atoms)[:, None]
-        self.diffusion = 1/self.expanded_beta/self.friction
+        self.diffusion = 1 / self.expanded_beta / self.friction
         self._dtau = self.diffusion * self.dt
 
     def timestep(
