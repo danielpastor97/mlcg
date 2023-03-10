@@ -142,6 +142,7 @@ def test_data_list_raises(
     full_model = data_dictionary["model"]
     mol = data_dictionary["molecule"]
     neighbor_lists = data_dictionary["neighbor_lists"]
+    beta = 1
 
     initial_data_list = get_initial_data(
         mol, neighbor_lists, corruptor, add_masses=add_masses
@@ -150,11 +151,11 @@ def test_data_list_raises(
     if isinstance(expected_raise, Exception):
         with pytest.raises(expected_raise):
             simulation = _Simulation()
-            simulation._attach_configurations(initial_data_list)
+            simulation._attach_configurations(initial_data_list, beta)
     if isinstance(expected_raise, UserWarning):
         with pytest.warns(expected_raise):
             simulation = _Simulation()
-            simulation._attach_configurations(initial_data_list)
+            simulation._attach_configurations(initial_data_list, beta)
 
 
 @pytest.mark.skipif(
@@ -319,7 +320,7 @@ def test_exchange_detection():
         ),
     ]
     simulation = PTSimulation()
-    simulation.attach_configurations(
+    simulation._attach_configurations(
         test_data, betas
     )  # necessary to populate some attributes
 
@@ -365,7 +366,7 @@ def test_exchange_and_rescale():
     }
 
     simulation = PTSimulation()
-    simulation.attach_configurations(configurations, betas)
+    simulation._attach_configurations(configurations, betas)
 
     # randomize coordinates and velocites - as if we had run some simulation and the replicas
     # evolved independently in time.
@@ -474,7 +475,7 @@ def test_pt_velocity_init():
         )
 
     simulation = PTSimulation()
-    simulation.attach_configurations(configurations, betas)
+    simulation._attach_configurations(configurations, betas)
     print(simulation.initial_data.velocities)
 
     mass = 1.00

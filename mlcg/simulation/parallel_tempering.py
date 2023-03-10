@@ -200,9 +200,7 @@ class PTSimulation(LangevinSimulation):
             for configuration in configurations:
                 config = deepcopy(configuration)
                 new_configurations.append(config)
-        self.beta = (
-            torch.tensor(extended_betas).to(device=self.device).to(self.dtype)
-        )
+        self.beta = torch.tensor(extended_betas).to(self.device).to(self.dtype)
 
         self.validate_data_list(new_configurations)
         self.initial_data = self.collate(new_configurations).to(
