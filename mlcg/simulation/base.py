@@ -503,7 +503,7 @@ class _Simulation(object):
                 checkpointed_data = torch.load(self.read_checkpoint_file)
             elif self.read_checkpoint_file:
                 fn = "{}_checkpoint.pt".format(self.filename)
-                assert os.path.exists(fn), "{fn} does not exist"
+                assert os.path.exists(fn), f"{fn} does not exist"
                 checkpointed_data = torch.load(fn)
             self.checkpointed_data = checkpointed_data
             self.current_timestep = self.checkpointed_data["current_timestep"]
