@@ -47,8 +47,8 @@ class _Simulation(object):
         coordinates
     create_checkpoints: bool, default=False
         Save the atomic data object so it can be reloaded in. Overwrites previous object.
-    current_timstep: int, default=0
-        index of filename to initiate simulation from
+    read_checkpoint_file: [str,bool], default=None
+        Whether to read in checkpoint file from. Can specify explicit file path or try to infer from self.filename 
     n_timesteps : int, default=100
         The length of the simulation in simulation timesteps
     save_interval : int, default=10
@@ -108,7 +108,7 @@ class _Simulation(object):
         n_timesteps: int = 100,
         save_interval: int = 10,
         create_checkpoints: bool = False,
-        current_timstep: Optional[int] = 0,
+        read_checkpoint_file: Union[str, bool] = None,
         random_seed: Optional[int] = None,
         device: str = "cpu",
         dtype: str = "single",
@@ -139,7 +139,7 @@ class _Simulation(object):
         self.export_interval = export_interval
         self.log_interval = log_interval
         self.create_checkpoints = create_checkpoints
-        self.current_timstep = current_timstep
+        self.read_checkpoint_file = read_checkpoint_file
 
         if log_type not in ["print", "write"]:
             raise ValueError("log_type can be either 'print' or 'write'")
@@ -224,6 +224,12 @@ class _Simulation(object):
             .detach()
             .cpu()
         )
+
+        # Load in checkpointed data values and then wipe to conserve space
+        if self.checkpointed_data is not None:
+            self.initial_data[VELOCITY_KEY] = self.checkpointed_data[VELOCITY_KEY]
+            self.initial_data[POSITIONS_KEY] = self.checkpointed_data[POSITIONS_KEY]
+            self.checkpointed_data = None
 
         if isinstance(beta, float):
             if beta <= 0:
@@ -484,6 +490,20 @@ class _Simulation(object):
                 raise RuntimeError(
                     "Must specify filename if log_interval isn't None and log_type=='write'"
                 )
+            
+        # checkpoint loading
+        if self.read_checkpoint_file is not None:
+            if isinstance(self.read_checkpoint_file,str):
+                checkpointed_data = torch.load(self.read_checkpoint_file)
+            elif self.read_checkpoint_file:
+                fn = "{}_checkpoint.pt".format(self.filename)
+                assert os.path.exists(fn), "{fn} does not exist"
+                checkpointed_data = torch.load(fn)
+            self.checkpointed_data = checkpointed_data 
+            self.current_timestep = self.checkpointed_data['current_timestep']
+        else:
+            self.checkpointed_data = None
+            self.current_timestep = 0
 
         # saving numpys
         if self.export_interval is not None:
@@ -492,10 +512,10 @@ class _Simulation(object):
                     "Simulation saving is not implemented if more than 10000 files will be generated"
                 )
 
-            if os.path.isfile("{}_coords_{}.npy".format(self.filename,self.current_timstep)):
+            if os.path.isfile("{}_coords_{}.npy".format(self.filename,self.current_timestep)):
                 raise ValueError(
                     "{} already exists; choose a different filename.".format(
-                        "{}_coords_{}.npy".format(self.filename,self.current_timstep)
+                        "{}_coords_{}.npy".format(self.filename,self.current_timestep)
                     )
                 )
 
@@ -504,7 +524,7 @@ class _Simulation(object):
                     raise ValueError(
                         "Numpy saving must occur at a multiple of save_interval"
                     )
-                self._npy_file_index = self.current_timstep
+                self._npy_file_index = self.current_timestep
                 self._npy_starting_index = 0
 
         # logging
@@ -518,11 +538,12 @@ class _Simulation(object):
                 self._log_file = self.filename + "_log.txt"
 
                 if os.path.isfile(self._log_file):
-                    raise ValueError(
-                        "{} already exists; choose a different filename.".format(
-                            self._log_file
+                    if self.checkpointed_data is None:
+                        raise ValueError(
+                            "{} already exists; choose a different filename.".format(
+                                self._log_file
+                            )
                         )
-                    )
         # simulation subroutine
         if self.sim_subroutine != None and self.sim_subroutine_interval == None:
             raise ValueError(
