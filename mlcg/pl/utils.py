@@ -1,6 +1,6 @@
 import torch
 import pytorch_lightning.plugins as plp
-from pytorch_lightning.plugins.environments.cluster_environment import (
+from pytorch_lightning.plugins.environments import (
     ClusterEnvironment,
 )
 from typing import List, Optional, Union, Any, Dict

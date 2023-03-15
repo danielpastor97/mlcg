@@ -1,6 +1,6 @@
 import os.path as osp
 import torch
-import pytorch_lightning.utilities.cli as plc
+import pytorch_lightning.cli as plc
 from torch_geometric.data.makedirs import makedirs
 import torch_optimizer as optim
 
@@ -22,33 +22,11 @@ class LightningCLI(plc.LightningCLI):
 
     """
 
-    def add_arguments_to_parser(self, parser):
-        # TODO: remove when pl 1.5.0 is out as a stable release
-        parser.add_optimizer_args(
-            (
-                torch.optim.AdamW,
-                torch.optim.Adam,
-                torch.optim.Adagrad,
-                torch.optim.Adadelta,
-                torch.optim.LBFGS,
-                optim.Lamb,
-                optim.NovoGrad,
-                optim.Yogi,
-            ),
-            link_to="model.optimizer",
-        )
-        parser.add_lr_scheduler_args(
-            (
-                torch.optim.lr_scheduler.ExponentialLR,
-                torch.optim.lr_scheduler.ReduceLROnPlateau,
-                torch.optim.lr_scheduler.CosineAnnealingLR,
-            ),
-            link_to="model.lr_scheduler",
-        )
-
-    def parse_arguments(self, parser: plc.LightningArgumentParser) -> None:
+    def parse_arguments(
+        self, parser: plc.LightningArgumentParser, args: plc.ArgsType
+    ) -> None:
         """Parses command line arguments and stores it in self.config"""
-        self.config = self.parser.parse_args()
+        super().parse_arguments(parser, args)
         if "subcommand" in self.config:
             config = self.config[self.config["subcommand"]]
         else:

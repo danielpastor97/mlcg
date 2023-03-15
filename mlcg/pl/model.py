@@ -1,6 +1,6 @@
 import torch
 import pytorch_lightning as pl
-from pytorch_lightning.utilities.cli import instantiate_class
+from pytorch_lightning.cli import instantiate_class
 from pytorch_lightning.utilities.finite_checks import detect_nan_parameters
 from typing import Optional, Tuple
 from copy import deepcopy
@@ -29,33 +29,12 @@ class PLModel(pl.LightningModule):
             instance of a model class from :ref:`mlcg.nn`.
         loss:
             instance of :ref:`mlcg.nn.Loss`.
-        optimizer:
-            The optimizer to use to train the model in the form of `{"class_path":...[,"init_args":...]}`, where `"class_path"` is a class type, e.g. `"mlcg.nn.Cutoff"`, and `"init_args"` is a list of initialization arguments.
-        lr_scheduler:
-            The learning rate scheduler to use to train the model in the form of `{"class_path":...[,"init_args":...]}`, where `"class_path"` is a class type, e.g. `"mlcg.nn.Cutoff"`, and `"init_args"` is a list of initialization arguments.
-        monitor:
-            Metric to to monitor for schedulers like `ReduceLROnPlateau`.
-        step_frequency:
-            How many epochs/steps should pass between calls to
-            `scheduler.step()`. 1 corresponds to updating the learning
-            rate after every epoch/step.
-        sam:
-            dictionary containing the parameters ::
-
-                `{"use_sam": False,"adaptive":True,"rho":0.5}`
-
-            (see https://github.com/davda54/sam for more details)
     """
 
     def __init__(
         self,
         model: torch.nn.Module,
         loss: Loss,
-        optimizer: Optional[dict] = None,
-        lr_scheduler: Optional[dict] = None,
-        monitor: Optional[str] = None,
-        step_frequency: int = 1,
-        sam: Optional[dict] = None,
     ) -> None:
         """ """
 
@@ -64,62 +43,13 @@ class PLModel(pl.LightningModule):
         self.save_hyperparameters()
         self.model = model
         self.loss = loss
-        self.lr_scheduler = lr_scheduler
-        self.optimizer = optimizer
-        self.monitor = monitor
-        self.step_frequency = step_frequency
-
-        if sam is None:
-            self.use_sam = False
-        else:
-            self.use_sam = sam.get("use_sam", False)
-            self.adaptive = sam.get("adaptive", False)
-            self.rho = sam.get("rho", 0.05)
-
-        if self.use_sam:
-            self.automatic_optimization = False
 
         self.derivative = getattr(self.model, "derivative", False)
         for module in self.modules():
             if isinstance(module, GradientsOut):
                 self.derivative = True
 
-    def configure_optimizers(self) -> dict:
-        """Configures and instantiates the optimizer. If `use_sam` is specified, the
-        optimizer will wrapped in an additional sharpness-aware minimization, which
-        requires an additional backward pass along with the normal base optimizer backward pass.
-        """
-        if self.use_sam:
-            base_opt = get_class_from_str(self.optimizer["class_path"])
-            optimizer = SAM(
-                self.model.parameters(),
-                base_opt,
-                adaptive=self.adaptive,
-                rho=self.rho,
-                **self.optimizer["init_args"],
-            )
-        else:
-            optimizer = instantiate_class(
-                self.model.parameters(), init=self.optimizer
-            )
-
-        optim_config = {"optimizer": optimizer}
-
-        if self.lr_scheduler is not None:
-            scheduler = instantiate_class(optimizer, self.lr_scheduler)
-
-            optim_config.update(
-                lr_scheduler=scheduler,
-            )
-            if self.monitor is not None:
-                optim_config.update(
-                    monitor=self.monitor,
-                    frequency=self.step_frequency,
-                )
-
-        return optim_config
-
-    def on_epoch_start(self):
+    def on_train_epoch_start(self):
         # this can avoid growing VRAM usage after 1 epoch
         # so that we can maximize the batch size quickly on a GPU
         # by the success of first several training steps
@@ -160,21 +90,7 @@ class PLModel(pl.LightningModule):
         )
 
     def training_step(self, data: AtomicData, batch_idx: int) -> torch.Tensor:
-        if self.use_sam:
-            optimizer = self.optimizers()
-            # first forward-backward pass
-            loss, _ = self.step(data, "training")
-            self.manual_backward(loss)
-            optimizer.first_step(zero_grad=True)
-
-            # second forward-backward pass
-            loss_2, _ = self.step(data, "training_2")
-            self.manual_backward(loss_2)
-            optimizer.second_step(zero_grad=True)
-
-        else:
-            loss, _ = self.step(data, "training")
-
+        loss, _ = self.step(data, "training")
         return loss
 
     def validation_step(

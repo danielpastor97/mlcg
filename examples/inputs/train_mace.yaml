@@ -1,19 +1,18 @@
 seed_everything: 19384
 trainer:
   max_epochs: 40
-  # devices: 4
-  # accelerator: cpu
-  # strategy: ddp
-  gpus: 1
+  devices: 4
+  accelerator: gpu
+  strategy: ddp_find_unused_parameters_false
   precision: 32
   default_root_dir: /local_scratch/musil/chign/mlcg_181121/mace/test_mace
   resume_from_checkpoint: null
   logger:
-  - class_path: pytorch_lightning.loggers.TensorBoardLogger
-    init_args:
-      save_dir: default_root_dir
-      name: tensorboard
-      version: ''
+    - class_path: pytorch_lightning.loggers.TensorBoardLogger
+      init_args:
+        save_dir: default_root_dir
+        name: tensorboard
+        version: ''
   checkpoint_callback: null
   enable_checkpointing: true
   callbacks:
@@ -35,6 +34,9 @@ trainer:
         annealing_epochs: 5
         annealing_strategy: cos
         device: cpu
+    - class_path: pytorch_lightning.callbacks.TQDMProgressBar
+      init_args:
+        refresh_rate: 20
   benchmark: false
   deterministic: false
   reload_dataloaders_every_n_epochs: 0
@@ -44,8 +46,6 @@ trainer:
   auto_scale_batch_size: false
   prepare_data_per_node: null
   plugins: null
-  amp_backend: native
-  amp_level: null
   move_metrics_to_cpu: false
   multiple_trainloader_mode: max_size_cycle
   stochastic_weight_avg: false
@@ -98,6 +98,4 @@ model:
         avg_num_neighbors: 9
         correlation: 4
         atomic_numbers: [3,  6,  7, 15, 17, 18, 19, 40]
-  # necessary parameters when using ReduceLROnPlateau
-  monitor: validation_loss
-  step_frequency: 1
+

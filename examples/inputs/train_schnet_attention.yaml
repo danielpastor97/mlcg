@@ -1,3 +1,46 @@
+seed_everything: 16384
+trainer:
+  auto_lr_find: false
+  auto_scale_batch_size: false
+  benchmark: false
+  callbacks:
+    - class_path: pytorch_lightning.callbacks.model_checkpoint.ModelCheckpoint
+      init_args:
+        dirpath: default_root_dir
+        filename: '{epoch}-{validation_loss:.4f}'
+        monitor: validation_loss
+        save_last: true
+        save_top_k: -1
+    - class_path: pytorch_lightning.callbacks.TQDMProgressBar
+      init_args:
+        refresh_rate: 20
+  checkpoint_callback: null
+  default_root_dir: /data/scratch/gused98/train_output/softmax_exact_favor_cln/2_blocks_128_rbfs_30_opt_eq_priors_proper_nonbond_seed_16384_exact_att_cln
+  detect_anomaly: false
+  deterministic: false
+  enable_checkpointing: true
+  enable_progress_bar: false
+  strategy: 'ddp_find_unused_parameters_false'
+  accelerator: gpu
+  devices: 4
+  precision: 32
+  logger:
+  - class_path: pytorch_lightning.loggers.TensorBoardLogger
+    init_args:
+      name: tensorboard
+      save_dir: default_root_dir
+      version: ''
+  max_epochs: 550
+  move_metrics_to_cpu: false
+  multiple_trainloader_mode: max_size_cycle
+  plugins: null
+  precision: 32
+  prepare_data_per_node: null
+  reload_dataloaders_every_n_epochs: 0
+  replace_sampler_ddp: false
+  resume_from_checkpoint: null
+  stochastic_weight_avg: false
+  terminate_on_nan: null
 data:
   h5_file_path: /data/scratch/gused98/experiments/softmax_exact_favor_cln/processed_data_opt/cln_delta_dataset.h5
   loading_options:
@@ -37,7 +80,7 @@ model:
             class_path: mlcg.nn.ExactAttention
           num_interactions: 2
           num_features_in: 128
-          num_features_out: 128 
+          num_features_out: 128
           num_residual_k: 1
           num_residual_q: 1
           num_residual_v: 1
@@ -51,50 +94,7 @@ model:
               num_rbf: 128
               trainable: false
       targets: forces
-  monitor: validation_loss
-  step_frequency: 1
 optimizer:
   class_path: torch.optim.Adam
   init_args:
     lr: 0.0001
-seed_everything: 16384
-trainer:
-  amp_backend: native
-  amp_level: null
-  accelerator: 'gpu'
-  strategy: 'ddp'
-  auto_lr_find: false
-  auto_scale_batch_size: false
-  benchmark: false
-  callbacks:
-  - class_path: pytorch_lightning.callbacks.model_checkpoint.ModelCheckpoint
-    init_args:
-      dirpath: default_root_dir
-      filename: '{epoch}-{validation_loss:.4f}'
-      monitor: validation_loss
-      save_last: true
-      save_top_k: -1
-  checkpoint_callback: null
-  default_root_dir: /data/scratch/gused98/train_output/softmax_exact_favor_cln/2_blocks_128_rbfs_30_opt_eq_priors_proper_nonbond_seed_16384_exact_att_cln
-  detect_anomaly: false
-  deterministic: false
-  enable_checkpointing: true
-  enable_progress_bar: false
-  gpus: 4
-  logger:
-  - class_path: pytorch_lightning.loggers.TensorBoardLogger
-    init_args:
-      name: tensorboard
-      save_dir: default_root_dir
-      version: ''
-  max_epochs: 550
-  move_metrics_to_cpu: false
-  multiple_trainloader_mode: max_size_cycle
-  plugins: null
-  precision: 32
-  prepare_data_per_node: null
-  reload_dataloaders_every_n_epochs: 0
-  replace_sampler_ddp: false
-  resume_from_checkpoint: null
-  stochastic_weight_avg: false
-  terminate_on_nan: null

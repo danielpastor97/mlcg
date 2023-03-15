@@ -14,9 +14,10 @@ from mlcg.pl import PLModel, H5DataModule, LightningCLI
 
 
 if __name__ == "__main__":
-    # For avoiding 20 steps of painfully slow JIT recompilation
-    # See https://github.com/pytorch/pytorch/issues/52286
-    torch._C._jit_set_bailout_depth(3)
+    torch.jit.set_fusion_strategy([("DYNAMIC", 3)])
+    # to levarage the tensor core if available
+    torch.set_float32_matmul_precision("high")
+
     git = {
         "log": subprocess.getoutput('git log --format="%H" -n 1 -z'),
         "status": subprocess.getoutput("git status -z"),
@@ -26,7 +27,7 @@ if __name__ == "__main__":
     cli = LightningCLI(
         PLModel,
         H5DataModule,
-        save_config_overwrite=True,
+        save_config_kwargs={"overwrite": True},
         parser_kwargs={"error_handler": None},
     )
 

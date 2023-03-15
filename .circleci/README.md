@@ -21,5 +21,5 @@ To setup multiple arch images have a look at `https://www.docker.com/blog/multi-
 
 Then do
 ```
-docker buildx build --platform linux/amd64 -t nec4/pytorch_geometric_cpu:v1.3 --push .
+docker buildx build --platform linux/amd64 -t nec4/pytorch_geometric_cpu:v1.4 --push .
 ```

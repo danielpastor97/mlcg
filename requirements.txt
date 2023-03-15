@@ -2,8 +2,8 @@ mdtraj
 pyyaml>=6.0
  # `ruamel.yaml` used mostly because it support scientific notation
 ruamel.yaml
-pytorch-lightning == 1.6.5
-jsonargparse[signatures]==4.7.3
+pytorch_lightning == 1.9.4
+jsonargparse[signatures]==4.20.0
 tqdm
 ase
 e3nn
@@ -13,8 +13,9 @@ h5py
 scipy
 scikit-learn
 ipython
+torch_optimizer
 # developer tools
 pytest
 coverage[toml]
 black[jupyter]
-torch_optimizer
+

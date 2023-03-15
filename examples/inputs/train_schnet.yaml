@@ -1,4 +1,5 @@
 seed_everything: 19384
+ckpt_path: last
 # define the training
 trainer:
   # Work directory for the session
@@ -10,8 +11,8 @@ trainer:
   profiler: null
 
   # Training on one/multiple GPU
-  # accelerator: 'gpu'
-  # strategy: 'ddp'
+  # accelerator: gpu
+  # strategy: ddp_find_unused_parameters_false
   # devices: 4
   # precision: 32
 
@@ -27,12 +28,6 @@ trainer:
         # save_dir will be set to default_root_dir
         save_dir: default_root_dir
         name: tensorboard
-        version: ''
-    - class_path: pytorch_lightning.loggers.CSVLogger
-      init_args:
-        # save_dir will be set to default_root_dir
-        save_dir: default_root_dir
-        name: ''
         version: ''
   enable_checkpointing: true
   callbacks:
@@ -50,10 +45,12 @@ trainer:
         every_n_epochs: 2
         filename: '{epoch}-{validation_loss:.4f}'
         save_last: true
+    - class_path: pytorch_lightning.callbacks.TQDMProgressBar
+      init_args:
+        refresh_rate: 20
   log_every_n_steps: 10
   gradient_clip_val: 0
   gradient_clip_algorithm: norm
-  log_gpu_memory: null
   track_grad_norm: inf
   check_val_every_n_epoch: 1
   fast_dev_run: false
@@ -104,20 +101,18 @@ model:
               cutoff: 15
               num_rbf: 30
               trainable: false
-  # necessary parameters when using ReduceLROnPlateau
-  monitor: validation_loss
-  step_frequency: 1
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
     lr: 0.0001
     weight_decay: 0
 lr_scheduler:
-  class_path: torch.optim.lr_scheduler.ReduceLROnPlateau
+  class_path: pytorch_lightning.cli.ReduceLROnPlateau
   init_args:
     factor: 0.8
     patience: 5
     min_lr: 0.00001
+    monitor: validation_loss
 # define the dataset through mlcg.pl.DataModule
 data:
   dataset:
