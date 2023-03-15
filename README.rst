@@ -16,7 +16,11 @@ The dependencies are defined in `requirements.txt` but some packages are not wel
 
 Support for the MACE model can be enabled with::
 
-     pip install git+https://github.com/felixmusil/mace.git@develop
+    pip install git+https://github.com/felixmusil/mace.git@develop
+
+Support for the TorchMD-Net models can be enabled with::
+
+    pip install git+https://github.com/felixmusil/torchmd-net.git
 
 .. end-install
 

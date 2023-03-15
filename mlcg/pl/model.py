@@ -79,7 +79,7 @@ class PLModel(pl.LightningModule):
         if self.use_sam:
             self.automatic_optimization = False
 
-        self.derivative = False
+        self.derivative = getattr(self.model, "derivative", False)
         for module in self.modules():
             if isinstance(module, GradientsOut):
                 self.derivative = True
