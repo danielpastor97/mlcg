@@ -10,6 +10,7 @@ from torch_geometric.data.collate import collate
 import os
 import time
 from copy import deepcopy
+from jsonargparse.typing import Path_fr
 
 from ..utils import tqdm
 
@@ -108,7 +109,7 @@ class _Simulation(object):
         n_timesteps: int = 100,
         save_interval: int = 10,
         create_checkpoints: bool = False,
-        read_checkpoint_file: Union[str, bool] = None,
+        read_checkpoint_file: Union[Path_fr, bool] = None,
         random_seed: Optional[int] = None,
         device: str = "cpu",
         dtype: str = "single",
@@ -283,6 +284,9 @@ class _Simulation(object):
             range(self.n_timesteps),
             desc="Simulation timestep",
             mininterval=self.tqdm_refresh,
+            initial=self.current_timestep * self.export_interval
+            if self.export_interval is not None
+            else 0,
         ):
             # step forward in time
             data, potential, forces = self.timestep(data, forces)
@@ -499,8 +503,8 @@ class _Simulation(object):
 
         # checkpoint loading
         if self.read_checkpoint_file is not None:
-            if isinstance(self.read_checkpoint_file, str):
-                checkpointed_data = torch.load(self.read_checkpoint_file)
+            if isinstance(self.read_checkpoint_file, Path_fr):
+                checkpointed_data = torch.load(self.read_checkpoint_file())
             elif self.read_checkpoint_file:
                 fn = "{}_checkpoint.pt".format(self.filename)
                 assert os.path.exists(fn), f"{fn} does not exist"
