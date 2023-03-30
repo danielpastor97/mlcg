@@ -1,4 +1,4 @@
-from typing import Union, Optional, Callable, List, Tuple
+from typing import Union, Optional, Callable, List, Tuple, Dict
 import warnings
 import os
 from os.path import join
@@ -50,7 +50,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         that must be used by coord_force_loader
     atom_types:
         `np.array` of shape (num_cg_atoms,) specifying the integer type of each CG atom in sequence
-    atom_masses:
+    masses:
         `np.array` of shape (num_cg_atoms,) specifying the mass of each CG atom in sequence
     pdb_file:
         Path to all-atom PDB file, whose protein atom ordering corresponds to that found in the
@@ -63,7 +63,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
     precision:
         String that sets the precision level for CG coordinates and forces
     priors:
-        If a `str` is specified, an existing prior model (torch.nn.Module) will be loaded
+        If a `str` is specified, an existing prior model (torch.torch.nn.Module) will be loaded
         from that path. Else, a list of `_Prior` classes can be supplied for parametrization
         from reference data.
     prior_nls_file:
@@ -116,12 +116,17 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         forcemap: np.array,
         raw_data_fns: List[Tuple[str]],
         atom_types: np.array,
-        atom_masses: np.array,
+        masses: np.array,
         pdb_file: str,
         coord_force_loader: Callable,
         mol_name: str = "MyMolecule",
         precision: str = "float32",
-        priors: Optional[Union[str, List[_Prior]]] = None,
+        priors: Union[str, List[_Prior]] = [
+            HarmonicBonds,
+            HarmonicAngles,
+            Dihedral,
+            Repulsion,
+        ],
         prior_nls_file: Optional[str] = None,
         num_prior_samples: int = 1000000,
         num_sim_starts: int = 100,
@@ -165,8 +170,8 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
             assert len(filename_set) == len(self.raw_data_fns[0])
 
         if isinstance(priors, list):
-            assert all([isinstance(p, _Prior) for p in priors])
-            self.prior_classes = self.priors
+            assert all([issubclass(p, _Prior) for p in priors])
+            self.prior_classes = priors
             self.dihedral_fit_kwargs = dihedral_fit_kwargs
             self.prior_file = None
             self.prior_nls_file = None
@@ -182,7 +187,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
                 "`priors` kwarg must be path to valid prior model or `List[_Prior]`"
             )
 
-        super(TrpcageCustomNoiseDataset, self).__init__(
+        super(GeneralCarbonAlphaDataset, self).__init__(
             root, transform, pre_transform, pre_filter
         )
         self.data, self.slices = torch.load(self.processed_paths[0])
@@ -262,7 +267,6 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
                     for prior_class in self.prior_classes
                 ]
             ):
-
                 # Construct non-bonded set based on self.non_bond_cut
 
                 pairs = list(combinations(np.arange(len(self.atom_types)), 2))
@@ -361,7 +365,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
     @_verbose_output
     def fit_prior_model(
         self, data_for_prior_fit: List[AtomicData]
-    ) -> nn.Module:
+    ) -> torch.nn.Module:
         """Method for parametrizing priors from a subset of reference data
 
         Parameters
@@ -372,7 +376,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         Returns
         -------
         prior_model:
-           nn.Module of fitted prior terms
+           torch.nn.Module of fitted prior terms
         """
 
         sub_datas, _, _ = collate(
@@ -387,7 +391,6 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         )
 
         if self.dihedral_fit_kwargs != None:
-
             ### Override dihedral fits
             dihedral_dict = compute_statistics(
                 sub_datas,
@@ -440,7 +443,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
 
     @_verbose_output
     def produce_delta_forces(
-        self, data_list: AtomicData, prior_model: nn.Module
+        self, data_list: AtomicData, prior_model: torch.nn.Module
     ) -> AtomicData:
         """Method for subtracting prior forces from mapped CG forces to produce a delta force
         dataset
@@ -450,7 +453,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         data_list:
             List of `AtomicData` containing the mapped CG coordinates and forces
         prior_model:
-            `nn.Module` of prior terms which together comprise the prior model
+            `torch.nn.Module` of prior terms which together comprise the prior model
 
         Returns
         -------
