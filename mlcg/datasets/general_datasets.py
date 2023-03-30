@@ -544,7 +544,9 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         frames_for_sims = []
         for ri in random_sim_idx:
             frames_for_sims.append(data_list[ri])
-        torch.save(frames_for_sims, "processed/sim_starts.pt")
+        torch.save(
+            frames_for_sims, join(self.root, "processed", "sim_starts.pt")
+        )
 
         # Get prior model
         if self.prior_file != None and self.prior_nls_file != None:
