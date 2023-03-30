@@ -94,6 +94,8 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
     delta_force_batch_size:
         Number of frames in each batch for delta force production. For larger proteins, you may
         want to reduce this.
+    delta_check_threshold:
+        Detection for threshold of absolute value delta forces that might be too large from poor prior choices
     transform:
         see `help(torch_geometric.data.Dataset)`
     pre_transform:
@@ -128,6 +130,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         dihedral_fit_kwargs: Optional[Dict] = {"constrain_deg": 5, "n_degs": 5},
         exclude_cis_omega: bool = True,
         delta_force_batch_size: int = 256,
+        delta_check_threshold: float = 100000,
         transform: Optional[Callable] = None,
         pre_transform: Optional[Callable] = None,
         pre_filter: Optional[Callable] = None,
@@ -148,6 +151,8 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         self.num_prior_samples = num_prior_samples
         self.num_sim_starts = num_sim_starts
         self.exclude_cis_omega = exclude_cis_omega
+        self.delta_force_batch_size = delta_force_batch_size
+        self.delta_check_threshold = delta_check_threshold
         self.verbose = verbose
 
         assert self.temperature > 0
