@@ -10,6 +10,7 @@ from mdtraj.core.trajectory import Trajectory
 from mlcg.geometry.topology import Topology
 from mlcg.data import AtomicData
 from .general_datasets import GeneralCarbonAlphaDataset
+import os
 
 
 class MockProteinReference(object):
@@ -26,11 +27,18 @@ class MockProteinReference(object):
     """
 
     def __init__(self, temp_dir: str):
+        os.mkdir(join(temp_dir, "raw"))
         self.masses = np.array([12.0 for i in range(5)]) / 418.3
         self.atom_types = np.arange(1, 6)
-        self.coord_files = ["aa_coords_{}.npy".format(i) for i in range(5)]
-        self.force_files = ["aa_coords_{}.npy".format(i) for i in range(5)]
-        self.pdb_file = "test_peptide.pdb"
+        self.coord_files = [
+            join(temp_dir, "raw", "aa_coords_{}.npy".format(i))
+            for i in range(5)
+        ]
+        self.force_files = [
+            join(temp_dir, "raw", "aa_forces_{}.npy".format(i))
+            for i in range(5)
+        ]
+        self.pdb_file = join(temp_dir, "raw", "test_peptide.pdb")
 
         with open(join(temp_dir, self.pdb_file), "w") as pfile:
             pdb_str = MockProteinReference.gen_pdb()
@@ -43,13 +51,12 @@ class MockProteinReference(object):
             slice_map[row][idx] = 1
         self.coordmap = slice_map
         self.forcemap = slice_map
-
         coord_force_sets = MockProteinReference.generate_coords_and_forces(traj)
         for cf_set, cfile, ffile in zip(
             coord_force_sets, self.coord_files, self.force_files
         ):
-            np.save(join(temp_dir, cfile), cf_set[0])
-            np.save(join(temp_dir, ffile), cf_set[1])
+            np.save(cfile, cf_set[0])
+            np.save(ffile, cf_set[1])
 
     @staticmethod
     def coord_force_loader(coord_fn: str, force_fn: str):
@@ -61,15 +68,16 @@ class MockProteinReference(object):
     def generate_coords_and_forces(
         traj: Trajectory,
     ) -> List[Tuple[np.array, np.array]]:
+        num_samples = 10000
         # convert starting coordinates to angstroms
         init_aa_coords = 10.0 * traj.xyz
 
         # create 4 noisey mock coordinate and force sets
         coord_force_sets = []
         for i in range(5):
-            sub_coords = np.repeat(init_aa_coords, 100, axis=0)
+            sub_coords = np.repeat(init_aa_coords, num_samples, axis=0)
             sub_forces = np.repeat(
-                init_aa_coords, 100, axis=0
+                init_aa_coords, num_samples, axis=0
             )  # Here we just take the forces as coords
             coord_noise = np.random.normal(0, scale=0.01, size=sub_coords.shape)
             force_noise = np.random.normal(0, scale=0.01, size=sub_coords.shape)
@@ -151,4 +159,5 @@ def test_general_dataset_run():
             tetra_dataset.masses,
             tetra_dataset.pdb_file,
             tetra_dataset.coord_force_loader,
+            num_prior_samples=10000,
         )

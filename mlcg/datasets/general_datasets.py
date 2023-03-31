@@ -8,8 +8,13 @@ from torch_geometric.data import InMemoryDataset
 from torch_geometric.data.collate import collate
 import mdtraj as md
 from ..utils import tqdm, download_url
-from ..geometry.topology import Topology
-from ..geometry.statistics import fit_baseline_models
+from ..geometry.topology import (
+    Topology,
+    add_chain_bonds,
+    add_chain_angles,
+    add_chain_dihedrals,
+)
+from ..geometry.statistics import fit_baseline_models, compute_statistics
 from ..data import AtomicData
 from ..nn import (
     HarmonicBonds,
@@ -20,6 +25,8 @@ from ..nn import (
 )
 from ..nn.prior import _Prior
 from .utils import remove_baseline_forces, chunker
+from itertools import combinations
+import h5py
 
 
 class GeneralCarbonAlphaDataset(InMemoryDataset):
@@ -135,7 +142,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         dihedral_fit_kwargs: Optional[Dict] = {"constrain_deg": 5, "n_degs": 5},
         exclude_cis_omega: bool = True,
         delta_force_batch_size: int = 256,
-        delta_check_threshold: float = 100000,
+        delta_check_threshold: float = 100000.0,
         transform: Optional[Callable] = None,
         pre_transform: Optional[Callable] = None,
         pre_filter: Optional[Callable] = None,
@@ -159,6 +166,8 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         self.delta_force_batch_size = delta_force_batch_size
         self.delta_check_threshold = delta_check_threshold
         self.verbose = verbose
+        self.mol_name = mol_name
+        self.precision = precision
 
         assert self.temperature > 0
         assert self.non_bond_cut > 0
@@ -194,17 +203,24 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         self.prior_model = torch.load(self.processed_paths[3])
         self.topologies = {self.mol_name: torch.load(self.processed_paths[2])}
 
-    def _verbose_output(func):
-        def wrapper(self, *args, **kwargs):
-            if self.verbose:
-                print("Running {} ...".format(str(func)), end=" ")
-            func(*args, **kwargs)
-            if self.verbose:
-                print("done.")
+    """
+    def download(self):
+        pass
 
-        return wrapper
+    @property
+    def raw_file_names(self):
+        return [i[0] for i in self.raw_data_fns] + [j[1] for j in self.raw_data_fns]
+    """
 
-    @_verbose_output
+    @property
+    def processed_file_names(self):
+        return [
+            "{}.pt".format(self.mol_name),
+            "{}.pdb".format(self.mol_name),
+            "{}_topologies.pt".format(self.mol_name),
+            "priors.pt",
+        ]
+
     def build_topos(self) -> Tuple[Topology, md.Trajectory]:
         """Method for preparing and sanitizing CG MLCG `Topology` and
         all-atom MDTraj `Trajectory` objects.
@@ -233,7 +249,6 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
 
         return cg_topo, traj
 
-    @_verbose_output
     def build_prior_nls(self, mlcg_topo: Topology) -> Dict:
         """Returns a neigborlist dictionary for assembling `AtomicData` objects.
         If the `GeneralCarbonAlphaDataset` has been instanced with a pre-existing
@@ -259,7 +274,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         else:
             prior_nls = {}
             for prior_class in self.prior_classes:
-                prior_nls.update(**prior_class.neighbor_list(cg_topo))
+                prior_nls.update(**prior_class.neighbor_list(mlcg_topo))
 
             if any(
                 [
@@ -283,9 +298,8 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
 
         return prior_nls
 
-    @_verbose_output
     def build_cg_data_list(
-        self, traj: md.Trajectory
+        self, traj: md.Trajectory, prior_nls: Dict
     ) -> Tuple[List[AtomicData], int]:
         """Method for assembling the CG `List[AtomicData]` from a list of coord/force filenames.
         If `self.exclude_cis_omega=True`, trajectories containing cis omega angles are discarded.
@@ -297,6 +311,8 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         traj:
             MDTraj `Trajectory` instance of the all-atom protein system. Assumed to be single-chain,
             and solvent/ion-free
+        prior_nls:
+            Dictionary of prior neighborlists
 
         Returns
         -------
@@ -306,7 +322,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         total_frames:
             The final number of CG-mapped frames in the CG dataset
         """
-
+        data_list = []
         for i, data_files in enumerate(
             tqdm(
                 self.raw_data_fns,
@@ -362,7 +378,6 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
 
         return data_list, total_frames
 
-    @_verbose_output
     def fit_prior_model(
         self, data_for_prior_fit: List[AtomicData]
     ) -> torch.nn.Module:
@@ -400,7 +415,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
                 target_fit_kwargs=self.dihedral_fit_kwargs,
             )
             dihedral_prior = Dihedral(
-                dihedral_dict, n_degs=self.dihedral_fit_kwargs["deg"]
+                dihedral_dict, n_degs=self.dihedral_fit_kwargs["n_degs"]
             )
             prior_model["dihedrals"] = dihedral_prior
 
@@ -441,7 +456,6 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
                     has_cis = True
         return has_cis
 
-    @_verbose_output
     def produce_delta_forces(
         self, data_list: AtomicData, prior_model: torch.nn.Module
     ) -> AtomicData:
@@ -481,9 +495,8 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         delattr(datas, "baseline_forces")
         datas.neighbor_list = {}
 
-        return datas
+        return datas, slices
 
-    @_verbose_output
     def save_h5_dataset(
         self, coords: np.array, delta_forces: np.array, atom_types: np.array
     ):
@@ -514,31 +527,18 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
             hdf_group.attrs["cg_embeds"] = atom_types
             hdf_group.attrs["N_frames"] = coords.shape[0]
 
-    @property
-    def raw_file_names(self):
-        return self.raw_data_fns
-
-    @property
-    def processed_file_names(self):
-        return [
-            "{}.pt".format(self.mol_name),
-            "{}.pdb".format(self.mol_name),
-            "{}_topologies.pt".format(self.mol_name),
-            "priors.pt",
-        ]
-
-    def process():
+    def process(self):
         """Main pipeline for producing the CG dataset and fitted priors"""
 
         # Build topology-related objects
-        cg_topo, traj = self.build_topos()
-        torch.save((cg_topo), self.processed_paths[2])
+        mlcg_topo, traj = self.build_topos()
+        torch.save((mlcg_topo), self.processed_paths[2])
 
         # Build neighborlists
-        prior_nls = self.build_prior_nls()
+        prior_nls = self.build_prior_nls(mlcg_topo)
 
         # Process CG data
-        data_list, n_frames = self.build_cg_data_list()
+        data_list, n_frames = self.build_cg_data_list(traj, prior_nls)
 
         # Save some starting configurations for later simulations
         random_sim_idx = np.random.choice(
@@ -568,7 +568,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
         datas, slices = self.produce_delta_forces(data_list, prior_model)
 
         # Check for poor prior choices
-        if any(torch.abs(datas.forces) > self.delta_check_threshold):
+        if any(torch.abs(datas.forces).flatten() > self.delta_check_threshold):
             warnings.warn("Large delta forces detected in dataset")
 
         torch.save((datas, slices), self.processed_paths[0])
