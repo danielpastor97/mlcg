@@ -1,4 +1,5 @@
 from typing import Union, Optional, Callable, List, Tuple, Dict
+import pickle
 import warnings
 import os
 from os.path import join
@@ -23,6 +24,8 @@ from ..nn import (
     Dihedral,
     GradientsOut,
 )
+import pickle
+from ..neighbor_list.neighbor_list import make_neighbor_list
 from ..nn.prior import _Prior
 from .utils import remove_baseline_forces, chunker
 from itertools import combinations
@@ -337,7 +340,7 @@ class GeneralCarbonAlphaDataset(InMemoryDataset):
                     if self.verbose:
                         print(
                             "cis conformation detected in AA trajectory {}. Removing from dataset ...".format(
-                                i_traj
+                                i
                             )
                         )
                     continue
