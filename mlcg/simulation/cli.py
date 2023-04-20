@@ -89,11 +89,14 @@ def parse_simulation_config(
         del config["simulation"]["sim_subroutine_interval"]
         del config["simulation"]["save_subroutine"]
 
-    model_fn = config.pop("model_file")()
-    model = torch.load(model_fn)
+    model_fn = config.pop("model_file")
+    model = torch.load((model_fn if isinstance(model_fn, str) else model_fn()))
 
-    structures_fn = config.pop("structure_file")()
-    initial_data_list = torch.load(structures_fn)
+    structures_fn = config.pop("structure_file")
+    initial_data_list = torch.load(
+        (structures_fn if isinstance(structures_fn, str) else structures_fn())
+    )
+
     config_init = parser.instantiate_classes(config)
     simulation = config_init.get("simulation")
     betas = config.pop("betas")
