@@ -1,4 +1,4 @@
-import os
+i-i mport os
 import torch
 import pytorch_lightning as pl
 from torch_geometric.loader import DataLoader
@@ -87,18 +87,9 @@ class DataModule(pl.LightningDataModule):
         ]
 
     def prepare_data(self):
-        # make sure the dataset is downloaded
-        dataset = self.load_dataset()
-
-        # setup the train/test/val split
-        idx_train, idx_val, idx_test = make_splits(
-            len(dataset),
-            self.val_ratio,
-            self.test_ratio,
-            filename=self.splits_fn,
-            splits=self.splits,
-        )
-
+        """ Download, preprocess dataset, etc."""
+        pass
+    
     def setup(self, stage=None):
         dataset = self.load_dataset()
 
