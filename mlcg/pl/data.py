@@ -87,9 +87,9 @@ class DataModule(pl.LightningDataModule):
         ]
 
     def prepare_data(self):
-        """ Download, preprocess dataset, etc."""
+        """Download, preprocess dataset, etc."""
         pass
-    
+
     def setup(self, stage=None):
         dataset = self.load_dataset()
 
