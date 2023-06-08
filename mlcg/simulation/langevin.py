@@ -225,13 +225,13 @@ class LangevinSimulation(_Simulation):
             kes = 0.5 * torch.sum(
                 torch.sum(masses[:, :, None] * v_new**2, dim=2), dim=1
             )
-            self.kinetic_energies[save_ind, :] = kes
+            self.simulated_kinetic_energies[save_ind, :] = kes
 
     def write(self, iter_: int):
         """Utility to save numpy arrays"""
         key = self._get_numpy_count()
         if self.save_energies:
-            kinetic_energies_to_export = self.kinetic_energies[
+            kinetic_energies_to_export = self.simulated_kinetic_energies[
                 self._npy_starting_index : iter_
             ]
             kinetic_energies_to_export = self._swap_and_export(
