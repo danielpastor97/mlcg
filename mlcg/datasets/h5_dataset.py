@@ -171,6 +171,8 @@ class MolData:
         embeds: np.ndarray,
         coords: np.ndarray,
         forces: np.ndarray,
+        use_weights: bool = False,
+        weights: np.ndarray = None,
     ):
         self._name = name
         self._embeds = embeds
@@ -181,6 +183,12 @@ class MolData:
             len(self._embeds) == self._coords.shape[1] == self._forces.shape[1]
         )
         assert self._coords.shape == self._forces.shape
+
+        self._use_weights = use_weights
+        if self._use_weights is True:
+            self._weights = weights
+            assert len(self._coords) == len(self._weights)
+
 
     @property
     def name(self):
@@ -197,6 +205,10 @@ class MolData:
     @property
     def forces(self):
         return self._forces
+    
+    @property
+    def weights(self):
+        return self._weights
 
     @property
     def n_frames(self):
@@ -212,6 +224,9 @@ class MolData:
     def sub_sample(self, indices):
         self._coords = self._coords[indices]
         self._forces = self._forces[indices]
+
+        if self._use_weights is True:
+            self._weights = self._weights[indices]
 
 
 class MetaSet:
@@ -264,11 +279,13 @@ class MetaSet:
             "embeds": "attrs:cg_embeds",
             "coords": "cg_coords",
             "forces": "cg_delta_forces",
+            "weights": "subsampling_weights",
         },
         parallel={
             "rank": 0,
             "world_size": 1,
         },
+        subsample_using_weights=False,
     ):
         def select_for_rank(length_or_indices):
             """Return a slicing for loading the necessary data from the HDF dataset."""
@@ -327,6 +344,10 @@ class MetaSet:
                 forces = MetaSet.retrieve_hdf(
                     hdf5_group[mol_name], keys["forces"]
                 )[selection]
+                if subsample_using_weights is True:
+                    weights = MetaSet.retrieve_hdf(
+                        hdf5_group[mol_name], keys["weights"]
+                    )[selection]    
             else:
                 # For large dataset it is usually quicker to first load everything
                 # and then perform indexing in memory
@@ -336,7 +357,14 @@ class MetaSet:
                 forces = MetaSet.retrieve_hdf(
                     hdf5_group[mol_name], keys["forces"]
                 )[:][selection]
-            output.insert_mol(MolData(mol_name, embeds, coords, forces))
+                if subsample_using_weights is True:
+                    weights = MetaSet.retrieve_hdf(
+                        hdf5_group[mol_name], keys["weights"]
+                    )[:][selection]   
+            if subsample_using_weights is True:
+                output.insert_mol(MolData(mol_name, embeds, coords, forces, use_weights=True, weights=weights))
+            else:
+                output.insert_mol(MolData(mol_name, embeds, coords, forces))
         return output
 
     def insert_mol(self, mol_data):
@@ -560,7 +588,11 @@ class H5Dataset:
     """
 
     def __init__(
-        self, h5_file_path: str, partition_options: Dict, loading_options: Dict
+        self, 
+        h5_file_path: str, 
+        partition_options: Dict, 
+        loading_options: Dict,
+        subsample_using_weights: bool = False,
     ):
         self._h5_path = h5_file_path
         self._h5_root = h5py.File(h5_file_path, "r")
@@ -569,6 +601,7 @@ class H5Dataset:
         self._partitions = {}  # dict containing the configured metasets
         self._partition_sample_info = {}
         self._detailed_indices = {}
+        self._subsample_using_weights = subsample_using_weights
 
         # processing the hdf5 file
         for metaset_name in self._h5_root:
@@ -638,6 +671,7 @@ class H5Dataset:
                         stride=stride,
                         hdf_key_mapping=hdf_key_mapping,
                         parallel=parallel,
+                        subsample_using_weights=self._subsample_using_weights
                     ),
                 )
             ## trim the metasets to fit the need of sampling
@@ -794,6 +828,7 @@ class H5SimpleDataset(H5Dataset):
             "forces": "cg_delta_forces",
         },
         parallel={"rank": 0, "world_size": 1},
+        subsample_using_weights: Optional[bool] = False,
     ):
         # input checking
         if not isinstance(stride, int) and stride > 0:
@@ -838,6 +873,7 @@ class H5SimpleDataset(H5Dataset):
             stride=stride,
             hdf_key_mapping=hdf_key_mapping,
             parallel=parallel,
+            subsample_with_weights=subsample_using_weights
         )
 
     def get_dataloader(
