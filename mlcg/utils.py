@@ -257,3 +257,23 @@ def make_splits(
         torch.from_numpy(idx_val),
         torch.from_numpy(idx_test),
     )
+
+
+def calc_num_samples(wts):
+    """Given a weights array, estimate the number of samples using a quick Monte-Carlo run"""
+    n_draws = 10
+    rand_draw = np.random.uniform(size=(n_draws, len(wts)))
+    return int(np.mean(np.sum(rand_draw <= wts, axis=1)))
+
+
+
+
+
+
+
+
+
+
+
+
+

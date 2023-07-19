@@ -147,7 +147,7 @@ from torch_geometric.loader.dataloader import Collater as PyGCollater
 import torch_geometric.loader.dataloader  # for type hint
 from typing import Dict, List, Optional, Sequence
 from mlcg.data import AtomicData
-from mlcg.utils import make_splits
+from mlcg.utils import make_splits, calc_num_samples
 
 
 class MolData:
@@ -412,6 +412,10 @@ class MetaSet:
         )
         self._cumulate_indices = np.cumsum(self._n_mol_samples)
 
+        if self._weights_exist():
+            ## If weights exist for all 
+            self._make_cumulative_weights()
+            
     @property
     def n_mol(self):
         return len(self._mol_dataset)
@@ -423,6 +427,23 @@ class MetaSet:
     @property
     def n_mol_samples(self):
         return self._n_mol_samples
+
+    def _weights_exist(self):
+        """Checks if _weights is an attribute for all molecules in dataset"""
+        return np.all([hasattr(mol_d, "_weights") for mol_d in self._mol_dataset])
+
+    def _make_cumulative_weights(self):
+        # Concatenate weights from all MolData objects
+        self._cumulative_weights = np.concatenate([mol_d._weights for mol_d in self._mol_dataset])
+        # Check if length of _cumulative_weights is correct
+        assert (len(self._cumulative_weights) == self.n_total_samples), \
+                "Number of weights does not match number of samples"
+        # Set all inf weights to max value
+        self._cumulative_weights[ self._cumulative_weights == np.inf ] = np.max(self._cumulative_weights[ self._cumulative_weights != np.inf ])
+        # Check max and min values of weights array
+        assert (self._cumulative_weights.max() == 1) and ((self._cumulative_weights.min() >= 0)), \
+            "Largest weight value is >1 OR smallest value is <0"
+
 
     def get_mol_data_by_name(self, mol_name):
         index = self._mol_map.get(mol_name, None)
@@ -937,6 +958,7 @@ class H5PartitionDataLoader:
         data_partition,
         collater_fn=PyGCollater(None, None),
         pin_memory=False,
+        subsample_using_weights=False,
     ):
         self._data_part = data_partition
         self._metasets = []
@@ -948,7 +970,14 @@ class H5PartitionDataLoader:
             metaset = data_partition.get_metaset(metaset_name)
             # ^ automatically checks whether the partition is sample_ready()
             self._metasets.append(metaset)
-            s = torch.utils.data.RandomSampler(metaset)
+            if subsample_using_weights is False:
+                s = torch.utils.data.RandomSampler(metaset)
+            elif subsample_using_weights is True:
+                s = torch.utils.data.WeightedRandomSampler(
+                    metaset._cumulative_weights,
+                    num_samples=calc_num_samples(metaset._cumulative_weights),
+                    replacement=False
+                )
             batch_s = torch.utils.data.BatchSampler(s, batch_size, True)
             self._samplers.append(batch_s)
         self._collater_fn = collater_fn
