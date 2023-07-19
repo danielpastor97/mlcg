@@ -48,10 +48,12 @@ class H5DataModule(pl.LightningDataModule):
         loading_options: Union[Mapping, str] = {
             "hdf_key_mapping": default_key_mapping
         },
+        subsample_using_weights: bool = False,
     ):
         super(H5DataModule, self).__init__()
         self.save_hyperparameters()
         self._h5_file_path = h5_file_path
+        self.subsample_using_weights = subsample_using_weights
 
         def get_options(options_or_path):
             if isinstance(options_or_path, Mapping):
@@ -149,7 +151,7 @@ class H5DataModule(pl.LightningDataModule):
     def part_dataloader(self, part_name):
         part = self._h5d.partition(part_name)
         if part_name == "train":
-            combined_loader = H5PartitionDataLoader(part)
+            combined_loader = H5PartitionDataLoader(part, subsample_using_weights=self.subsample_using_weights)
         else:
             loaders = []
             for metaset_name, batch_size in sorted(part.batch_sizes.items()):
