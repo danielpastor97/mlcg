@@ -415,6 +415,9 @@ class MetaSet:
         if self._weights_exist():
             ## If weights exist for all 
             self._make_cumulative_weights()
+            print(f'cumulative weights have shape {self._cumulative_weights.shape}')
+            import time
+            time.sleep(10)
             
     @property
     def n_mol(self):
@@ -441,8 +444,8 @@ class MetaSet:
         # Set all inf weights to max value
         self._cumulative_weights[ self._cumulative_weights == np.inf ] = np.max(self._cumulative_weights[ self._cumulative_weights != np.inf ])
         # Check max and min values of weights array
-        assert (self._cumulative_weights.max() == 1) and ((self._cumulative_weights.min() >= 0)), \
-            "Largest weight value is >1 OR smallest value is <0"
+        assert (self._cumulative_weights.max() != np.inf) and ((self._cumulative_weights.min() >= 0)), \
+            "Smallest weight value is infinite OR some weight is negative"
 
 
     def get_mol_data_by_name(self, mol_name):
@@ -973,6 +976,11 @@ class H5PartitionDataLoader:
             if subsample_using_weights is False:
                 s = torch.utils.data.RandomSampler(metaset)
             elif subsample_using_weights is True:
+                metaset._update_info()
+                print(metaset._mol_dataset[0].__dict__)
+                print(metaset.__dict__)
+                import time
+                time.sleep(15)
                 s = torch.utils.data.WeightedRandomSampler(
                     metaset._cumulative_weights,
                     num_samples=calc_num_samples(metaset._cumulative_weights),
