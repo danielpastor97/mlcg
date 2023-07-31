@@ -977,10 +977,6 @@ class H5PartitionDataLoader:
                 s = torch.utils.data.RandomSampler(metaset)
             elif subsample_using_weights is True:
                 metaset._update_info()
-                print(metaset._mol_dataset[0].__dict__)
-                print(metaset.__dict__)
-                import time
-                time.sleep(15)
                 s = torch.utils.data.WeightedRandomSampler(
                     metaset._cumulative_weights,
                     num_samples=calc_num_samples(metaset._cumulative_weights),
