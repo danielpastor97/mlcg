@@ -189,7 +189,6 @@ class MolData:
             self._weights = weights
             assert len(self._coords) == len(self._weights)
 
-
     @property
     def name(self):
         return self._name
@@ -205,7 +204,7 @@ class MolData:
     @property
     def forces(self):
         return self._forces
-    
+
     @property
     def weights(self):
         return self._weights
@@ -347,7 +346,7 @@ class MetaSet:
                 if subsample_using_weights is True:
                     weights = MetaSet.retrieve_hdf(
                         hdf5_group[mol_name], keys["weights"]
-                    )[selection]    
+                    )[selection]
             else:
                 # For large dataset it is usually quicker to first load everything
                 # and then perform indexing in memory
@@ -360,9 +359,18 @@ class MetaSet:
                 if subsample_using_weights is True:
                     weights = MetaSet.retrieve_hdf(
                         hdf5_group[mol_name], keys["weights"]
-                    )[:][selection]   
+                    )[:][selection]
             if subsample_using_weights is True:
-                output.insert_mol(MolData(mol_name, embeds, coords, forces, use_weights=True, weights=weights))
+                output.insert_mol(
+                    MolData(
+                        mol_name,
+                        embeds,
+                        coords,
+                        forces,
+                        use_weights=True,
+                        weights=weights,
+                    )
+                )
             else:
                 output.insert_mol(MolData(mol_name, embeds, coords, forces))
         return output
@@ -413,12 +421,15 @@ class MetaSet:
         self._cumulate_indices = np.cumsum(self._n_mol_samples)
 
         if self._weights_exist():
-            ## If weights exist for all 
+            ## If weights exist for all
             self._make_cumulative_weights()
-            print(f'cumulative weights have shape {self._cumulative_weights.shape}')
+            print(
+                f"cumulative weights have shape {self._cumulative_weights.shape}"
+            )
             import time
+
             time.sleep(10)
-            
+
     @property
     def n_mol(self):
         return len(self._mol_dataset)
@@ -433,20 +444,27 @@ class MetaSet:
 
     def _weights_exist(self):
         """Checks if _weights is an attribute for all molecules in dataset"""
-        return np.all([hasattr(mol_d, "_weights") for mol_d in self._mol_dataset])
+        return np.all(
+            [hasattr(mol_d, "_weights") for mol_d in self._mol_dataset]
+        )
 
     def _make_cumulative_weights(self):
         # Concatenate weights from all MolData objects
-        self._cumulative_weights = np.concatenate([mol_d._weights for mol_d in self._mol_dataset])
+        self._cumulative_weights = np.concatenate(
+            [mol_d._weights for mol_d in self._mol_dataset]
+        )
         # Check if length of _cumulative_weights is correct
-        assert (len(self._cumulative_weights) == self.n_total_samples), \
-                "Number of weights does not match number of samples"
+        assert (
+            len(self._cumulative_weights) == self.n_total_samples
+        ), "Number of weights does not match number of samples"
         # Set all inf weights to max value
-        self._cumulative_weights[ self._cumulative_weights == np.inf ] = np.max(self._cumulative_weights[ self._cumulative_weights != np.inf ])
+        self._cumulative_weights[self._cumulative_weights == np.inf] = np.max(
+            self._cumulative_weights[self._cumulative_weights != np.inf]
+        )
         # Check max and min values of weights array
-        assert (self._cumulative_weights.max() != np.inf) and ((self._cumulative_weights.min() >= 0)), \
-            "Smallest weight value is infinite OR some weight is negative"
-
+        assert (self._cumulative_weights.max() != np.inf) and (
+            (self._cumulative_weights.min() >= 0)
+        ), "Smallest weight value is infinite OR some weight is negative"
 
     def get_mol_data_by_name(self, mol_name):
         index = self._mol_map.get(mol_name, None)
@@ -612,9 +630,9 @@ class H5Dataset:
     """
 
     def __init__(
-        self, 
-        h5_file_path: str, 
-        partition_options: Dict, 
+        self,
+        h5_file_path: str,
+        partition_options: Dict,
         loading_options: Dict,
         subsample_using_weights: bool = False,
     ):
@@ -695,7 +713,7 @@ class H5Dataset:
                         stride=stride,
                         hdf_key_mapping=hdf_key_mapping,
                         parallel=parallel,
-                        subsample_using_weights=self._subsample_using_weights
+                        subsample_using_weights=self._subsample_using_weights,
                     ),
                 )
             ## trim the metasets to fit the need of sampling
@@ -897,7 +915,7 @@ class H5SimpleDataset(H5Dataset):
             stride=stride,
             hdf_key_mapping=hdf_key_mapping,
             parallel=parallel,
-            subsample_with_weights=subsample_using_weights
+            subsample_with_weights=subsample_using_weights,
         )
 
     def get_dataloader(
@@ -980,7 +998,7 @@ class H5PartitionDataLoader:
                 s = torch.utils.data.WeightedRandomSampler(
                     metaset._cumulative_weights,
                     num_samples=calc_num_samples(metaset._cumulative_weights),
-                    replacement=False
+                    replacement=False,
                 )
             batch_s = torch.utils.data.BatchSampler(s, batch_size, True)
             self._samplers.append(batch_s)

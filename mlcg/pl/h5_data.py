@@ -96,7 +96,10 @@ class H5DataModule(pl.LightningDataModule):
             f"Loading samples for rank ({rank}/{num_replicas})...", flush=True
         )
         self._h5d = H5Dataset(
-            self._h5_file_path, self._part_options, self._process_load_options, self._subsample_using_weights
+            self._h5_file_path,
+            self._part_options,
+            self._process_load_options,
+            self._subsample_using_weights,
         )
         sample_info = [None] * num_replicas
         dist.all_gather_object(sample_info, self._h5d.partition_sample_info)
@@ -151,7 +154,9 @@ class H5DataModule(pl.LightningDataModule):
     def part_dataloader(self, part_name):
         part = self._h5d.partition(part_name)
         if part_name == "train":
-            combined_loader = H5PartitionDataLoader(part, subsample_using_weights=self._subsample_using_weights)
+            combined_loader = H5PartitionDataLoader(
+                part, subsample_using_weights=self._subsample_using_weights
+            )
         else:
             loaders = []
             for metaset_name, batch_size in sorted(part.batch_sizes.items()):
