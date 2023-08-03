@@ -433,6 +433,7 @@ class MetaSet:
     def n_mol(self):
         return len(self._mol_dataset)
         return all([mol_d.weights is not None for mol_d in self._mol_dataset])
+
     @property
     def n_total_samples(self):
         return self._cumulate_indices[-1]
