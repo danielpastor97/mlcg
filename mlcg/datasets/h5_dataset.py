@@ -184,9 +184,8 @@ class MolData:
         )
         assert self._coords.shape == self._forces.shape
 
-        self._use_weights = use_weights
-        if self._use_weights is True:
-            self._weights = weights
+        self._weights = weights
+        if self.weights is not None:
             assert len(self._coords) == len(self._weights)
 
     @property
