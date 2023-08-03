@@ -223,7 +223,7 @@ class MolData:
         self._coords = self._coords[indices]
         self._forces = self._forces[indices]
 
-        if self._use_weights is True:
+        if self.weights is not None:
             self._weights = self._weights[indices]
 
 
