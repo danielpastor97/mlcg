@@ -185,7 +185,7 @@ class MolData:
         assert self._coords.shape == self._forces.shape
 
         self._weights = weights
-        if self.weights is not None:
+        if self._weights is not None:
             assert len(self._coords) == len(self._weights)
 
     @property
@@ -445,7 +445,7 @@ class MetaSet:
     def _weights_exist(self):
         """Checks if _weights is an attribute for all molecules in dataset"""
         return np.all(
-            [hasattr(mol_d, "_weights") for mol_d in self._mol_dataset]
+            [(mol_d._weights != None) for mol_d in self._mol_dataset]
         )
 
     def _make_cumulative_weights(self):
