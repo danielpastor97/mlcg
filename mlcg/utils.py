@@ -260,7 +260,5 @@ def make_splits(
 
 
 def calc_num_samples(wts):
-    """Given a weights array, estimate the number of samples using a quick Monte-Carlo run"""
-    n_draws = 10
-    rand_draw = np.random.uniform(size=(n_draws, len(wts)))
-    return int(np.mean(np.sum(rand_draw <= wts, axis=1)))
+    """Given a weights array, estimate the number of samples"""
+    return int(np.sum(np.clip(wts, 0, 1)))
