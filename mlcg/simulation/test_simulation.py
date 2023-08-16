@@ -441,9 +441,9 @@ def test_maxwell_boltzmann_stats():
         betas, masses
     )
     emperical_expectation = torch.sqrt(
-        (sampled_velocities**2).sum(dim=1)
+        (sampled_velocities ** 2).sum(dim=1)
     ).mean()
-    emperical_expectation_2 = (sampled_velocities**2).sum(dim=1).mean()
+    emperical_expectation_2 = (sampled_velocities ** 2).sum(dim=1).mean()
     theory_expectation = torch.sqrt(8 * betas[0] / (torch_pi * masses[0]))
     theory_expectation_2 = 3 * betas[0] / (masses[0])
 
@@ -486,8 +486,8 @@ def test_pt_velocity_init():
         velocities = simulation.initial_data.velocities[
             (n_indep * n_atoms) * i : (n_indep * n_atoms) * (i + 1)
         ]
-        emperical_expectation = torch.sqrt((velocities**2).sum(dim=1)).mean()
-        emperical_expectation_2 = (velocities**2).sum(dim=1).mean()
+        emperical_expectation = torch.sqrt((velocities ** 2).sum(dim=1)).mean()
+        emperical_expectation_2 = (velocities ** 2).sum(dim=1).mean()
 
         np.testing.assert_almost_equal(
             emperical_expectation.numpy(), theory_expectation.numpy(), decimal=1

@@ -197,7 +197,7 @@ class ExactAttention(torch.nn.Module):
         dot = Q @ K.T  # compute dot product
 
         # exact attention matrix
-        A = torch.exp((dot - torch.max(dot)) / d**0.5)
+        A = torch.exp((dot - torch.max(dot)) / d ** 0.5)
 
         if num_batch > 1:  # mask out entries of different batches
             brow = batch_seg.view(1, -1).expand(A.shape[-2], -1)
@@ -275,8 +275,8 @@ class FavorAttention(torch.nn.Module):
 
         d = x.shape[-1]  # d hidden dimension of latent representation
         m = self.omega.shape[-1]
-        U = torch.matmul(x.float() / d**0.25, self.omega.float())
-        h = torch.sum(x**2, dim=-1, keepdim=True) / (2 * d**0.5)
+        U = torch.matmul(x.float() / d ** 0.25, self.omega.float())
+        h = torch.sum(x ** 2, dim=-1, keepdim=True) / (2 * d ** 0.5)
 
         # determine maximum (is subtracted to prevent numerical overflow)
         if is_query:
