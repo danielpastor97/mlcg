@@ -171,7 +171,6 @@ class MolData:
         embeds: np.ndarray,
         coords: np.ndarray,
         forces: np.ndarray,
-        use_weights: bool = False,
         weights: np.ndarray = None,
     ):
         self._name = name
@@ -342,6 +341,7 @@ class MetaSet:
                 forces = MetaSet.retrieve_hdf(
                     hdf5_group[mol_name], keys["forces"]
                 )[selection]
+                weights = None  # Weights are None by default
                 if subsample_using_weights is True:
                     weights = MetaSet.retrieve_hdf(
                         hdf5_group[mol_name], keys["weights"]
@@ -355,23 +355,20 @@ class MetaSet:
                 forces = MetaSet.retrieve_hdf(
                     hdf5_group[mol_name], keys["forces"]
                 )[:][selection]
+                weights = None  # Weights are None by default
                 if subsample_using_weights is True:
                     weights = MetaSet.retrieve_hdf(
                         hdf5_group[mol_name], keys["weights"]
                     )[:][selection]
-            if subsample_using_weights is True:
-                output.insert_mol(
-                    MolData(
-                        mol_name,
-                        embeds,
-                        coords,
-                        forces,
-                        use_weights=True,
-                        weights=weights,
-                    )
+            output.insert_mol(
+                MolData(
+                    mol_name,
+                    embeds,
+                    coords,
+                    forces,
+                    weights=weights,
                 )
-            else:
-                output.insert_mol(MolData(mol_name, embeds, coords, forces))
+            )
         return output
 
     def insert_mol(self, mol_data):
