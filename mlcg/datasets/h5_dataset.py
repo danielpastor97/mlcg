@@ -444,7 +444,9 @@ class MetaSet:
 
     def _weights_exist(self):
         """Checks if _weights is an attribute for all molecules in dataset"""
-        return np.all([(mol_d._weights != None) for mol_d in self._mol_dataset])
+        return np.all(
+            [(mol_d._weights != None) for mol_d in self._mol_dataset]
+        )
 
     def _make_cumulative_weights(self):
         # Concatenate weights from all MolData objects
