@@ -257,3 +257,8 @@ def make_splits(
         torch.from_numpy(idx_val),
         torch.from_numpy(idx_test),
     )
+
+
+def calc_num_samples(wts):
+    """Given a weights array, estimate the number of samples"""
+    return int(np.sum(np.clip(wts, 0, 1)))
