@@ -367,8 +367,8 @@ class PTSimulation(LangevinSimulation):
         )
         # Assemble pairs of beta undergoing exchange - useful for indexing below
         beta_pairs = torch.unique(torch.stack((beta_idx_a, beta_idx_b)), dim=1)
-        p_pair = torch.exp((u_a - u_b) * (betas_a - betas_b))
-        approved = torch.rand(len(p_pair)).to(self.device) < p_pair
+        p_pair = torch.exp((u_a - u_b) * (betas_a - betas_b)).cpu()
+        approved = torch.rand(len(p_pair)) < p_pair
         num_approved = torch.sum(approved)
         num_attempted = len(pair_a)
         self._replica_exchange_approved += num_approved
@@ -379,7 +379,7 @@ class PTSimulation(LangevinSimulation):
         approved_per_beta = torch.sum(
             approved.reshape(len(torch.unique(betas_a)), self.n_indep_sims),
             dim=1,
-        )
+        ).to(self.device)
         # accumulate the symmetric acceptance/rejection matrices
         self.acceptance_matrix[
             beta_pairs[0, :], beta_pairs[1, :]
