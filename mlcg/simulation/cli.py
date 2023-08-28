@@ -83,6 +83,12 @@ def parse_simulation_config(
 
     config = parser.parse_args()
 
+    # Sanitize PTSimulation kwargs
+    if simulation_class == PTSimulation:
+        config["simulation"].pop("sim_subroutine", None)
+        config["simulation"].pop("sim_subroutine_interval", None)
+        config["simulation"].pop("save_subroutine", None)
+
     model_fn = config.pop("model_file")
     model = torch.load((model_fn if isinstance(model_fn, str) else model_fn()))
 
