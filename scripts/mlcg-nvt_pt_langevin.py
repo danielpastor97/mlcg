@@ -18,9 +18,13 @@ from mlcg.simulation import (
 
 if __name__ == "__main__":
     print(f"Starting simulation at {ctime()} with {PTSimulation}")
-    model, initial_data_list, betas, simulation = parse_simulation_config(
-        PTSimulation
-    )
+    (
+        model,
+        initial_data_list,
+        betas,
+        simulation,
+        profile,
+    ) = parse_simulation_config(PTSimulation)
 
     simulation.attach_model_and_configurations(
         model, initial_data_list, beta=betas
