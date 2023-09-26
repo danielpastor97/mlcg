@@ -133,15 +133,28 @@ class PTSimulation(LangevinSimulation):
         """Helper method that allows for re-attachment of prior-condensed configurations"""
         self.validate_data_list(configurations)
         self.initial_data = self.collate(configurations).to(device=self.device)
-        # Initialize velocities according to Maxwell-Boltzmann distribution
-        self.initial_data[
-            VELOCITY_KEY
-        ] = LangevinSimulation.sample_maxwell_boltzmann(
-            self.beta.repeat_interleave(self.n_atoms),
-            self.initial_data[MASS_KEY],
-        ).to(
-            self.dtype
-        )
+
+        if self.checkpointed_data is not None:
+            # Load in checkpointed data values and then wipe to conserve space
+            self.initial_data[VELOCITY_KEY] = self.checkpointed_data[
+                VELOCITY_KEY
+            ]
+            self.initial_data[POSITIONS_KEY] = self.checkpointed_data[
+                POSITIONS_KEY
+            ]
+            self.checkpointed_data = None
+
+        else:
+            # Initialize velocities according to Maxwell-Boltzmann distribution
+            self.initial_data[
+                VELOCITY_KEY
+            ] = LangevinSimulation.sample_maxwell_boltzmann(
+                self.beta.repeat_interleave(self.n_atoms),
+                self.initial_data[MASS_KEY],
+            ).to(
+                self.dtype
+            )
+
         self.initial_data[MASS_KEY] = self.initial_data[MASS_KEY].to(self.dtype)
         self.initial_data[POSITIONS_KEY] = self.initial_data[POSITIONS_KEY].to(
             self.dtype
