@@ -38,12 +38,13 @@ class Residual(torch.nn.Module):
 
     def __init__(
         self,
-        layer_widths: List[int] = [128, 128],
+        layer_widths: List[int] = None,
         activation_func: torch.nn.Module = torch.torch.nn.Tanh(),
         activation_first: bool = False,
     ) -> None:
         super(Residual, self).__init__()
-
+        if layer_widths is None:
+            layer_widths = [128, 128]
         layers = []
         for w_in, w_out in zip(layer_widths[:-1], layer_widths[1:]):
             if activation_first:
@@ -89,13 +90,14 @@ class ResidualStack(torch.nn.Module):
     def __init__(
         self,
         num_residual: int,
-        layer_widths: List[int] = [128, 128],
+        layer_widths: List[int] = None,
         activation_func: torch.nn.Module = torch.torch.nn.Tanh(),
         activation_first: bool = False,
     ) -> None:
         """Initializes the ResidualStack class."""
         super(ResidualStack, self).__init__()
-
+        if layer_widths is None:
+            layer_widths = [128, 128]
         self.stack = torch.nn.ModuleList(
             [
                 Residual(layer_widths, activation_func, activation_first)
@@ -144,12 +146,13 @@ class Residual_MLP(torch.nn.Module):
         num_features_in: int,
         num_features_out: int,
         num_residual: int,
-        layer_widths: List[int] = [128, 128],
+        layer_widths: List[int] = None,
         activation_func: torch.nn.Module = torch.torch.nn.Tanh(),
         activation_first: bool = False,
     ) -> None:
         super(Residual_MLP, self).__init__()
-
+        if layer_widths is None:
+            layer_widths = [128, 128]
         self.linear = torch.nn.Linear(
             num_features_in, num_features_out, bias=True
         )
@@ -386,13 +389,14 @@ class Nonlocalinteractionblock(torch.nn.Module):
         num_residual_k: int,
         num_residual_v: int,
         attention_block: torch.nn.Module,
-        layer_widths: List[int] = [128, 128],
+        layer_widths: List[int] = None,
         activation_func: torch.nn.Module = torch.torch.nn.Tanh(),
         activation_first: bool = False,
     ):
         #  Initializes the NonlocalInteraction class
         super(Nonlocalinteractionblock, self).__init__()
-
+        if layer_widths is None:
+            layer_widths = [128, 128]
         self.resmlp_q = Residual_MLP(
             num_features_in,
             num_features_out,

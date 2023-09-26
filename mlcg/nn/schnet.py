@@ -503,11 +503,13 @@ class AttentiveSchNet(SchNet):
         num_interactions: int = 3,
         activation_func: torch.nn.Module = torch.torch.nn.Tanh(),
         max_num_neighbors: int = 1000,
-        layer_widths: List[int] = [128, 128],
+        layer_widths: List[int] = None,
         activation_first: bool = False,
         aggr: str = "add",
         attention_version: str = "normal",
     ):
+        if layer_widths is None:
+            layer_widths = [128, 128]
         if num_interactions < 1:
             raise ValueError("At least one interaction block must be specified")
 

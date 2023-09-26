@@ -29,11 +29,13 @@ class MLP(torch.nn.Module):
 
     def __init__(
         self,
-        layer_widths: List[int] = [10, 10, 1],
+        layer_widths: List[int] = None,
         activation_func: torch.nn.Module = torch.torch.nn.Tanh(),
         last_bias: bool = True,
     ):
         super(MLP, self).__init__()
+        if layer_widths is None:
+            layer_widths = [10, 10, 1]
         layers = []
         for w_in, w_out in zip(layer_widths[:-2], layer_widths[1:-1]):
             layers.append(torch.nn.Linear(w_in, w_out, bias=True))

@@ -46,9 +46,11 @@ class SumOut(torch.nn.Module):
     def __init__(
         self,
         models: torch.nn.ModuleDict,
-        targets: List[str] = [ENERGY_KEY, FORCE_KEY],
+        targets: List[str] = None,
     ):
         super(SumOut, self).__init__()
+        if targets is None:
+            targets = [ENERGY_KEY, FORCE_KEY]
         self.targets = targets
         self.models = models
 
