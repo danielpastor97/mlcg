@@ -422,9 +422,6 @@ class MetaSet:
             print(
                 f"cumulative weights have shape {self._cumulative_weights.shape}"
             )
-            import time
-
-            time.sleep(10)
 
     @property
     def n_mol(self):
@@ -910,7 +907,7 @@ class H5SimpleDataset(H5Dataset):
             stride=stride,
             hdf_key_mapping=hdf_key_mapping,
             parallel=parallel,
-            subsample_with_weights=subsample_using_weights,
+            subsample_using_weights=subsample_using_weights,
         )
 
     def get_dataloader(
