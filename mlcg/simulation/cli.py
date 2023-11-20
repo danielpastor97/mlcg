@@ -101,7 +101,7 @@ def parse_simulation_config(
     simulation = config_init.get("simulation")
     betas = config.pop("betas")
     if len(betas) == 1:
-        betas = betas[0]
+        betas = float(betas[0])
     profile = config.pop("profile")
 
     return model, initial_data_list, betas, simulation, profile
@@ -151,7 +151,7 @@ class SimulationParser(ArgumentParser):
 
         simulation_class:
             A callable or any subclass of {_Simulation}.
-        nested_key:
+                nested_key:
             Name of the nested namespace to store arguments.
         subclass_mode:
             Whether allow any subclass of the given class. So if true,

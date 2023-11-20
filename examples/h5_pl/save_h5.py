@@ -5,7 +5,8 @@ import argparse
 from glob import glob
 from tqdm import tqdm
 from torch_geometric.data.makedirs import makedirs
-
+import pickle
+from mlcg.utils import load_yaml
 
 from pdb_str_util import (
     read_from_pdb,
@@ -46,49 +47,81 @@ def parse_cli():
         help="path for the processed dataset",
     )
 
+    parser.add_argument(
+        "--config",
+        metavar="fn",
+        default="",
+        type=str,
+        help="prior generator YAML config",
+    )
+
+    parser.add_argument(
+        "--tag",
+        metavar="fn",
+        default="",
+        type=str,
+        help="tag for combined h5 filename",
+    )
+
     return parser.parse_args()
 
 
-def load_CATH(serial, outname):
+def load_CATH(
+    serial,
+    outname,
+    data_dir="/import/a12/users/nickc/mlcg_base_cg_data_dir_cath_opep_omega_fix_no_double_term_om_force_aggregated_percentile_0.1_correct_hybrid_repul_only_ca_o/",
+    prior_tag=None,
+):
     output = {}
     force_fn = CATH_TEMPL_FORCE.format(outname=outname)
     fn = osp.join(TRAIN_DIR, CATH_TEMPL % serial)
     if osp.exists(fn):
-        output["cg_coords"] = np.load(fn)
+        output["cg_coords"] = np.load(fn).astype("float32")
         output["cg_delta_forces"] = np.load(
             osp.join(TRAIN_DIR, force_fn % serial)
-        )
+        ).astype("float32")
         output["cg_embeds"] = np.load(
             osp.join(TRAIN_DIR, CATH_TEMPL_EMBED % serial)
         )
     else:
-        output["cg_coords"] = np.load(osp.join(VAL_DIR, CATH_TEMPL % serial))
+        output["cg_coords"] = np.load(
+            osp.join(VAL_DIR, CATH_TEMPL % serial)
+        ).astype("float32")
         output["cg_delta_forces"] = np.load(
             osp.join(VAL_DIR, force_fn % serial)
-        )
+        ).astype("float32")
         output["cg_embeds"] = np.load(
             osp.join(VAL_DIR, CATH_TEMPL_EMBED % serial)
         )
     return output
 
 
-def load_OPEP(serial, outname):
+def load_OPEP(
+    serial,
+    outname,
+    data_dir="/import/a12/users/nickc/mlcg_base_cg_data_dir_cath_opep_omega_fix_no_double_term_om_force_aggregated_percentile_0.1_correct_hybrid_repul_only_ca_o/",
+    prior_tag=None,
+):
     output = {}
     serial = "%04d" % serial
     force_fn = OPEP_TEMPL_FORCE.format(outname=outname)
     if osp.exists(osp.join(TRAIN_DIR, OPEP_TEMPL % serial)):
-        output["cg_coords"] = np.load(osp.join(TRAIN_DIR, OPEP_TEMPL % serial))
+        output["cg_coords"] = np.load(
+            osp.join(TRAIN_DIR, OPEP_TEMPL % serial)
+        ).astype("float32")
         output["cg_delta_forces"] = np.load(
             osp.join(TRAIN_DIR, force_fn % serial)
-        )
+        ).astype("float32")
         output["cg_embeds"] = np.load(
             osp.join(TRAIN_DIR, OPEP_TEMPL_EMBED % serial)
         )
     else:
-        output["cg_coords"] = np.load(osp.join(VAL_DIR, OPEP_TEMPL % serial))
+        output["cg_coords"] = np.load(
+            osp.join(VAL_DIR, OPEP_TEMPL % serial)
+        ).astype("float32")
         output["cg_delta_forces"] = np.load(
             osp.join(VAL_DIR, force_fn % serial)
-        )
+        ).astype("float32")
         output["cg_embeds"] = np.load(
             osp.join(VAL_DIR, OPEP_TEMPL_EMBED % serial)
         )
@@ -104,9 +137,10 @@ if __name__ == "__main__":
     ROOTDIR = args.rootdir
     TRAIN_DIR = osp.join(ROOTDIR, "mlcg_train")
     VAL_DIR = osp.join(ROOTDIR, "mlcg_val")
+    CONFIG = load_yaml(args.config)
+    TAG = args.tag
 
     outname = osp.basename(osp.abspath(ROOTDIR))
-
     # ---- find CATH data files and accumulate them into a HDF5 record ----
     cath_names = []
     for f in glob(osp.join(TRAIN_DIR, CATH_GLOB_TEMPL)):
@@ -115,7 +149,7 @@ if __name__ == "__main__":
     for f in glob(osp.join(VAL_DIR, CATH_GLOB_TEMPL)):
         name = f.split("/")[-1][5:12]
         cath_names.append(name)
-    cath_names = sorted(cath_names)
+    cath_names = sorted(set(cath_names))
     print("Found these CATH protein:")
     print(cath_names)
     print(len(cath_names))
@@ -125,7 +159,11 @@ if __name__ == "__main__":
         for c_name in tqdm(cath_names, desc="process CATH"):
             name = "cath_%s" % c_name
             hdf_group = metaset.create_group(name)
-            cath_data = load_CATH(c_name, outname)
+
+            cath_data = load_CATH(
+                c_name, outname, prior_tag=CONFIG["prior_tag"]
+            )
+
             hdf_group.create_dataset("cg_coords", data=cath_data["cg_coords"])
             hdf_group.create_dataset(
                 "cg_delta_forces", data=cath_data["cg_delta_forces"]
@@ -141,7 +179,7 @@ if __name__ == "__main__":
         for i in tqdm(range(1100), desc="process OPEP"):
             name = "opep_%04d" % i
             hdf_group = metaset.create_group(name)
-            opep_data = load_OPEP(i, outname)
+            opep_data = load_OPEP(i, outname, prior_tag=CONFIG["prior_tag"])
             hdf_group.create_dataset("cg_coords", data=opep_data["cg_coords"])
             hdf_group.create_dataset(
                 "cg_delta_forces", data=opep_data["cg_delta_forces"]
@@ -151,7 +189,9 @@ if __name__ == "__main__":
             # print("Processed opep_%04d" % i)
 
     # ---- establish a HDF5 record to merge two Metasets together ----
-    with h5py.File(osp.join(OUTPUT_DIR, f"combined_{outname}.h5"), "w") as f:
+    with h5py.File(
+        osp.join(OUTPUT_DIR, f"{TAG}_combined_{outname}.h5"), "w"
+    ) as f:
         # note: h5py treats the external link as relative path from directory of the main h5py file.
         # therefore we don't include `OUTPUT_DIR` below
         # and the generated combined file should stay in the same folder as the other two files.

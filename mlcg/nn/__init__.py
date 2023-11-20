@@ -4,7 +4,7 @@ from .radial_basis import GaussianBasis, ExpNormalBasis
 from .cutoff import CosineCutoff, IdentityCutoff
 from .losses import ForceMSE, ForceRMSE, Loss
 from .prior import Harmonic, HarmonicAngles, HarmonicBonds, Repulsion, Dihedral
-from .mlp import MLP
+from .mlp import MLP, TypesMLP
 from .attention import ExactAttention, FavorAttention, Nonlocalinteractionblock
 
 try:
@@ -30,6 +30,7 @@ __all__ = [
     "HarmonicBonds",
     "Repulsion",
     "MLP",
+    "TypesMLP",
     "Attention",
     "Residual",
     "Residual_MLP",

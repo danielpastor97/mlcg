@@ -114,7 +114,6 @@ class LangevinSimulation(_Simulation):
         v_old = data[VELOCITY_KEY]
         masses = data[MASS_KEY]
         x_old = data[POSITIONS_KEY]
-
         # B
         v_new = v_old + 0.5 * self.dt * forces / masses[:, None]
 
@@ -129,10 +128,8 @@ class LangevinSimulation(_Simulation):
             device=self.device,
         )
         v_new = v_new * self.vscale + self.noisescale * noise
-
         # A
         x_new = x_new + v_new * self.dt * 0.5
-
         data[POSITIONS_KEY] = x_new
         potential, forces = self.calculate_potential_and_forces(data)
         # B

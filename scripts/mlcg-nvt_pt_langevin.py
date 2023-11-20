@@ -27,7 +27,7 @@ if __name__ == "__main__":
     ) = parse_simulation_config(PTSimulation)
 
     simulation.attach_model_and_configurations(
-        model, initial_data_list, beta=betas
+        model, initial_data_list, betas=betas
     )
     simulation.simulate()
     print(f"Ending simulation at {ctime()}")

@@ -17,4 +17,6 @@ __all__ = [
     "mol_split",
     "multimol_split",
     "AlanineDataset",
+    "mol_split",
+    "multimol_split",
 ]

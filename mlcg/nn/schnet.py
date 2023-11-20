@@ -128,7 +128,7 @@ class SchNet(torch.nn.Module):
                 x, edge_index, distances, rbf_expansion, num_batch, data.batch
             )
 
-        energy = self.output_network(x)
+        energy = self.output_network(x, data)
         energy = scatter(energy, data.batch, dim=0, reduce="sum")
         energy = energy.flatten()
         data.out[self.name] = {ENERGY_KEY: energy}
@@ -265,7 +265,6 @@ class CFConv(MessagePassing):
         self.lin2 = torch.nn.Linear(num_filters, out_channels)
         self.filter_network = filter_network
         self.cutoff = cutoff
-
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -411,6 +410,7 @@ class StandardSchNet(SchNet):
             filter_network = MLP(
                 layer_widths=[rbf_layer.num_rbf, num_filters, num_filters],
                 activation_func=activation,
+                last_bias=False,
             )
 
             cfconv = CFConv(

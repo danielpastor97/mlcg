@@ -81,10 +81,12 @@ class H5DataModule(pl.LightningDataModule):
         if dist.is_available() and dist.is_initialized():
             num_replicas = dist.get_world_size()
             rank = dist.get_rank()
+            use_ddp = True
         else:
             # for the DataModule, running without DDP is the same as with DDP and world_size = 1
             num_replicas = 1
             rank = 0
+            use_ddp = False
         # write possible parallelization settings to loading_options
         self._process_load_options = copy.deepcopy(self._load_options)
         self._process_load_options["parallel"] = {
@@ -102,8 +104,9 @@ class H5DataModule(pl.LightningDataModule):
             self._subsample_using_weights,
         )
         sample_info = [None] * num_replicas
-        dist.all_gather_object(sample_info, self._h5d.partition_sample_info)
-        if rank == 0:  # only the main process prints
+        if use_ddp:
+            dist.all_gather_object(sample_info, self._h5d.partition_sample_info)
+        if rank == 0 and use_ddp:  # only the main process prints
             info = "\n" + "-" * 79 + "\n"
             info += "Summary of subsampling for batch compsition balancing:\n"
             is_any_trimmed = False

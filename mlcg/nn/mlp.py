@@ -1,6 +1,9 @@
 import torch
-from typing import List
+from torch_scatter import scatter
+from typing import Optional, List, Final
+
 from ._module_init import init_xavier_uniform
+from ..data.atomic_data import ENERGY_KEY
 
 
 class MLP(torch.nn.Module):
@@ -55,3 +58,67 @@ class MLP(torch.nn.Module):
     def forward(self, x, data=None):
         """Forward pass"""
         return self.layers(x)
+
+
+class TypesMLP(torch.nn.Module):
+    """
+    The local energy model :math:`\epsilon` are multi-layer perceptron (MLP)
+    that use as en input a representation of the atomic environment. There can
+    be distinct models for each central atomic species.
+
+    Parameters
+    ----------
+    layer_widths (list):
+        List of the widths of the MLP's hidden layers. The input and output width are set by the calculator size and 1 respectively
+    activation (nn.Module, optional):
+        The activation function to use
+            (default: :obj:`torch.nn.Tanh()`)
+    species (torch.Tensor, optional):
+        use a different set of weights for each type of atoms
+            (default: :obj:`None`)
+
+    """
+
+    name: Final[str] = "TypesMLP"
+
+    def __init__(
+        self,
+        layer_widths: List[int],
+        activation: torch.nn.Module = torch.nn.Tanh(),
+        species: Optional[torch.Tensor] = None,
+    ):
+        super(TypesMLP, self).__init__()
+
+        self.weights_per_species = False
+        if species is not None:
+            self.weights_per_species = True
+            species = torch.unique(species)
+            self.register_buffer("species", species)
+        else:
+            self.species = species
+
+        if self.weights_per_species:
+            self.mlp = torch.nn.ModuleList()
+            for _ in self.species:
+                self.mlp.append(MLP(layer_widths, activation))
+        else:
+            self.mlp = MLP(layer_widths, activation)
+
+    def reset_parameters(self):
+        if self.weights_per_species:
+            for mod in self.mlp:
+                mod.reset_parameters()
+        else:
+            self.mlp.reset_parameters()
+
+    def forward(self, features, data):
+        # predict atomic energies
+        yi = torch.zeros_like(data.batch, dtype=features.dtype).view(-1, 1)
+        if self.weights_per_species:
+            for ii, mlp in enumerate(self.mlp):
+                mask = self.species[ii] == data.atom_types
+                yi[mask] = mlp(features[mask])
+        else:
+            yi = self.mlp(features)
+
+        return yi

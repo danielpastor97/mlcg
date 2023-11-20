@@ -1,14 +1,11 @@
-# Workaround for apple M1 which does not support mdtraj in a simple manner
 import warnings
 
-try:
-    import mdtraj
-    from mdtraj.core.element import Element
-except ModuleNotFoundError:
-    warnings.warn(f"Failed to import mdtraj")
+import mdtraj
+from mdtraj.core.element import Element
+
 from ase.geometry.analysis import Analysis
 from ase import Atoms
-from typing import NamedTuple, List, Optional, Tuple, Dict, Callable
+from typing import NamedTuple, List, Optional, Tuple, Dict, Callable, Union
 import torch
 import numpy as np
 import networkx as nx
@@ -422,9 +419,9 @@ class Topology(object):
             Topology instance created from the input MDTraj topology
         """
 
-        assert (
-            topology.n_chains == 1
-        ), f"Does not support multiple chains but {topology.n_chains}"
+        # assert (
+        #     topology.n_chains == 1
+        # ), f"Does not support multiple chains but {topology.n_chains}"
         topo = Topology()
         for at in topology.atoms:
             topo.add_atom(
@@ -618,7 +615,9 @@ def add_chain_dihedrals(topology: Topology) -> None:
 
 
 def get_n_pairs(
-    connectivity_matrix: torch.Tensor, n: int = 3, unique: bool = True
+    connectivity_matrix: Union[torch.Tensor, nx.Graph, np.array],
+    n: int = 3,
+    unique: bool = True,
 ) -> torch.Tensor:
     r"""This function uses networkx to identify those pairs
     that are exactly n atoms away. Paths are found using Dijkstra's algorithm.
@@ -628,6 +627,7 @@ def get_n_pairs(
     connectivity_matrix:
         Connectivity/adjacency matrix of the molecular graph of shape
         (n_atoms, n_atoms)
+        or a networkx graph object
     n:
         Number of atoms to count away from the starting atom, with the starting
         atom counting as n=1
@@ -639,7 +639,12 @@ def get_n_pairs(
     torch.Tensor:
         Edge index tensor of shape (2, n_pairs)
     """
-    graph = nx.Graph(connectivity_matrix.numpy())
+    if isinstance(connectivity_matrix, nx.Graph):
+        graph = connectivity_matrix
+    elif isinstance(connectivity_matrix, torch.Tensor):
+        graph = nx.Graph(connectivity_matrix.numpy())
+    else:
+        graph = nx.Graph(connectivity_matrix)
     pairs = ([], [])
     for atom in graph.nodes:
         n_hop_paths = nx.single_source_dijkstra_path(graph, atom, cutoff=n)
@@ -658,7 +663,9 @@ def get_n_pairs(
 
 
 def get_n_paths(
-    connectivity_matrix: torch.Tensor, n: int = 3, unique: bool = True
+    connectivity_matrix: Union[torch.Tensor, nx.Graph, np.array],
+    n: int = 3,
+    unique: bool = True,
 ) -> torch.Tensor:
     r"""This function use networkx to grab all connected paths defined
     by n connecting edges. Paths are found using Dijkstra's algorithm.
@@ -667,6 +674,7 @@ def get_n_paths(
     ----------
     connectivity_matrix:
         Connectivity/adjacency matrix of the molecular graph of shape (n_atoms, n_atoms)
+        or a networkx graph object
     n:
         Number of atoms to count away from the starting atom, with the starting atom counting as n=1
     unique:
@@ -682,7 +690,12 @@ def get_n_paths(
     if n not in [2, 3, 4] and unique == True:
         raise NotImplementedError("Unique currently only works for n=2,3")
 
-    graph = nx.Graph(connectivity_matrix.numpy())
+    if isinstance(connectivity_matrix, nx.Graph):
+        graph = connectivity_matrix
+    elif isinstance(connectivity_matrix, torch.Tensor):
+        graph = nx.Graph(connectivity_matrix.numpy())
+    else:
+        graph = nx.Graph(connectivity_matrix)
     final_paths = [[] for i in range(n)]
     for atom in graph.nodes:
         n_hop_paths = nx.single_source_dijkstra_path(graph, atom, cutoff=n)

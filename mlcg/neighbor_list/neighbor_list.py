@@ -86,15 +86,22 @@ def make_neighbor_list(
     Dict:
         Neighborlist dictionary
     """
-
+    if len(index_mapping) > 0:
+        mapping_batch = torch.zeros((index_mapping.shape[1]), dtype=torch.long)
+    else:
+        mapping_batch = torch.zeros((0,), dtype=torch.long)
+    if index_mapping.shape[0] != order:
+        raise RuntimeError(
+            f"index_mapping shape does not match the order:{index_mapping.shape[0]} != {order}"
+        )
     return dict(
         tag=tag,
         order=order,
-        index_mapping=index_mapping,
+        index_mapping=torch.as_tensor(index_mapping, dtype=torch.long),
         cell_shifts=cell_shifts,
         rcut=rcut,
         self_interaction=self_interaction,
-        mapping_batch=torch.zeros((index_mapping.shape[1]), dtype=torch.long),
+        mapping_batch=mapping_batch,
     )
 
 

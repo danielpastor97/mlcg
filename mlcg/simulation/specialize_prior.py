@@ -10,6 +10,8 @@ from ..data import AtomicData
 from ..nn.prior import (
     _Prior,
     Dihedral,
+    GeneralAngles,
+    GeneralBonds,
     HarmonicBonds,
     HarmonicAngles,
     HarmonicImpropers,
@@ -37,6 +39,8 @@ with `Static` prepended and they are inherit from :obj:`StaticPrior`.
 #: register the types of prior that can be reduced
 to_reduce = {
     "Dihedral": Dihedral,
+    "GeneralAngles": GeneralAngles,
+    "GeneralBonds": GeneralBonds,
     "HarmonicBonds": HarmonicBonds,
     "HarmonicAngles": HarmonicAngles,
     "HarmonicImpropers": HarmonicImpropers,

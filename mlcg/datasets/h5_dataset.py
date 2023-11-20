@@ -147,7 +147,7 @@ from torch_geometric.loader.dataloader import Collater as PyGCollater
 import torch_geometric.loader.dataloader  # for type hint
 from typing import Dict, List, Optional, Sequence
 from mlcg.data import AtomicData
-from mlcg.utils import make_splits, calc_num_samples
+from mlcg.utils import make_splits, calc_num_samples, tqdm
 
 
 class MolData:
@@ -314,7 +314,7 @@ class MetaSet:
 
         output = MetaSet(hdf5_group.name.split("/")[-1])
         keys = hdf_key_mapping
-        for mol_name in mol_list:
+        for mol_name in tqdm(mol_list, leave=False, desc="loading molecules"):
             if mol_name not in hdf5_group:
                 raise KeyError(
                     "`mol_list` includes moleucle %s,"

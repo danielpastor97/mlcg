@@ -8,6 +8,8 @@ from ruamel.yaml import YAML
 yaml = YAML(pure="true", typ="safe")
 yaml.default_flow_style = False
 
+yaml = YAML()
+
 
 def prepare_molecule_dictionary(h5_file):
     f = h5py.File(h5_file)

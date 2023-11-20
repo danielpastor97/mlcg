@@ -75,7 +75,7 @@ class RIGTOBasis(_RadialBasis):
         self.lmax = lmax
         self.sigma = sigma
         self.mesh_size = mesh_size
-
+        self.num_rbf = self.nmax * (self.lmax + 1)
         self.Rln = splined_radial_integrals(
             nmax,
             lmax + 1,
@@ -83,7 +83,7 @@ class RIGTOBasis(_RadialBasis):
             sigma,
             self.cutoff,
             mesh_size,
-        )
+        ).to(torch.float32)
 
     def forward(self, dist: torch.Tensor) -> torch.Tensor:
         r"""Expansion of distances through the radial basis function set.
@@ -98,8 +98,10 @@ class RIGTOBasis(_RadialBasis):
         expanded_distances: torch.Tensor
             Distances expanded in the radial basis with shape (total_num_edges, lmax + 1, nmax)
         """
-
-        return self.Rln(dist).view(-1, self.lmax + 1, self.nmax)
+        if self.lmax == 0:
+            return self.Rln(dist).view(-1, self.nmax)
+        else:
+            return self.Rln(dist).view(-1, self.lmax + 1, self.nmax)
 
     def plot(self):
         """Plot the set of radial basis function."""
@@ -113,6 +115,9 @@ class RIGTOBasis(_RadialBasis):
             plt.title(f"l={l}")
             plt.legend()
             plt.show()
+
+    def reset_parameters(self):
+        pass
 
 
 def fit_splined_radial_integrals(nmax, lmax, rc, sigma, cutoff, mesh_size):

@@ -42,6 +42,7 @@ class SumOut(torch.nn.Module):
 
 
     """
+    name: str = "SumOut"
 
     def __init__(
         self,
@@ -174,7 +175,11 @@ class GradientsOut(torch.nn.Module):
         data = self.model(data)
 
         if FORCE_KEY in self.targets:
-            y = data.out[self.name][ENERGY_KEY]
+            if self.name == "SumOut":
+                y = data.out[ENERGY_KEY]
+            else:
+                y = data.out[self.name][ENERGY_KEY]
+
             dy_dr = torch.autograd.grad(
                 y.sum(),
                 data.pos,
@@ -182,10 +187,13 @@ class GradientsOut(torch.nn.Module):
                 # retain_graph=self.training,
                 create_graph=self.training,
             )[0]
-
-            data.out[self.name][FORCE_KEY] = -dy_dr
+            if self.name == "SumOut":
+                data.out[FORCE_KEY] = -dy_dr
+            else:
+                data.out[self.name][FORCE_KEY] = -dy_dr
             # assert not torch.any(torch.isnan(dy_dr)), f"nan in {self.name}"
         data.pos = data.pos.detach()
+
         return data
 
     def neighbor_list(self, **kwargs: Any):

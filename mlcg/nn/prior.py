@@ -14,6 +14,8 @@ from ..geometry.internal_coordinates import (
 )
 from ..data.atomic_data import AtomicData
 
+torch_pi = torch.tensor(pi)
+
 
 class _Prior(object):
     """Abstract prior class"""
@@ -302,6 +304,82 @@ class HarmonicImpropers(Harmonic):
         return Harmonic.compute_features(pos, mapping, HarmonicImpropers.name)
 
 
+class ShiftedPeriodicHarmonicImpropers(Harmonic):
+    """HarmonicImproper that can handle discontinuities around the
+    pi modulus, eg, for Omega dihedral angles or distributions with this form:
+
+
+            ###                                   ###
+            ###                                   ###
+            ###                                   ###
+            ####                                  ###
+            ####                                  ###
+            #####                                ####
+            ######                             ,#####
+             -pi                0                 pi
+
+
+    Internally these features are computed such that angles
+    lower than zero are phase shifted by 2pi, and then pi is subtracted from
+    the resulting distribution to get:
+
+                              #####
+                             #######
+                            ########.
+                           /#########,
+                           ###########
+                           ###########
+                          #############
+             -pi                0                 pi
+
+    where the harmonic parameters are fitted over the free energy associated
+    with the latter , tranformed distribution.
+
+    """
+
+    name: Final[str] = "impropers"
+    _order = 4
+
+    def __init__(self, statistics) -> None:
+        super(ShiftedPeriodicHarmonicImpropers, self).__init__(
+            statistics, ShiftedPeriodicHarmonicImpropers.name
+        )
+
+    @staticmethod
+    def neighbor_list(topology: Topology) -> dict:
+        return Harmonic.neighbor_list(topology, HarmonicImpropers.name)
+
+    @staticmethod
+    def compute_features(pos, mapping):
+        # features should be between -pi and pi after data2features()
+        # Here, we conditionally shift angles in (-pi, 0) to (pi, 2pi)
+        # Then subtract pi in order to center the distribution at 0
+        features = Harmonic.compute_features(
+            pos, mapping, HarmonicImpropers.name
+        )
+        features = (
+            torch.where(features < 0, features + 2 * torch_pi, features)
+            - torch_pi
+        )
+        return features
+
+    def data2features(self, data):
+        mapping = data.neighbor_list[self.name]["index_mapping"]
+        return ShiftedPeriodicHarmonicImpropers.compute_features(
+            data.pos, mapping
+        )
+
+    def forward(self, data):
+        mapping_batch = data.neighbor_list[self.name]["mapping_batch"]
+        params = self.data2parameters(data)
+        features = self.data2features(data).flatten()
+
+        y = Harmonic.compute(features, **params)
+        y = scatter(y, mapping_batch, dim=0, reduce="sum")
+        data.out[self.name] = {"energy": y}
+        return data
+
+
 class Repulsion(torch.nn.Module, _Prior):
     r"""1-D power law repulsion prior for feature :math:`x` of the form:
 
@@ -507,6 +585,44 @@ class Repulsion(torch.nn.Module, _Prior):
                 Repulsion._neighbor_list_name
             )
         }
+
+
+class GeneralBonds(Harmonic):
+    """Generalized Bonds"""
+
+    name: Final[str] = "bonds"
+    _order = 2
+
+    def __init__(self, statistics, name) -> None:
+        super(GeneralBonds, self).__init__(statistics, HarmonicBonds.name)
+        self.name = name
+
+    def data2features(self, data):
+        mapping = data.neighbor_list[self.name]["index_mapping"]
+        return Harmonic.compute_features(data.pos, mapping, "bonds")
+
+    @staticmethod
+    def compute_features(pos, mapping):
+        return Harmonic.compute_features(pos, mapping, "bonds")
+
+
+class GeneralAngles(Harmonic):
+    """Generalized Angles"""
+
+    name: Final[str] = "angles"
+    _order = 3
+
+    def __init__(self, statistics, name) -> None:
+        super(GeneralAngles, self).__init__(statistics, HarmonicAngles.name)
+        self.name = name
+
+    def data2features(self, data):
+        mapping = data.neighbor_list[self.name]["index_mapping"]
+        return Harmonic.compute_features(data.pos, mapping, "angles")
+
+    @staticmethod
+    def compute_features(pos, mapping):
+        return Harmonic.compute_features(pos, mapping, "angles")
 
 
 class Dihedral(torch.nn.Module, _Prior):

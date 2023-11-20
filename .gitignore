@@ -3,12 +3,13 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+examples/**/tensorboard
+examples/MD17_benchmarks/aspirin
 Untitled.ipynb
 examples/notebooks/train
 examples/notebooks/simulate
 .vscode
-
+benchmarks
 # C extensions
 *.so
 

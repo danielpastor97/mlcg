@@ -43,6 +43,9 @@ class MACEInterface(torch.nn.Module):
         Gate function (eg, composition of nonlinearities) to be used in the
         EquivariantProductBasisBlock. Be aware that this choice, even if unspecified
         overrides any gate choice specified in `config`
+    activation:
+        activation function (eg, composition of nonlinearities) to be used in
+        the InteractionBlock.
     max_num_neighbors:
         Maximum number of neighbors to return for a
         given node/atom when constructing the molecular graph during forward
@@ -58,6 +61,7 @@ class MACEInterface(torch.nn.Module):
         self,
         config: dict,
         gate: Optional[torch.nn.Module] = torch.nn.Tanh(),
+        activation: Optional[torch.nn.Module] = torch.nn.SiLU(),
         max_num_neighbors: int = 1000,
     ):
         super(MACEInterface, self).__init__()
@@ -66,6 +70,7 @@ class MACEInterface(torch.nn.Module):
 
         # necessary for initialization with CLI
         config["gate"] = gate
+        config["activation"] = activation
         for k in "hidden_irreps", "MLP_irreps":
             config[k] = o3.Irreps(config[k])
 

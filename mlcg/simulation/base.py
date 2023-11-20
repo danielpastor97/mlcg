@@ -2,6 +2,7 @@
 # Authors: Brooke Husic, Nick Charron, Jiang Wang
 # Contributors: Dominik Lemm, Andreas Kraemer, Clark Templeton
 
+import warnings
 from typing import List, Optional, Tuple, Union, Callable
 import torch
 import numpy as np
@@ -60,6 +61,8 @@ class _Simulation(object):
         identical for the same random seed
     device : str, default='cpu'
         Device upon which simulation compuation will be carried out
+    dtype : str, default='single'
+        precision to run the simulation with (single or double)
     export_interval : int, default=None
         If not None, .npy files will be saved. If an int is given, then
         the int specifies at what intervals numpy files will be saved per
@@ -178,11 +181,11 @@ class _Simulation(object):
             print("Prior models have been specialized for the simulation.")
         if self.filename is not None:
             torch.save(
-                (model, configurations),
+                (deepcopy(model), deepcopy(configurations)),
                 f"{self.filename}_specialized_model_and_config.pt",
             )
         self._attach_model(model)
-        self._attach_configurations(configurations, beta)
+        self._attach_configurations(configurations, beta=beta)
 
     def _attach_model(self, model: torch.nn.Module):
         """setup the model to use in the simulation
@@ -278,7 +281,7 @@ class _Simulation(object):
 
         self._set_up_simulation(overwrite)
         data = deepcopy(self.initial_data)
-        data.to(self.device)
+        data = data.to(self.device)
         _, forces = self.calculate_potential_and_forces(data)
         for t in tqdm(
             range(self.n_timesteps),
@@ -664,6 +667,17 @@ class _Simulation(object):
         """
         x_new = data.pos.view(-1, self.n_atoms, self.n_dims)
         forces = forces.view(-1, self.n_atoms, self.n_dims)
+
+        pos_spread = x_new.std(dim=(1, 2)).detach().max().cpu()
+        # print(pos_spread.min(),pos_spread.max(),pos_spread.mean())
+        if torch.any(pos_spread > 1e3 * self.initial_pos_spread):
+            raise RuntimeError(
+                f"Simulation of trajectory blew up at #timestep={t}"
+            )
+
+            # tt = pos_spread > 1e3*self.initial_pos_spread
+            # traj_ids = torch.where(tt == True)[0]
+            # raise RuntimeError(f'Simulation of trajectory {traj_ids} blew up at #timestep={t} with pos= \n {x_new[tt]}')
 
         save_ind = t // self.save_interval
 
