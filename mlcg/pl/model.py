@@ -1,7 +1,7 @@
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.cli import instantiate_class
-from pytorch_lightning.utilities.finite_checks import detect_nan_parameters
+from ..utils import detect_nan_parameters
 from typing import Optional, Tuple
 from copy import deepcopy
 

@@ -1,12 +1,14 @@
 from typing import Tuple, Optional, List
 import numpy as np
 import torch
+import torch.nn as nn
 import urllib.request
 import requests
 from sklearn.model_selection import train_test_split
 from torch_geometric.data.makedirs import makedirs
 import sys
 from ruamel.yaml import YAML
+import logging
 
 yaml = YAML(pure="true", typ="safe")
 yaml.default_flow_style = False
@@ -262,3 +264,29 @@ def make_splits(
 def calc_num_samples(wts):
     """Given a weights array, estimate the number of samples"""
     return int(np.sum(np.clip(wts, 0, 1)))
+
+
+log = logging.getLogger(__name__)
+
+
+def print_nan_gradients(model: nn.Module) -> None:
+    """Iterates over model parameters and prints out parameter + gradient information if NaN."""
+    for param in model.parameters():
+        if (param.grad is not None) and torch.isnan(param.grad.float()).any():
+            log.info(f"{param}, {param.grad}")
+
+
+def detect_nan_parameters(model: nn.Module) -> None:
+    """Iterates over model parameters and prints gradients if any parameter is not finite.
+
+    Raises:
+        ValueError:
+            If ``NaN`` or ``inf`` values are found
+    """
+    for name, param in model.named_parameters():
+        if not torch.isfinite(param).all():
+            print_nan_gradients(model)
+            raise ValueError(
+                f"Detected nan and/or inf values in `{name}`."
+                " Check your forward pass for numerically unstable operations."
+            )
