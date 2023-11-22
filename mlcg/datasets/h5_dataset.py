@@ -327,6 +327,12 @@ class MetaSet:
                 and detailed_indices.get(mol_name) is not None
             ):
                 par_range = detailed_indices[mol_name]
+                # the indices could be a string pointing to a npy file, which in turn
+                # contains the real indices. We need to deal with that.
+                if isinstance(par_range, str):
+                    # path to an array of detailed_indices?
+                    detailed_indices = np.load(par_range)
+                    par_range = detailed_indices
                 split_per_index = True
             else:
                 par_range = MetaSet.retrieve_hdf(

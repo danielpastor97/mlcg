@@ -103,10 +103,12 @@ class H5DataModule(pl.LightningDataModule):
             self._process_load_options,
             self._subsample_using_weights,
         )
-        sample_info = [None] * num_replicas
         if use_ddp:
+            sample_info = [None] * num_replicas
             dist.all_gather_object(sample_info, self._h5d.partition_sample_info)
-        if rank == 0 and use_ddp:  # only the main process prints
+        else:
+            sample_info = [self._h5d.partition_sample_info]
+        if rank == 0:  # only the main process prints
             info = "\n" + "-" * 79 + "\n"
             info += "Summary of subsampling for batch compsition balancing:\n"
             is_any_trimmed = False
