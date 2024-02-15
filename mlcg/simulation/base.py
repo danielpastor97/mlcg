@@ -287,9 +287,11 @@ class _Simulation(object):
             range(self.n_timesteps),
             desc="Simulation timestep",
             mininterval=self.tqdm_refresh,
-            initial=self.current_timestep * self.export_interval
-            if self.export_interval is not None
-            else 0,
+            initial=(
+                self.current_timestep * self.export_interval
+                if self.export_interval is not None
+                else 0
+            ),
         ):
             # step forward in time
             data, potential, forces = self.timestep(data, forces)

@@ -42,6 +42,7 @@ class SumOut(torch.nn.Module):
 
 
     """
+
     name: str = "SumOut"
 
     def __init__(

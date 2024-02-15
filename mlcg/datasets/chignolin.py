@@ -29,6 +29,7 @@ class ChignolinDataset(InMemoryDataset):
 
     This Dataset produces delta forces for model training, in which the CG prior forces (harmonic bonds and angles and a repulsive term) have been subtracted from the full CG forces.
     """
+
     #:Temperature used to generate the underlying all-atom data in [K]
     temperature = 350  # K
     #:Boltzmann constan in kcal/mol/K

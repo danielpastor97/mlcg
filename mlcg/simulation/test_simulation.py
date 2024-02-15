@@ -81,21 +81,21 @@ def get_initial_data():
 ### corruptors - lambdas that introduce a problem in the data list ###
 
 # Puts the wrong mass on the fourth frame
-wrong_mass_fn = (
-    lambda frame, mol: (2 * torch.tensor(mol.get_masses()), MASS_KEY)
+wrong_mass_fn = lambda frame, mol: (
+    (2 * torch.tensor(mol.get_masses()), MASS_KEY)
     if frame == 3
     else (torch.tensor(mol.get_masses()), MASS_KEY)
 )
 
 # Gives a structure with the wrong shape on the third frame
-wrong_pos_fn = (
-    lambda frame, mol: (torch.randn(7, 3), POSITIONS_KEY)
+wrong_pos_fn = lambda frame, mol: (
+    (torch.randn(7, 3), POSITIONS_KEY)
     if frame == 2
     else (torch.tensor(mol.get_positions()), POSITIONS_KEY)
 )
 # Gives the wrong atomic types on the second frame
-wrong_atom_type_fn = (
-    lambda frame, mol: (
+wrong_atom_type_fn = lambda frame, mol: (
+    (
         7 * torch.tensor(mol.get_atomic_numbers()),
         ATOM_TYPE_KEY,
     )

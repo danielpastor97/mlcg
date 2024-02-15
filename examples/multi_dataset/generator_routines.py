@@ -319,13 +319,13 @@ def fit_transferable_baseline_model(
                             )  # identify N-term N atom involved
                             assert n_n_atom_idxs.shape == (1, 1)
                             bulk_key = list(key)
-                            bulk_key[
-                                n_n_atom_idxs[0][0]
-                            ] = 21  # replace with bulk nitrogen
+                            bulk_key[n_n_atom_idxs[0][0]] = (
+                                21  # replace with bulk nitrogen
+                            )
                             bulk_stats = stats[tuple(bulk_key)]
-                            stats[
-                                key
-                            ] = bulk_stats  # replace N-terminal stats with bulk stats
+                            stats[key] = (
+                                bulk_stats  # replace N-terminal stats with bulk stats
+                            )
 
                 all_stats[tag] = stats
                 prior = Dihedral(stats, n_degs=pro_phi_degs)
@@ -362,13 +362,13 @@ def fit_transferable_baseline_model(
                             )  # identify N-term N atom involved
                             assert n_n_atom_idxs.shape == (1, 1)
                             bulk_key = list(key)
-                            bulk_key[
-                                n_n_atom_idxs[0][0]
-                            ] = 21  # replace with bulk nitrogen
+                            bulk_key[n_n_atom_idxs[0][0]] = (
+                                21  # replace with bulk nitrogen
+                            )
                             bulk_stats = stats[tuple(bulk_key)]
-                            stats[
-                                key
-                            ] = bulk_stats  # replace N-terminal stats with bulk stats
+                            stats[key] = (
+                                bulk_stats  # replace N-terminal stats with bulk stats
+                            )
 
                 all_stats[tag] = stats
                 prior = Dihedral(stats, n_degs=dihedral_degs)
@@ -452,13 +452,13 @@ def fit_transferable_baseline_model(
                         )  # identify N-term N atom involved
                         assert n_n_atom_idxs.shape == (1, 1)
                         bulk_key = list(key)
-                        bulk_key[
-                            n_n_atom_idxs[0][0]
-                        ] = 21  # replace with bulk nitrogen
+                        bulk_key[n_n_atom_idxs[0][0]] = (
+                            21  # replace with bulk nitrogen
+                        )
                         bulk_stats = stats[tuple(bulk_key)]
-                        stats[
-                            key
-                        ] = bulk_stats  # replace N-terminal stats with bulk stats
+                        stats[key] = (
+                            bulk_stats  # replace N-terminal stats with bulk stats
+                        )
 
             all_stats[tag] = stats
             prior = Dihedral(stats, n_degs=gamma_1_degs)

@@ -59,6 +59,7 @@ class AlanineDataset(InMemoryDataset):
             - If repulsion prior is used, a custom neighbor list is created for the repulsion prior where all pairs of beads
               not interacting through bonds and angles are included in the interaction set
     """
+
     #:Temperature used to generate the underlying all-atom data in [K]
     temperature = 300  # K
     #:Boltzmann constant in kcal/mol/K

@@ -4,6 +4,7 @@ This is a seperate module to compensate for a TorchScript bug that can only reco
 
 Adapted from NequIP (https://github.com/mir-group/nequip)
 """
+
 from typing import List, Final
 import sys
 

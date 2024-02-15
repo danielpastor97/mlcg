@@ -95,8 +95,8 @@ class GaussianBasis(_RadialBasis):
             num_rbf)
         """
 
-        dist = dist.unsqueeze(-1) - self.offset
+        dist = dist.unsqueeze(-1)
         expanded_distances = torch.exp(
-            self.coeff * torch.pow(dist, 2)
+            self.coeff * torch.pow(dist - self.offset, 2)
         ) * self.cutoff(dist)
         return expanded_distances

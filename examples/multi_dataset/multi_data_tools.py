@@ -1083,9 +1083,9 @@ def get_gamma_sets(
     dihedral_dictionary = {}
     dihedrals = []
 
-    dihedral_dictionary[
-        "all_residues"
-    ] = atom_groups  # imbue each residue with all atom groups
+    dihedral_dictionary["all_residues"] = (
+        atom_groups  # imbue each residue with all atom groups
+    )
     dihedrals.append((dihedral_type, torch.tensor(atom_groups.T)))
 
     return dihedrals
