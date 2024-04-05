@@ -2,6 +2,7 @@ import torch
 from torch_geometric.data.collate import collate
 import pytest
 from typing import List
+import warnings
 
 from mlcg.nn.schnet import StandardSchNet
 from mlcg.nn.radial_basis import GaussianBasis
@@ -88,12 +89,22 @@ database = MolDatabase()
 @pytest.mark.parametrize(
     "basis, cutoff, expected_warning",
     [
-        (GaussianBasis(IdentityCutoff(0, 5)), CosineCutoff(0, 5), None),
         (GaussianBasis(IdentityCutoff(1, 5)), CosineCutoff(0, 5), UserWarning),
     ],
 )
 def test_cutoff_warning(basis, cutoff, expected_warning):
     with pytest.warns(expected_warning):
+        StandardSchNet(basis, cutoff, [128, 128])
+
+
+@pytest.mark.parametrize(
+    "basis, cutoff, expected_warning",
+    [
+        (GaussianBasis(IdentityCutoff(0, 5)), CosineCutoff(0, 5), None),
+    ],
+)
+def test_cutoff_warning_None(basis, cutoff, expected_warning):
+    with warnings.catch_warnings(record=True):
         StandardSchNet(basis, cutoff, [128, 128])
 
 
