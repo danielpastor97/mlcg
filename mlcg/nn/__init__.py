@@ -10,6 +10,7 @@ from .pyg_forward_compatibility import (
     get_refreshed_cfconv_layer,
     refresh_module_with_schnet_,
     load_and_adapt_old_checkpoint,
+    fixed_pyg_inspector,
 )
 
 try:
@@ -46,4 +47,5 @@ __all__ = [
     "get_refreshed_cfconv_layer",
     "refresh_module_with_schnet_",
     "load_and_adapt_old_checkpoint",
+    "fixed_pyg_inspector",
 ]

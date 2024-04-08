@@ -3,6 +3,9 @@ pygs (Pytorch Geometric) and make them compatible with a newer version
 in use.
 """
 
+from contextlib import contextmanager
+from typing import Mapping
+from collections.abc import Iterable
 import warnings
 
 import torch
@@ -53,11 +56,15 @@ def _search_for_schnet(top_level: torch.nn.Module):
     """Recursively search for SchNet in all submodules."""
     if isinstance(top_level, SchNet):
         yield top_level
-    elif isinstance(top_level, torch.nn.ModuleList):
-        for module in top_level:
-            yield from _search_for_schnet(module)
-    elif isinstance(top_level, torch.nn.ModuleDict):
+    elif isinstance(top_level, torch.nn.ModuleDict) or isinstance(
+        top_level, Mapping
+    ):
+        # torch.nn.ModuleDict is not a Mapping...
         for module in top_level.values():
+            yield from _search_for_schnet(module)
+    elif isinstance(top_level, Iterable):
+        # e.g., a ModuleList
+        for module in top_level:
             yield from _search_for_schnet(module)
     else:
         # e.g., a `SumOut` or `GradientsOut`
@@ -65,7 +72,9 @@ def _search_for_schnet(top_level: torch.nn.Module):
             yield from _search_for_schnet(module)
 
 
-def refresh_module_with_schnet_(schnet_containing: torch.nn.Module):
+def refresh_module_with_schnet_(
+    schnet_containing: torch.nn.Module, verbose=False
+):
     """In-place refresh all cfconv_layers in a torch.nn.Module that possibly
     contains a `mlcg.nn.SchNet` inside. See `get_refreshed_cfconv_layer` for
     what this refreshing is exactly doing.
@@ -76,20 +85,47 @@ def refresh_module_with_schnet_(schnet_containing: torch.nn.Module):
     a SchNet as submodule.
     """
     all_schnets = list(_search_for_schnet(schnet_containing))
-    if len(all_schnets) == 0:
-        raise ValueError(
-            f"No SchNet has been found as a submodule of the input "
-            f"{schnet_containing}"
-        )
-    if len(all_schnets) > 1:
-        warnings.warn(
-            f"{len(all_schnets)} SchNet has been found as a submodule "
-            f"of the input {schnet_containing}, please ensure whether "
-            f"this is expected."
-        )
+    if verbose:
+        if len(all_schnets) == 0:
+            warnings.warn(
+                f"No SchNet has been found as a submodule of the input "
+                f"{schnet_containing}"
+            )
+        if len(all_schnets) > 1:
+            warnings.warn(
+                f"{len(all_schnets)} SchNet has been found as a submodule "
+                f"of the input {schnet_containing}, please ensure whether "
+                f"this is expected."
+            )
     for schnet in all_schnets:
         for ib in schnet.interaction_blocks:
             ib.conv = get_refreshed_cfconv_layer(ib.conv)
+    return schnet_containing
+
+
+@contextmanager
+def fixed_pyg_inspector():
+    """An ad hoc fixer for the moved `torch_geometric.nn.conv.utils.inspector`
+    since pyg v2.5.0
+    """
+    import sys
+    import torch_geometric
+    from packaging import version
+
+    monkey_patched = False
+    try:
+        if version.parse(torch_geometric.__version__) >= version.parse("2.5"):
+            # monkey patch for the inspector.py, which has been moved to
+            # another place in recent pygs
+            sys.modules["torch_geometric.nn.conv.utils.inspector"] = (
+                torch_geometric.inspector
+            )
+            monkey_patched = True
+        yield
+    finally:
+        if monkey_patched:
+            # recover changes made by the monkey patch
+            del sys.modules["torch_geometric.nn.conv.utils.inspector"]
 
 
 def load_and_adapt_old_checkpoint(f, **kwargs):
@@ -104,23 +140,7 @@ def load_and_adapt_old_checkpoint(f, **kwargs):
         of a checkpoint from a possibly older version of pyg.
     kwargs: see the docstring of `torch.load` for details.
     """
-    import sys
-    import torch_geometric
-    from packaging import version
-
-    monkey_patched = False
-    try:
-        if version.parse(torch_geometric.__version__) >= version.parse("2.5"):
-            # monkey patch for the inspector.py, which has been moved to another place
-            # in recent pygs
-            sys.modules["torch_geometric.nn.conv.utils.inspector"] = (
-                torch_geometric.inspector
-            )
-            monkey_patched = True
+    with fixed_pyg_inspector():
         module = torch.load(f, **kwargs)
         refresh_module_with_schnet_(module)
-    finally:
-        if monkey_patched:
-            # recover changes made by the monkey patch
-            del sys.modules["torch_geometric.nn.conv.utils.inspector"]
     return module
