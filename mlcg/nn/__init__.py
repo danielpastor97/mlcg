@@ -6,6 +6,11 @@ from .losses import ForceMSE, ForceRMSE, Loss
 from .prior import Harmonic, HarmonicAngles, HarmonicBonds, Repulsion, Dihedral
 from .mlp import MLP, TypesMLP
 from .attention import ExactAttention, FavorAttention, Nonlocalinteractionblock
+from .pyg_forward_compatibility import (
+    get_refreshed_cfconv_layer,
+    refresh_module_with_schnet_,
+    load_and_adapt_old_checkpoint,
+)
 
 try:
     from .mace_interface import MACEInterface
@@ -38,4 +43,7 @@ __all__ = [
     "ExactAttention",
     "FavorAttention",
     "Nonlocalinteractionblock",
+    "get_refreshed_cfconv_layer",
+    "refresh_module_with_schnet_",
+    "load_and_adapt_old_checkpoint",
 ]
