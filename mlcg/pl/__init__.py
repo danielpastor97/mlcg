@@ -9,5 +9,6 @@ __all__ = [
     "H5DataModule",
     "PLModel",
     "merge_priors_and_checkpoint",
-    "extract_model_from_checkpoint" "LightningCLI",
+    "extract_model_from_checkpoint",
+    "LightningCLI",
 ]
