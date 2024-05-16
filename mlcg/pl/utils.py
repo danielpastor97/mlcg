@@ -20,7 +20,7 @@ def extract_model_from_checkpoint(checkpoint_path, hparams_file):
 
 def merge_priors_and_checkpoint(
     checkpoint: Union[str, torch.nn.Module],
-    priors: Union[str, torch.nn.ModuleDict],
+    priors: Union[str, torch.nn.ModuleDict,SumOut],
     hparams_file: Optional[str] = None,
     use_only_priors: bool = False,
 ) -> torch.nn.Module:
@@ -32,7 +32,7 @@ def merge_priors_and_checkpoint(
     checkpoint :
         full path to the checkpoint file OR loaded `torch.nn.Module`
     priors :
-        If :obj:`torch.nn.ModuleDict`, it should be the collection of priors
+        If :obj:`torch.nn.ModuleDict` or `SumOut`, it should be the collection of priors
         used as a baseline for training the ML model. If :obj:`str`, it should
         be a full path to the file holding the priors.
     hparams_file :
