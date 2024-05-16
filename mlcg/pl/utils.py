@@ -65,6 +65,10 @@ def merge_priors_and_checkpoint(
     else:
         prior_model = priors
 
+    # case where the prior that we are loading is already wrapped in a SumOut layer
+    if isinstance(prior_model,SumOut):
+        prior_model = prior_model.models
+
     for key in prior_model.keys():
         merged_model[key] = prior_model[key]
 
