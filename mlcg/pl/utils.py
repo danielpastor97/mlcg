@@ -47,6 +47,11 @@ def merge_priors_and_checkpoint(
             - trained model with the priors (if use_only_priors is False)
             - model with only priors (if use_only_priors is True)
     """
+    # Check priors being correct type
+    assert isinstance(
+        priors, (str, SumOut, torch.nn.ModuleDict)
+    ), '"priors" has to be either string, SumOut, or ModuleDict'
+
     # merged_model should be a ModuleDict
     merged_model = torch.nn.ModuleDict()
 
@@ -62,12 +67,11 @@ def merge_priors_and_checkpoint(
 
     if isinstance(priors, str):
         prior_model = torch.load(priors)
+    # case where the prior that we are loading is already wrapped in a SumOut layer
+    elif isinstance(priors, SumOut):
+        prior_model = priors.models
     else:
         prior_model = priors
-
-    # case where the prior that we are loading is already wrapped in a SumOut layer
-    if isinstance(prior_model, SumOut):
-        prior_model = prior_model.models
 
     for key in prior_model.keys():
         merged_model[key] = prior_model[key]
