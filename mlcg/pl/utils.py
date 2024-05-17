@@ -20,7 +20,7 @@ def extract_model_from_checkpoint(checkpoint_path, hparams_file):
 
 def merge_priors_and_checkpoint(
     checkpoint: Union[str, torch.nn.Module],
-    priors: Union[str, torch.nn.ModuleDict,SumOut],
+    priors: Union[str, torch.nn.ModuleDict, SumOut],
     hparams_file: Optional[str] = None,
     use_only_priors: bool = False,
 ) -> torch.nn.Module:
@@ -66,7 +66,7 @@ def merge_priors_and_checkpoint(
         prior_model = priors
 
     # case where the prior that we are loading is already wrapped in a SumOut layer
-    if isinstance(prior_model,SumOut):
+    if isinstance(prior_model, SumOut):
         prior_model = prior_model.models
 
     for key in prior_model.keys():
