@@ -3,6 +3,9 @@ from typing import Optional, List, Final, Callable, Union
 
 from ._module_init import init_xavier_uniform
 
+from torch.nn.init import xavier_uniform_
+from torch.nn.init import zeros_
+
 
 class MLP(torch.nn.Module):
     """Multilayer Perceptron for regression.
@@ -135,8 +138,8 @@ class Dense(torch.nn.Linear):
         out_features: int,
         bias: bool = True,
         activation: Union[Callable, torch.nn.Module] = None,
-        weight_init: Callable = init_xavier_uniform,
-        # bias_init: Callable = zeros_,
+        weight_init: Callable = xavier_uniform_,
+        bias_init: Callable = zeros_,
     ):
         """
         Args:
@@ -148,7 +151,7 @@ class Dense(torch.nn.Linear):
             bias_init: bias initializer from current bias.
         """
         self.weight_init = weight_init
-        # self.bias_init = bias_init
+        self.bias_init = bias_init
         super(Dense, self).__init__(in_features, out_features, bias)
 
         self.activation = activation
@@ -157,8 +160,8 @@ class Dense(torch.nn.Linear):
 
     def reset_parameters(self):
         self.weight_init(self.weight)
-        # if self.bias is not None:
-        #     self.bias_init(self.bias)
+        if self.bias is not None:
+            self.bias_init(self.bias)
 
     def forward(self, input: torch.Tensor):
         y = torch.nn.functional.linear(input, self.weight, self.bias)

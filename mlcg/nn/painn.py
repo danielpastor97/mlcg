@@ -56,7 +56,9 @@ class PaiNNInteraction(MessagePassing):
         self.cutoff = cutoff
 
     def reset_parameters(self):
-        pass  # FIXME:change accordingly to DENSE
+        for module in self.interatomic_context_net:
+            module.reset_parameters()
+        self.filter_network.reset_parameters()
 
     def forward(
             self,
@@ -92,6 +94,7 @@ class PaiNNInteraction(MessagePassing):
         x_scalar = scalar_node_features.squeeze(1)  # (n_nodes, n_feat)
         n_nodes, _ = x_scalar.shape
         x_vector = vector_node_features.view(n_nodes, -1)  # (n_nodes, 3*n_feat)
+        x_scalar = torch.ones_like(x_scalar)
         x = self.interatomic_context_net(x_scalar)
 
         return self.propagate(edge_index,
@@ -151,7 +154,9 @@ class PaiNNMixing(nn.Module):
         self.epsilon = epsilon
 
     def reset_parameters(self):
-        pass  # FIXME:change accordingly to DENSE
+        for module in self.intraatomic_context_net:
+            module.reset_parameters()
+        self.mu_channel_mix.reset_parameters()
 
     def forward(self, q: torch.Tensor, mu: torch.Tensor):
         """Compute intraatomic mixing.
@@ -171,10 +176,7 @@ class PaiNNMixing(nn.Module):
         ctx = torch.cat([q, mu_Vn], dim=-1)
         x = self.intraatomic_context_net(ctx)
 
-        # FIXME: check
-        (dq_intra,
-         dmu_intra,
-         dqmu_intra) = torch.split(x, self.hidden_channels, dim=-1)
+        dq_intra, dmu_intra, dqmu_intra = torch.split(x, self.hidden_channels, dim=-1)
         dmu_intra = dmu_intra * mu_W
 
         dqmu_intra = dqmu_intra * torch.sum(mu_V * mu_W, dim=1, keepdim=True)
@@ -356,6 +358,7 @@ class StandardPaiNN(PaiNN):
         aggr: str = "add",
         epsilon: float = 1e-8,
     ):
+
         if num_interactions < 1:
             raise ValueError("At least one interaction block must be specified")
 
