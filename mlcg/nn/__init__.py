@@ -1,4 +1,4 @@
-from .gradients import EnergyOut, GradientsOut, SumOut
+from .gradients import GradientsOut, SumOut
 from .schnet import SchNet, StandardSchNet
 from .radial_basis import GaussianBasis, ExpNormalBasis
 from .cutoff import CosineCutoff, IdentityCutoff
@@ -21,7 +21,6 @@ except Exception as e:
     print("MACE installation not found ...")
 
 __all__ = [
-    "EnergyOut",
     "GradientsOut",
     "SumOut",
     "SchNet",

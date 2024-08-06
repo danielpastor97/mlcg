@@ -1,15 +1,15 @@
 """Code adapted from https://github.com/atomistic-machine-learning/schnetpack"""
 
-from typing import Callable, Dict, Optional, Union, List, Tuple
+from typing import Callable, Union, List, Final
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import scatter
 import warnings
 
-from mlcg.data import AtomicData, ENERGY_KEY
+from mlcg.data import AtomicData
+from mlcg.data._keys import ENERGY_KEY
 from mlcg.nn import MLP, Dense
 from mlcg.geometry.internal_coordinates import compute_distances
 from mlcg.neighbor_list.neighbor_list import (
@@ -18,62 +18,67 @@ from mlcg.neighbor_list.neighbor_list import (
 )
 
 
-
 class PaiNNInteraction(MessagePassing):
     r"""torch_geometric implementation of PaiNN block for modeling equivariant interactions. 
     Parameters
     -----------
-    hidden_channels: 
+    hidden_channels:
         hidden channel dimension, i.e. node feature size used for the node embedding 
     edge_attr_dim:
-        edge attributes dimension, i.e. number of radial basis functions 
-    cutoff: 
+        edge attributes dimension, i.e. number of radial basis functions
+    cutoff:
         cutoff function
-    activation: Callable, 
+    activation: Callable,
     aggr: str = "add"
     """
-    
+
     def __init__(
-            self, 
-            hidden_channels: int, 
+            self,
+            hidden_channels: int,
             edge_attr_dim: int,
             cutoff: nn.Module,
-            activation: Callable, 
+            activation: Callable,
             aggr: str = "add"):
         super().__init__(aggr=aggr)
         self.hidden_channels = hidden_channels
 
         self.interatomic_context_net = nn.Sequential(
-            Dense(hidden_channels, hidden_channels, activation=activation),
-            Dense(hidden_channels, 3 * hidden_channels, activation=None),
+            Dense(hidden_channels,
+                  hidden_channels,
+                  activation=activation),
+            Dense(hidden_channels,
+                  3*hidden_channels,
+                  activation=None),
         )
-        self.filter_network = Dense(edge_attr_dim, 3*hidden_channels, activation=None)
+        self.filter_network = Dense(edge_attr_dim,
+                                    3*hidden_channels,
+                                    activation=None)
         self.cutoff = cutoff
 
     def reset_parameters(self):
-        pass #FIXME:change accordingly to DENSE
+        pass  # FIXME:change accordingly to DENSE
 
     def forward(
             self,
-            scalar_node_features: torch.Tensor, # (n_nodes, 1, n_feat)
-            vector_node_features: torch.Tensor, # (n_nodes, 3, n_feat)
-            normdir: torch.Tensor, # (n_edges, 3)
-            edge_index: torch.Tensor, # (2, n_edges)
-            edge_weight: torch.Tensor, # (n_edges)
-            edge_attr: torch.Tensor # (n_edges, edge_attr_dim)
+            scalar_node_features: torch.Tensor,  # (n_nodes, 1, n_feat)
+            vector_node_features: torch.Tensor,  # (n_nodes, 3, n_feat)
+            normdir: torch.Tensor,  # (n_edges, 3)
+            edge_index: torch.Tensor,  # (2, n_edges)
+            edge_weight: torch.Tensor,  # (n_edges)
+            edge_attr: torch.Tensor  # (n_edges, edge_attr_dim)
     ):
         """Compute interaction output.
 
         Args:
-            scalar_node_features: 
+            scalar_node_features:
                 scalar input values per node with shape (n_nodes, 1, n_feat)
-            vector_node_features: 
+            vector_node_features:
                 vector input values per node with shape (n_nodes, 3, n_feat)
-            normdir: 
+            normdir:
                 normalized directions for every edge with shape (total_num_edges, 3)
-            edge_index: 
+            edge_index:
                 graph edge index tensor of shape (2, total_num_edges)
-            edge_weight: 
+            edge_weight:
                 scalar edge weight, i.e. distances, of shape (n_edges, 1)
             edge_attr
                 edge attributes, i.e. rbf projection, of shape (n_edges, edge_attr_dim)
@@ -82,39 +87,51 @@ class PaiNNInteraction(MessagePassing):
             scalar and vector features after interaction
         """
         C = self.cutoff(edge_weight)
-        W = self.filter_network(edge_attr) * C.view(-1, 1)
+        W = self.filter_network(edge_attr) * C.unsqueeze(-1)
 
-        x_scalar = scalar_node_features.squeeze(1) # (n_nodes, n_feat)
+        x_scalar = scalar_node_features.squeeze(1)  # (n_nodes, n_feat)
         n_nodes, _ = x_scalar.shape
-        x_vector = vector_node_features.view(n_nodes, -1) # (n_nodes, 3*n_feat)
+        x_vector = vector_node_features.view(n_nodes, -1)  # (n_nodes, 3*n_feat)
         x = self.interatomic_context_net(x_scalar)
-        return self.propagate(edge_index, x=x, x_scalar=x_scalar, x_vector=x_vector, W=W, normdir=normdir)
-    
+
+        return self.propagate(edge_index,
+                              x=x,
+                              x_scalar=x_scalar,
+                              x_vector=x_vector,
+                              W=W,
+                              normdir=normdir)
+
     def message(self, x_j, x_vector_j, W, normdir):
-        x_j = x_j.unsqueeze(1) # reshape as (n_nodes, 1, 3*n_feats)
+        x_j = x_j.unsqueeze(1)  # reshape as (n_nodes, 1, 3*n_feats)
         x_vector_j = x_vector_j.view(x_j.shape[0], 3, -1)  # reshape as (n_nodes, 3, n_feats)
         x = W * x_j
         dq, dmuR, dmumu = torch.split(x, self.hidden_channels, dim=-1)
-        dmu = dmuR * normdir.unsqueeze(-1) + dmumu * x_vector_j
+        dmu = dmuR*normdir.unsqueeze(-1) + dmumu*x_vector_j
+
         return dq, dmu
 
     def aggregate(self, inputs, index, dim_size):
         dq, dmu = inputs
         dq = scatter(dq, index, dim=0, dim_size=dim_size)
         dmu = scatter(dmu, index, dim=0, dim_size=dim_size)
+
         return dq, dmu
 
     def update(self, inputs, x_scalar, x_vector):
         dq, dmu = inputs
         x_scalar = x_scalar.unsqueeze(1) + dq
         x_vector = x_vector.view(x_scalar.shape[0], 3, -1) + dmu
+
         return x_scalar, x_vector
 
 
 class PaiNNMixing(nn.Module):
     r"""PaiNN interaction block for mixing on atom features."""
 
-    def __init__(self, hidden_channels: int, activation: Callable, epsilon: float = 1e-8):
+    def __init__(self,
+                 hidden_channels: int,
+                 activation: Callable,
+                 epsilon: float = 1e-8):
         """
         Args:
             hidden_channels: number of features to describe atomic environments.
@@ -133,6 +150,9 @@ class PaiNNMixing(nn.Module):
         )
         self.epsilon = epsilon
 
+    def reset_parameters(self):
+        pass  # FIXME:change accordingly to DENSE
+
     def forward(self, q: torch.Tensor, mu: torch.Tensor):
         """Compute intraatomic mixing.
 
@@ -143,16 +163,18 @@ class PaiNNMixing(nn.Module):
         Returns:
             atom features after interaction
         """
-        ## intra-atomic
+        # intra-atomic
         mu_mix = self.mu_channel_mix(mu)
         mu_V, mu_W = torch.split(mu_mix, self.hidden_channels, dim=-1)
         mu_Vn = torch.sqrt(torch.sum(mu_V**2, dim=-2, keepdim=True) + self.epsilon)
 
         ctx = torch.cat([q, mu_Vn], dim=-1)
         x = self.intraatomic_context_net(ctx)
-        
-        # FIXME: check 
-        dq_intra, dmu_intra, dqmu_intra = torch.split(x, self.hidden_channels, dim=-1)
+
+        # FIXME: check
+        (dq_intra,
+         dmu_intra,
+         dqmu_intra) = torch.split(x, self.hidden_channels, dim=-1)
         dmu_intra = dmu_intra * mu_W
 
         dqmu_intra = dqmu_intra * torch.sum(mu_V * mu_W, dim=1, keepdim=True)
@@ -160,6 +182,7 @@ class PaiNNMixing(nn.Module):
         q = q + dq_intra + dqmu_intra
         mu = mu + dmu_intra
         return q, mu
+
 
 class PaiNN(nn.Module):
     """PaiNN - polarizable interaction neural network
@@ -171,6 +194,8 @@ class PaiNN(nn.Module):
        ICML 2021, http://proceedings.mlr.press/v139/schutt21a.html
 
     """
+
+    name: Final[str] = "PaiNN"
 
     def __init__(
         self,
@@ -202,18 +227,18 @@ class PaiNN(nn.Module):
 
         self.embedding_layer = embedding_layer
         if isinstance(interaction_blocks, List):
-            self.interaction_blocks = torch.nn.ModuleList(*interaction_blocks)
+            self.interaction_blocks = torch.nn.ModuleList(interaction_blocks)
         elif isinstance(interaction_blocks, PaiNNInteraction):
-            self.interaction_blocks = torch.nn.Sequential(interaction_blocks)
+            self.interaction_blocks = torch.nn.ModuleList(interaction_blocks)
         else:
             raise RuntimeError(
                 "interaction_blocks must be a single InteractionBlock or "
                 "a list of InteractionBlocks."
             )
         if isinstance(mixing_blocks, List):
-            self.mixing_blocks = torch.nn.ModuleList(*mixing_blocks)
+            self.mixing_blocks = torch.nn.ModuleList(mixing_blocks)
         elif isinstance(mixing_blocks, PaiNNMixing):
-            self.mixing_blocks = torch.nn.Sequential(mixing_blocks)
+            self.mixing_blocks = torch.nn.ModuleList(mixing_blocks)
         else:
             raise RuntimeError(
                 "mixing_blocks must be a single PaiNNMixing or "
@@ -236,7 +261,7 @@ class PaiNN(nn.Module):
         self.output_network.reset_parameters()
 
     # def forward(self, inputs: Dict[str, torch.Tensor]):
-    def forward(self, data:AtomicData):
+    def forward(self, data: AtomicData):
         """
         Compute atomic representations/embeddings.
 
@@ -252,24 +277,31 @@ class PaiNN(nn.Module):
 
         if not self.is_nl_compatible(neighbor_list):
             neighbor_list = self.neighbor_list(
-                data, self.rbf_layer.cutoff.cutoff_upper, self.max_num_neighbors
+                data,
+                self.rbf_layer.cutoff.cutoff_upper,
+                self.max_num_neighbors
             )[self.name]
         edge_index = neighbor_list["index_mapping"]
         distances = compute_distances(
             data.pos,
             edge_index,
             neighbor_list["cell_shifts"],
-        )
-        normdir = (data.pos[edge_index[1]]-data.pos[edge_index[0]]) / distances
+        ).unsqueeze(1)
+        normdir = (data.pos[edge_index[1]] - data.pos[edge_index[0]])/distances
         rbf_expansion = self.rbf_layer(distances)
-        num_batch = data.batch[-1] + 1
 
-        q = self.embedding_layer(data.atom_types) # (n_atoms, n_features)
-        q = q.unsqueeze(1) # (n_atoms, 1, n_features)
-        mu = torch.zeros((q.shape[0], 3, q.shape[2]), device=q.device) # (n_atoms, 3, n_features)
+        q = self.embedding_layer(data.atom_types)  # (n_atoms, n_features)
+        q = q.unsqueeze(1)  # (n_atoms, 1, n_features)
+        mu = torch.zeros((q.shape[0], 3, q.shape[2]), device=q.device)  # (n_atoms, 3, n_features)
 
-        for i, (interaction, mixing) in enumerate(zip(self.interaction_blocks, self.mixing_blocks)):
-            q, mu = interaction(q, mu, normdir, edge_index, distances, rbf_expansion)
+        for i, (interaction, mixing) in enumerate(zip(self.interaction_blocks,
+                                                      self.mixing_blocks)):
+            q, mu = interaction(q,
+                                mu,
+                                normdir,
+                                edge_index,
+                                distances,
+                                rbf_expansion)
             q, mu = mixing(q, mu)
         q = q.squeeze(1)
 
@@ -285,16 +317,32 @@ class PaiNN(nn.Module):
         if validate_neighborlist(nl):
             if (
                 nl["order"] == 2
-                and nl["self_interaction"] == False
+                and nl["self_interaction"] is False
                 and nl["rcut"] == self.cutoff.cutoff_upper
             ):
                 is_compatible = True
         return is_compatible
 
+    @staticmethod
+    def neighbor_list(
+        data: AtomicData, rcut: float, max_num_neighbors: int = 1000
+    ) -> dict:
+        """Computes the neighborlist for :obj:`data` using a strict cutoff of :obj:`rcut`."""
+        return {
+            PaiNN.name: atomic_data2neighbor_list(
+                data,
+                rcut,
+                self_interaction=False,
+                max_num_neighbors=max_num_neighbors,
+            )
+        }
+
+
 class StandardPaiNN(PaiNN):
     """mall wrapper class for :ref:`PaiNN` to simplify the definition of the
     PaiNN model through an input file. The upper distance cutoff attribute
     in is set by default to match the upper cutoff value in the cutoff function."""
+
     def __init__(
         self,
         rbf_layer: torch.nn.Module,
@@ -331,7 +379,7 @@ class StandardPaiNN(PaiNN):
         interaction_blocks = []
         mixing_blocks = []
         for _ in range(num_interactions):
-            interaction_blocks.appned(
+            interaction_blocks.append(
                 PaiNNInteraction(
                     hidden_channels,
                     rbf_layer.num_rbf,
@@ -354,7 +402,7 @@ class StandardPaiNN(PaiNN):
         output_network = MLP(
             output_layer_widths, activation_func=activation, last_bias=False
         )
-        super(PaiNN, self).__init__(
+        super(StandardPaiNN, self).__init__(
             embedding_layer,
             interaction_blocks,
             mixing_blocks,

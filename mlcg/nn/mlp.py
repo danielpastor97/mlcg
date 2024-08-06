@@ -1,9 +1,7 @@
 import torch
-from torch_scatter import scatter
-from typing import Optional, List, Final
+from typing import Optional, List, Final, Callable, Union
 
 from ._module_init import init_xavier_uniform
-from ..data.atomic_data import ENERGY_KEY
 
 
 class MLP(torch.nn.Module):
@@ -123,6 +121,7 @@ class TypesMLP(torch.nn.Module):
 
         return yi
 
+
 class Dense(torch.nn.Linear):
     r"""Fully connected linear layer with activation function.
 
@@ -136,8 +135,8 @@ class Dense(torch.nn.Linear):
         out_features: int,
         bias: bool = True,
         activation: Union[Callable, torch.nn.Module] = None,
-        weight_init: Callable = xavier_uniform_,
-        bias_init: Callable = zeros_,
+        weight_init: Callable = init_xavier_uniform,
+        # bias_init: Callable = zeros_,
     ):
         """
         Args:
@@ -149,7 +148,7 @@ class Dense(torch.nn.Linear):
             bias_init: bias initializer from current bias.
         """
         self.weight_init = weight_init
-        self.bias_init = bias_init
+        # self.bias_init = bias_init
         super(Dense, self).__init__(in_features, out_features, bias)
 
         self.activation = activation
@@ -158,8 +157,8 @@ class Dense(torch.nn.Linear):
 
     def reset_parameters(self):
         self.weight_init(self.weight)
-        if self.bias is not None:
-            self.bias_init(self.bias)
+        # if self.bias is not None:
+        #     self.bias_init(self.bias)
 
     def forward(self, input: torch.Tensor):
         y = torch.nn.functional.linear(input, self.weight, self.bias)
