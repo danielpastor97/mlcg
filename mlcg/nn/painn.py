@@ -94,7 +94,6 @@ class PaiNNInteraction(MessagePassing):
         x_scalar = scalar_node_features.squeeze(1)  # (n_nodes, n_feat)
         n_nodes, _ = x_scalar.shape
         x_vector = vector_node_features.view(n_nodes, -1)  # (n_nodes, 3*n_feat)
-        x_scalar = torch.ones_like(x_scalar)
         x = self.interatomic_context_net(x_scalar)
 
         return self.propagate(edge_index,
@@ -289,7 +288,7 @@ class PaiNN(nn.Module):
             edge_index,
             neighbor_list["cell_shifts"],
         ).unsqueeze(1)
-        normdir = (data.pos[edge_index[1]] - data.pos[edge_index[0]])/distances
+        normdir = (data.pos[edge_index[0]] - data.pos[edge_index[1]])/distances
         rbf_expansion = self.rbf_layer(distances)
 
         q = self.embedding_layer(data.atom_types)  # (n_atoms, n_features)
