@@ -84,7 +84,7 @@ class AtomicData(Data):
             assert self[VELOCITY_KEY].shape == self[POSITIONS_KEY].shape
             assert self[VELOCITY_KEY].dtype == self[POSITIONS_KEY].dtype
         if ENERGY_KEY in self and self[ENERGY_KEY] is not None:
-            # assert self[ENERGY_KEY].shape == self[N_ATOMS_KEY].shape
+            assert self[ENERGY_KEY].shape == self[N_ATOMS_KEY].shape
             assert self[ENERGY_KEY].dtype == self[POSITIONS_KEY].dtype
         if PBC_KEY in self and self.pbc is not None:
             assert self.pbc.dim() == 2, f"dim {self.pbc.dim()}"

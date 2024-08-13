@@ -58,7 +58,7 @@ class MolDatabase(object):
         data_list = []
         for mol, topo in zip(self.molecules, self.mol_topos):
             neighbor_list = topo.neighbor_list("fully connected")
-            data = AtomicData(
+            data = AtomicData.from_points(
                 pos=torch.tensor(mol.get_positions()).float(),
                 atom_types=torch.tensor(mol.get_atomic_numbers()),
                 neighbor_list=neighbor_list,
