@@ -20,17 +20,22 @@ from mlcg.neighbor_list.neighbor_list import (
 
 
 class PaiNNInteraction(MessagePassing):
-    r"""torch_geometric implementation of PaiNN block for modeling equivariant interactions.
+    r"""PyTorch Geometric implementation of PaiNN block for modeling equivariant interactions.
+    Code adapted from https://schnetpack.readthedocs.io/en/latest/api/generated/representation.PaiNN.html
+
     Parameters
-    -----------
+    ----------
     hidden_channels:
-        hidden channel dimension, i.e. node feature size used for the node embedding
+        Hidden channel dimension, i.e. node feature size used for the node embedding.
     edge_attr_dim:
-        edge attributes dimension, i.e. number of radial basis functions
+        Edge attributes dimension, i.e. number of radial basis functions.
     cutoff:
-        cutoff function
-    activation: Callable,
-    aggr: str = "add"
+        Cutoff function
+    activation:
+        Activation function applied to linear layer outputs.
+    aggr:
+        Aggregation scheme for continuous filter output. For all options,
+        see `here <https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class>`.
     """
 
     def __init__(
@@ -53,6 +58,12 @@ class PaiNNInteraction(MessagePassing):
         self.cutoff = cutoff
 
     def reset_parameters(self):
+        r"""Method for resetting the weights of the linear
+        layers and filter network according the the
+        Xavier uniform strategy. Biases
+        are set to 0.
+        """
+
         for module in self.interatomic_context_net:
             init_xavier_uniform(module)
         init_xavier_uniform(self.filter_network)
@@ -66,24 +77,29 @@ class PaiNNInteraction(MessagePassing):
         edge_weight: torch.Tensor,  # (n_edges)
         edge_attr: torch.Tensor,  # (n_edges, edge_attr_dim)
     ):
-        """Compute interaction output.
+        r"""Compute interaction output.
 
-        Args:
-            scalar_node_features:
-                scalar input values per node with shape (n_nodes, 1, n_feat)
-            vector_node_features:
-                vector input values per node with shape (n_nodes, 3, n_feat)
-            normdir:
-                normalized directions for every edge with shape (total_num_edges, 3)
-            edge_index:
-                graph edge index tensor of shape (2, total_num_edges)
-            edge_weight:
-                scalar edge weight, i.e. distances, of shape (n_edges, 1)
-            edge_attr
-                edge attributes, i.e. rbf projection, of shape (n_edges, edge_attr_dim)
+        Parameters
+        ----------
+        scalar_node_features:
+            Scalar input embedding per node with shape (n_nodes, 1, n_feat).
+        vector_node_features:
+            Vector input embedding per node with shape (n_nodes, 3, n_feat).
+        normdir:
+            Normalized directions for every edge with shape (total_num_edges, 3).
+        edge_index:
+            Graph edge index tensor of shape (2, total_num_edges).
+        edge_weight:
+            Scalar edge weight, i.e. distances, of shape (total_num_edges, 1).
+        edge_attr
+            Edge attributes, i.e. rbf projection, of shape (total_num_edges, edge_attr_dim).
 
-        Returns:
-            scalar and vector features after interaction
+        Returns
+        -------
+        x_scalar:
+            Updated scalar embedding per node with shape (n_nodes, 1, n_feat).
+        x_vector:
+            Updated vector embedding per node with shape (n_nodes, 3, n_feat).
         """
         C = self.cutoff(edge_weight)
         W = self.filter_network(edge_attr) * C.unsqueeze(-1)
@@ -102,25 +118,63 @@ class PaiNNInteraction(MessagePassing):
             normdir=normdir,
         )
 
-    def message(self, x_j, x_vector_j, W, normdir):
-        x_j = x_j.unsqueeze(1)  # reshape as (n_nodes, 1, 3*n_feats)
+    def message(
+        self,
+        x_j: torch.Tensor,
+        x_vector_j: torch.Tensor,
+        W: torch.Tensor,
+        normdir: torch.Tensor,
+    ):
+        r"""Message passing operation to generate messages for
+        scalar and vectorial features.
+
+        Parameters
+        ----------
+        x_j:
+            Tensor of embedded features of shape
+            (total_num_edges,3*hidden_channels)
+        x_vector_j:
+            Tensor of vectorial features of shape
+            (total_num_edges,3*hidden_channels)
+        W:
+            Tensor of filter values of shape
+            (total_num_edges, 3*hidden_channels)
+        normdir:
+            Tensor of distances versors of shape
+            (total_num_edges, 3)
+
+        Returns
+        -------
+        dq:
+            Scalar updates for all nodes.
+        dmu:
+            Vectorial updates for all nodes
+        """
+        x_j = x_j.unsqueeze(1)  # reshape as (total_num_edges, 1, 3*n_feats)
         x_vector_j = x_vector_j.view(
             x_j.shape[0], 3, -1
-        )  # reshape as (n_nodes, 3, n_feats)
+        )  # reshape as (total_num_edges, 3, n_feats)
         x = W * x_j
         dq, dmuR, dmumu = torch.split(x, self.hidden_channels, dim=-1)
         dmu = dmuR * normdir.unsqueeze(-1) + dmumu * x_vector_j
 
         return dq, dmu
 
-    def aggregate(self, inputs, index, dim_size):
+    def aggregate(
+        self, inputs: torch.Tensor, index: torch.Tensor, dim_size: int
+    ):
         dq, dmu = inputs
         dq = scatter(dq, index, dim=0, dim_size=dim_size)
         dmu = scatter(dmu, index, dim=0, dim_size=dim_size)
 
         return dq, dmu
 
-    def update(self, inputs, x_scalar, x_vector):
+    def update(
+        self,
+        inputs: torch.Tensor,
+        x_scalar: torch.Tensor,
+        x_vector: torch.Tensor,
+    ):
         dq, dmu = inputs
         x_scalar = x_scalar.unsqueeze(1) + dq
         x_vector = x_vector.view(x_scalar.shape[0], 3, -1) + dmu
@@ -129,17 +183,22 @@ class PaiNNInteraction(MessagePassing):
 
 
 class PaiNNMixing(nn.Module):
-    r"""PaiNN interaction block for mixing on atom features."""
+    r"""PaiNN interaction block for mixing on scalar and vectorial atom features.
+    Code adapted from https://schnetpack.readthedocs.io/en/latest/api/generated/representation.PaiNN.html
+
+    Parameters
+    -----------
+    hidden_channels:
+        Hidden channel dimension, i.e. node feature size used for the node embedding.
+    activation:
+        Activation function applied to linear layer outputs.
+    epsilon:
+        Stability constant added in norm to prevent numerical instabilities.
+    """
 
     def __init__(
         self, hidden_channels: int, activation: Callable, epsilon: float = 1e-8
     ):
-        """
-        Args:
-            hidden_channels: number of features to describe atomic environments.
-            activation: if None, no activation function is used.
-            epsilon: stability constant added in norm to prevent numerical instabilities
-        """
         super(PaiNNMixing, self).__init__()
         self.hidden_channels = hidden_channels
 
@@ -154,28 +213,45 @@ class PaiNNMixing(nn.Module):
         self.epsilon = epsilon
 
     def reset_parameters(self):
+        r"""Method for resetting the weights of the linear
+        layers and filter network according the the
+        Xavier uniform strategy. Biases
+        are set to 0.
+        """
         for module in self.intraatomic_context_net:
             init_xavier_uniform(module)
         init_xavier_uniform(self.mu_channel_mix)
 
-    def forward(self, q: torch.Tensor, mu: torch.Tensor):
-        """Compute intraatomic mixing.
+    def forward(
+        self,
+        scalar_node_features: torch.Tensor,
+        vector_node_features: torch.Tensor,
+    ):
+        r"""Compute intraatomic mixing.
 
-        Args:
-            q: scalar input values
-            mu: vector input values
+        Parameters
+        ----------
+        scalar_node_features:
+            Tensor of scalar features of shape (n_nodes, 1, n_feat).
+        vector_node_features:
+            Tensor of vectorial features of shape (n_nodes, 3, n_feat).
 
-        Returns:
-            atom features after interaction
+        Returns
+        -------
+        scalar_node_features:
+            Updated tensor of scalar features, mixed with vectorial features.
+        vector_node_features:
+            Updated tensor of vectorial features, mixed with scalar features.
         """
+
         # intra-atomic
-        mu_mix = self.mu_channel_mix(mu)
+        mu_mix = self.mu_channel_mix(vector_node_features)
         mu_V, mu_W = torch.split(mu_mix, self.hidden_channels, dim=-1)
         mu_Vn = torch.sqrt(
             torch.sum(mu_V**2, dim=-2, keepdim=True) + self.epsilon
         )
 
-        ctx = torch.cat([q, mu_Vn], dim=-1)
+        ctx = torch.cat([scalar_node_features, mu_Vn], dim=-1)
         x = self.intraatomic_context_net(ctx)
 
         dq_intra, dmu_intra, dqmu_intra = torch.split(
@@ -185,20 +261,43 @@ class PaiNNMixing(nn.Module):
 
         dqmu_intra = dqmu_intra * torch.sum(mu_V * mu_W, dim=1, keepdim=True)
 
-        q = q + dq_intra + dqmu_intra
-        mu = mu + dmu_intra
-        return q, mu
+        scalar_node_features = scalar_node_features + dq_intra + dqmu_intra
+        vector_node_features = vector_node_features + dmu_intra
+        return scalar_node_features, vector_node_features
 
 
 class PaiNN(nn.Module):
-    """PaiNN - polarizable interaction neural network
+    r"""Implementation of PaiNN - polarizable interaction neural network
+    Code adapted from https://schnetpack.readthedocs.io/en/latest/api/generated/representation.PaiNN.html
+    which is based on the architecture described in http://proceedings.mlr.press/v139/schutt21a.html
 
-    References:
-
-    .. [#painn1] Schütt, Unke, Gastegger:
-       Equivariant message passing for the prediction of tensorial properties and molecular spectra.
-       ICML 2021, http://proceedings.mlr.press/v139/schutt21a.html
-
+    Parameters
+    ----------
+    embedding_layer:
+        Initial embedding layer that transforms atoms/coarse grain bead
+        types into embedded features
+    interaction_blocks:
+        list of PaiNNInteraction or single PaiNNInteraction block.
+        Sequential interaction blocks of the model, where each interaction
+        block applies.
+    mixing_blocks:
+        List of PaiNNMixing or single PaiNNMixing block.
+        Sequential mixing blocks of the model, where each mixing
+        applies after each interaction block.
+    rbf_layer:
+        The set of radial basis functions that expands pairwise distances
+        between atoms/CG beads.
+    output_network:
+        Output neural network that predicts scalar energies from scalar PaiNN
+        features. This network should transform (num_examples * num_atoms,
+        hidden_channels) to (num_examples * num atoms, 1).
+    max_num_neighbors:
+        Maximum number of neighbors to return for a
+        given node/atom when constructing the molecular graph during forward
+        passes. This attribute is passed to the torch_cluster radius_graph
+        routine keyword max_num_neighbors, which normally defaults to 32.
+        Users should set this to higher values if they are using higher upper
+        distance cutoffs and expect more than 32 neighbors per node/atom.
     """
 
     name: Final[str] = "PaiNN"
@@ -212,43 +311,32 @@ class PaiNN(nn.Module):
         output_network: nn.Module,
         max_num_neighbors: int,
     ):
-        """
-        Args:
-            n_atom_basis: number of features to describe atomic environments.
-                This determines the size of each embedding vector; i.e. embeddings_dim.
-            n_interactions: number of interaction blocks.
-            radial_basis: layer for expanding interatomic distances in a basis set
-            cutoff_fn: cutoff function
-            activation: activation function
-            shared_interactions: if True, share the weights across
-                interaction blocks.
-            shared_interactions: if True, share the weights across
-                filter-generating networks.
-            epsilon: numerical stability parameter
-            nuclear_embedding: custom nuclear embedding (e.g. spk.nn.embeddings.NuclearEmbedding)
-            electronic_embeddings: list of electronic embeddings. E.g. for spin and
-                charge (see spk.nn.embeddings.ElectronicEmbedding)
-        """
         super(PaiNN, self).__init__()
 
         self.embedding_layer = embedding_layer
-        if isinstance(interaction_blocks, List):
-            self.interaction_blocks = torch.nn.ModuleList(interaction_blocks)
-        elif isinstance(interaction_blocks, PaiNNInteraction):
+        if isinstance(interaction_blocks, List) or isinstance(
+            interaction_blocks, PaiNNInteraction
+        ):
             self.interaction_blocks = torch.nn.ModuleList(interaction_blocks)
         else:
             raise RuntimeError(
                 "interaction_blocks must be a single InteractionBlock or "
                 "a list of InteractionBlocks."
             )
-        if isinstance(mixing_blocks, List):
-            self.mixing_blocks = torch.nn.ModuleList(mixing_blocks)
-        elif isinstance(mixing_blocks, PaiNNMixing):
+        if isinstance(mixing_blocks, List) or isinstance(
+            mixing_blocks, PaiNNMixing
+        ):
             self.mixing_blocks = torch.nn.ModuleList(mixing_blocks)
         else:
             raise RuntimeError(
                 "mixing_blocks must be a single PaiNNMixing or "
                 "a list of PaiNNMixing."
+            )
+        if len(self.mixing_blocks) != len(self.interaction_blocks):
+            raise RuntimeError(
+                "The number of mixing and interaction blocks must be equal "
+                f"but you provided {len(self.mixing_blocks)} mixing "
+                f"and {len(self.interaction_blocks)} interactions"
             )
         self.output_network = output_network
         self.rbf_layer = rbf_layer
@@ -257,7 +345,7 @@ class PaiNN(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        """Method for resetting linear layers in each SchNet component"""
+        """Method for resetting linear layers in each PaiNN component"""
         self.embedding_layer.reset_parameters()
         self.rbf_layer.reset_parameters()
         for block in self.interaction_blocks:
@@ -267,16 +355,20 @@ class PaiNN(nn.Module):
         self.output_network.reset_parameters()
 
     def forward(self, data: AtomicData):
-        """
-        Compute atomic representations/embeddings.
+        r"""Forward pass through the PaiNN architecture.
 
-        Args:
-            inputs: SchNetPack dictionary of input tensors.
+        Parameters
+        ----------
+        data:
+            Input data object containing batch atom/bead positions
+            and atom/bead types.
 
-        Returns:
-            torch.Tensor: atom-wise representation.
-            list of torch.Tensor: intermediate atom-wise representations, if
-            return_intermediate=True was used.
+        Returns
+        -------
+        data:
+           Data dictionary, updated with predicted energy of shape
+           (num_examples * num_atoms, 1), as well as neighbor list
+           information.
         """
         neighbor_list = data.neighbor_list.get(self.name)
 
@@ -344,9 +436,37 @@ class PaiNN(nn.Module):
 
 
 class StandardPaiNN(PaiNN):
-    """mall wrapper class for :ref:`PaiNN` to simplify the definition of the
+    r"""Small wrapper class for :ref:`PaiNN` to simplify the definition of the
     PaiNN model through an input file. The upper distance cutoff attribute
     in is set by default to match the upper cutoff value in the cutoff function.
+
+    Parameters
+    ----------
+    rbf_layer:
+        Radial basis function used to project the distances :math:`r_{ij}`.
+    cutoff:
+        Smooth cutoff function to supply to the PaiNNInteraction.
+    output_hidden_layer_widths:
+        List giving the number of hidden nodes of each hidden layer of the MLP
+        used to predict the target property from the learned scalar representation.
+    hidden_channels:
+        Dimension of the learned representation, i.e. dimension of the embedding projection, convolution layers, and interaction block.
+    embedding_size:
+        Dimension of the input embeddings (should be larger than :obj:`AtomicData.atom_types.max()+1`).
+    num_interactions:
+        Number of interaction blocks.
+    activation:
+        Activation function.
+    max_num_neighbors:
+        The maximum number of neighbors to return for each atom in :obj:`data`.
+        If the number of actual neighbors is greater than
+        :obj:`max_num_neighbors`, returned neighbors are picked randomly.
+    aggr:
+        Aggregation scheme for continuous filter output. For all options,
+        see `here <https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class>`_
+        for more options.
+    epsilon:
+        Stability constant added in norm to prevent numerical instabilities.
     """
 
     def __init__(
