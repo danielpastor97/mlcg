@@ -4,7 +4,7 @@ from .radial_basis import GaussianBasis, ExpNormalBasis
 from .cutoff import CosineCutoff, IdentityCutoff
 from .losses import ForceMSE, ForceRMSE, Loss
 from .prior import Harmonic, HarmonicAngles, HarmonicBonds, Repulsion, Dihedral
-from .mlp import MLP, TypesMLP, Dense
+from .mlp import MLP, TypesMLP
 from .attention import ExactAttention, FavorAttention, Nonlocalinteractionblock
 from .pyg_forward_compatibility import (
     get_refreshed_cfconv_layer,
@@ -38,7 +38,6 @@ __all__ = [
     "Repulsion",
     "MLP",
     "TypesMLP",
-    "Dense",
     "Attention",
     "Residual",
     "Residual_MLP",

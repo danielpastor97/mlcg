@@ -10,7 +10,8 @@ import warnings
 
 from mlcg.data import AtomicData
 from mlcg.data._keys import ENERGY_KEY
-from mlcg.nn import MLP, Dense
+from mlcg.nn import MLP
+from mlcg.nn._module_init import init_xavier_uniform
 from mlcg.geometry.internal_coordinates import compute_distances
 from mlcg.neighbor_list.neighbor_list import (
     atomic_data2neighbor_list,
@@ -19,11 +20,11 @@ from mlcg.neighbor_list.neighbor_list import (
 
 
 class PaiNNInteraction(MessagePassing):
-    r"""torch_geometric implementation of PaiNN block for modeling equivariant interactions. 
+    r"""torch_geometric implementation of PaiNN block for modeling equivariant interactions.
     Parameters
     -----------
     hidden_channels:
-        hidden channel dimension, i.e. node feature size used for the node embedding 
+        hidden channel dimension, i.e. node feature size used for the node embedding
     edge_attr_dim:
         edge attributes dimension, i.e. number of radial basis functions
     cutoff:
@@ -33,41 +34,37 @@ class PaiNNInteraction(MessagePassing):
     """
 
     def __init__(
-            self,
-            hidden_channels: int,
-            edge_attr_dim: int,
-            cutoff: nn.Module,
-            activation: Callable,
-            aggr: str = "add"):
+        self,
+        hidden_channels: int,
+        edge_attr_dim: int,
+        cutoff: nn.Module,
+        activation: Callable,
+        aggr: str = "add",
+    ):
         super().__init__(aggr=aggr)
         self.hidden_channels = hidden_channels
 
         self.interatomic_context_net = nn.Sequential(
-            Dense(hidden_channels,
-                  hidden_channels,
-                  activation=activation),
-            Dense(hidden_channels,
-                  3*hidden_channels,
-                  activation=None),
+            nn.Linear(hidden_channels, hidden_channels),
+            activation,
+            nn.Linear(hidden_channels, 3 * hidden_channels),
         )
-        self.filter_network = Dense(edge_attr_dim,
-                                    3*hidden_channels,
-                                    activation=None)
+        self.filter_network = nn.Linear(edge_attr_dim, 3 * hidden_channels)
         self.cutoff = cutoff
 
     def reset_parameters(self):
         for module in self.interatomic_context_net:
-            module.reset_parameters()
-        self.filter_network.reset_parameters()
+            init_xavier_uniform(module)
+        init_xavier_uniform(self.filter_network)
 
     def forward(
-            self,
-            scalar_node_features: torch.Tensor,  # (n_nodes, 1, n_feat)
-            vector_node_features: torch.Tensor,  # (n_nodes, 3, n_feat)
-            normdir: torch.Tensor,  # (n_edges, 3)
-            edge_index: torch.Tensor,  # (2, n_edges)
-            edge_weight: torch.Tensor,  # (n_edges)
-            edge_attr: torch.Tensor  # (n_edges, edge_attr_dim)
+        self,
+        scalar_node_features: torch.Tensor,  # (n_nodes, 1, n_feat)
+        vector_node_features: torch.Tensor,  # (n_nodes, 3, n_feat)
+        normdir: torch.Tensor,  # (n_edges, 3)
+        edge_index: torch.Tensor,  # (2, n_edges)
+        edge_weight: torch.Tensor,  # (n_edges)
+        edge_attr: torch.Tensor,  # (n_edges, edge_attr_dim)
     ):
         """Compute interaction output.
 
@@ -96,19 +93,23 @@ class PaiNNInteraction(MessagePassing):
         x_vector = vector_node_features.view(n_nodes, -1)  # (n_nodes, 3*n_feat)
         x = self.interatomic_context_net(x_scalar)
 
-        return self.propagate(edge_index,
-                              x=x,
-                              x_scalar=x_scalar,
-                              x_vector=x_vector,
-                              W=W,
-                              normdir=normdir)
+        return self.propagate(
+            edge_index,
+            x=x,
+            x_scalar=x_scalar,
+            x_vector=x_vector,
+            W=W,
+            normdir=normdir,
+        )
 
     def message(self, x_j, x_vector_j, W, normdir):
         x_j = x_j.unsqueeze(1)  # reshape as (n_nodes, 1, 3*n_feats)
-        x_vector_j = x_vector_j.view(x_j.shape[0], 3, -1)  # reshape as (n_nodes, 3, n_feats)
+        x_vector_j = x_vector_j.view(
+            x_j.shape[0], 3, -1
+        )  # reshape as (n_nodes, 3, n_feats)
         x = W * x_j
         dq, dmuR, dmumu = torch.split(x, self.hidden_channels, dim=-1)
-        dmu = dmuR*normdir.unsqueeze(-1) + dmumu*x_vector_j
+        dmu = dmuR * normdir.unsqueeze(-1) + dmumu * x_vector_j
 
         return dq, dmu
 
@@ -130,10 +131,9 @@ class PaiNNInteraction(MessagePassing):
 class PaiNNMixing(nn.Module):
     r"""PaiNN interaction block for mixing on atom features."""
 
-    def __init__(self,
-                 hidden_channels: int,
-                 activation: Callable,
-                 epsilon: float = 1e-8):
+    def __init__(
+        self, hidden_channels: int, activation: Callable, epsilon: float = 1e-8
+    ):
         """
         Args:
             hidden_channels: number of features to describe atomic environments.
@@ -144,18 +144,19 @@ class PaiNNMixing(nn.Module):
         self.hidden_channels = hidden_channels
 
         self.intraatomic_context_net = nn.Sequential(
-            Dense(2 * hidden_channels, hidden_channels, activation=activation),
-            Dense(hidden_channels, 3 * hidden_channels, activation=None),
+            nn.Linear(2 * hidden_channels, hidden_channels),
+            activation,
+            nn.Linear(hidden_channels, 3 * hidden_channels),
         )
-        self.mu_channel_mix = Dense(
-            hidden_channels, 2 * hidden_channels, activation=None, bias=False
+        self.mu_channel_mix = nn.Linear(
+            hidden_channels, 2 * hidden_channels, bias=False
         )
         self.epsilon = epsilon
 
     def reset_parameters(self):
         for module in self.intraatomic_context_net:
-            module.reset_parameters()
-        self.mu_channel_mix.reset_parameters()
+            init_xavier_uniform(module)
+        init_xavier_uniform(self.mu_channel_mix)
 
     def forward(self, q: torch.Tensor, mu: torch.Tensor):
         """Compute intraatomic mixing.
@@ -170,12 +171,16 @@ class PaiNNMixing(nn.Module):
         # intra-atomic
         mu_mix = self.mu_channel_mix(mu)
         mu_V, mu_W = torch.split(mu_mix, self.hidden_channels, dim=-1)
-        mu_Vn = torch.sqrt(torch.sum(mu_V**2, dim=-2, keepdim=True) + self.epsilon)
+        mu_Vn = torch.sqrt(
+            torch.sum(mu_V**2, dim=-2, keepdim=True) + self.epsilon
+        )
 
         ctx = torch.cat([q, mu_Vn], dim=-1)
         x = self.intraatomic_context_net(ctx)
 
-        dq_intra, dmu_intra, dqmu_intra = torch.split(x, self.hidden_channels, dim=-1)
+        dq_intra, dmu_intra, dqmu_intra = torch.split(
+            x, self.hidden_channels, dim=-1
+        )
         dmu_intra = dmu_intra * mu_W
 
         dqmu_intra = dqmu_intra * torch.sum(mu_V * mu_W, dim=1, keepdim=True)
@@ -261,7 +266,6 @@ class PaiNN(nn.Module):
             block.reset_parameters()
         self.output_network.reset_parameters()
 
-    # def forward(self, inputs: Dict[str, torch.Tensor]):
     def forward(self, data: AtomicData):
         """
         Compute atomic representations/embeddings.
@@ -278,9 +282,7 @@ class PaiNN(nn.Module):
 
         if not self.is_nl_compatible(neighbor_list):
             neighbor_list = self.neighbor_list(
-                data,
-                self.rbf_layer.cutoff.cutoff_upper,
-                self.max_num_neighbors
+                data, self.rbf_layer.cutoff.cutoff_upper, self.max_num_neighbors
             )[self.name]
         edge_index = neighbor_list["index_mapping"]
         distances = compute_distances(
@@ -288,21 +290,23 @@ class PaiNN(nn.Module):
             edge_index,
             neighbor_list["cell_shifts"],
         ).unsqueeze(1)
-        normdir = (data.pos[edge_index[0]] - data.pos[edge_index[1]])/distances
+        normdir = (
+            data.pos[edge_index[0]] - data.pos[edge_index[1]]
+        ) / distances
         rbf_expansion = self.rbf_layer(distances)
 
         q = self.embedding_layer(data.atom_types)  # (n_atoms, n_features)
         q = q.unsqueeze(1)  # (n_atoms, 1, n_features)
-        mu = torch.zeros((q.shape[0], 3, q.shape[2]), device=q.device)  # (n_atoms, 3, n_features)
+        mu = torch.zeros(
+            (q.shape[0], 3, q.shape[2]), device=q.device
+        )  # (n_atoms, 3, n_features)
 
-        for i, (interaction, mixing) in enumerate(zip(self.interaction_blocks,
-                                                      self.mixing_blocks)):
-            q, mu = interaction(q,
-                                mu,
-                                normdir,
-                                edge_index,
-                                distances,
-                                rbf_expansion)
+        for i, (interaction, mixing) in enumerate(
+            zip(self.interaction_blocks, self.mixing_blocks)
+        ):
+            q, mu = interaction(
+                q, mu, normdir, edge_index, distances, rbf_expansion
+            )
             q, mu = mixing(q, mu)
         q = q.squeeze(1)
 
@@ -342,7 +346,8 @@ class PaiNN(nn.Module):
 class StandardPaiNN(PaiNN):
     """mall wrapper class for :ref:`PaiNN` to simplify the definition of the
     PaiNN model through an input file. The upper distance cutoff attribute
-    in is set by default to match the upper cutoff value in the cutoff function."""
+    in is set by default to match the upper cutoff value in the cutoff function.
+    """
 
     def __init__(
         self,
@@ -383,19 +388,11 @@ class StandardPaiNN(PaiNN):
         for _ in range(num_interactions):
             interaction_blocks.append(
                 PaiNNInteraction(
-                    hidden_channels,
-                    rbf_layer.num_rbf,
-                    cutoff,
-                    activation,
-                    aggr
+                    hidden_channels, rbf_layer.num_rbf, cutoff, activation, aggr
                 )
             )
             mixing_blocks.append(
-                PaiNNMixing(
-                    hidden_channels,
-                    activation,
-                    epsilon
-                )
+                PaiNNMixing(hidden_channels, activation, epsilon)
             )
 
         output_layer_widths = (
