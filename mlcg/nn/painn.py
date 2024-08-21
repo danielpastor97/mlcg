@@ -12,7 +12,7 @@ from mlcg.data import AtomicData
 from mlcg.data._keys import ENERGY_KEY
 from mlcg.nn import MLP
 from mlcg.nn._module_init import init_xavier_uniform
-from mlcg.geometry.internal_coordinates import compute_distances
+from mlcg.geometry.internal_coordinates import compute_distance_vectors
 from mlcg.neighbor_list.neighbor_list import (
     atomic_data2neighbor_list,
     validate_neighborlist,
@@ -376,15 +376,17 @@ class PaiNN(nn.Module):
             neighbor_list = self.neighbor_list(
                 data, self.rbf_layer.cutoff.cutoff_upper, self.max_num_neighbors
             )[self.name]
+
         edge_index = neighbor_list["index_mapping"]
-        distances = compute_distances(
+
+        distances, normdir = compute_distance_vectors(
             data.pos,
             edge_index,
             neighbor_list["cell_shifts"],
-        ).unsqueeze(1)
-        normdir = (
-            data.pos[edge_index[0]] - data.pos[edge_index[1]]
-        ) / distances
+        )
+
+        distances = distances.unsqueeze(1)
+
         rbf_expansion = self.rbf_layer(distances)
 
         q = self.embedding_layer(data.atom_types)  # (n_atoms, n_features)
