@@ -385,8 +385,6 @@ class PaiNN(nn.Module):
             neighbor_list["cell_shifts"],
         )
 
-        distances = distances.unsqueeze(1)
-
         rbf_expansion = self.rbf_layer(distances)
 
         q = self.embedding_layer(data.atom_types)  # (n_atoms, n_features)
