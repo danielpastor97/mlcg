@@ -12,6 +12,7 @@ from .pyg_forward_compatibility import (
     load_and_adapt_old_checkpoint,
     fixed_pyg_inspector,
 )
+from .painn import PaiNN, StandardPaiNN
 
 try:
     from .mace_interface import MACEInterface
@@ -48,4 +49,6 @@ __all__ = [
     "refresh_module_with_schnet_",
     "load_and_adapt_old_checkpoint",
     "fixed_pyg_inspector",
+    "PaiNN",
+    "StandardPaiNN",
 ]
