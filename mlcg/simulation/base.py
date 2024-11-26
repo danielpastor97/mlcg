@@ -284,17 +284,19 @@ class _Simulation(object):
         data = data.to(self.device)
         _, forces = self.calculate_potential_and_forces(data)
         if self.export_interval is not None:
-            t_init = self.current_timestep * self.export_interval 
-        else: 
+            t_init = self.current_timestep * self.export_interval
+        else:
             t_init = 0
         if t_init >= self.n_timesteps:
-            raise ValueError(f"Simulation has already been running for {t_init} steps, which is larger than the target number of steps {self.n_timesteps}")
+            raise ValueError(
+                f"Simulation has already been running for {t_init} steps, which is larger than the target number of steps {self.n_timesteps}"
+            )
         for t in tqdm(
             range(t_init, self.n_timesteps),
             desc="Simulation timestep",
             mininterval=self.tqdm_refresh,
             initial=t_init,
-            total=self.n_timesteps
+            total=self.n_timesteps,
         ):
             # step forward in time
             data, potential, forces = self.timestep(data, forces)
@@ -520,14 +522,22 @@ class _Simulation(object):
             self.checkpointed_data = checkpointed_data
             self.current_timestep = self.checkpointed_data["current_timestep"]
             if "export_interval" in self.checkpointed_data.keys():
-                if self.export_interval != self.checkpointed_data["export_interval"]:
+                if (
+                    self.export_interval
+                    != self.checkpointed_data["export_interval"]
+                ):
                     warnings.warn(
                         "specified export_interval doesn't match the export interval in the checkpoint, using checkpointed export interval instead",
                         UserWarning,
                     )
-                    self.export_interval = self.checkpointed_data["export_interval"]
+                    self.export_interval = self.checkpointed_data[
+                        "export_interval"
+                    ]
             if "save_interval" in self.checkpointed_data.keys():
-                if self.save_interval != self.checkpointed_data["save_interval"]:
+                if (
+                    self.save_interval
+                    != self.checkpointed_data["save_interval"]
+                ):
                     warnings.warn(
                         "specified save_interval doesn't match the save interval in the checkpoint, using checkpointed save interval instead",
                         UserWarning,
@@ -725,8 +735,12 @@ class _Simulation(object):
         if self.create_checkpoints:
             # self.checkpoint = deepcopy(data.detach())
             self.checkpoint = {}
-            self.checkpoint[POSITIONS_KEY] = deepcopy(data[POSITIONS_KEY].detach())
-            self.checkpoint[VELOCITY_KEY] = deepcopy(data[VELOCITY_KEY].detach())
+            self.checkpoint[POSITIONS_KEY] = deepcopy(
+                data[POSITIONS_KEY].detach()
+            )
+            self.checkpoint[VELOCITY_KEY] = deepcopy(
+                data[VELOCITY_KEY].detach()
+            )
 
     def write(self, iter_: int):
         """Utility to write numpy arrays to disk"""
