@@ -516,6 +516,27 @@ class _Simulation(object):
                 checkpointed_data = torch.load(fn)
             self.checkpointed_data = checkpointed_data
             self.current_timestep = self.checkpointed_data["current_timestep"]
+            if "export_interval" in self.checkpointed_data.keys():
+                if self.export_interval != self.checkpointed_data["export_interval"]:
+                    warnings.warn(
+                        "specified export_interval doesn't match the export interval in the checkpoint, using checkpointed export interval instead",
+                        UserWarning,
+                    )
+                    self.export_interval = self.checkpointed_data["export_interval"]
+            if "save_interval" in self.checkpointed_data.keys():
+                if self.save_interval != self.checkpointed_data["save_interval"]:
+                    warnings.warn(
+                        "specified save_interval doesn't match the save interval in the checkpoint, using checkpointed save interval instead",
+                        UserWarning,
+                    )
+                    self.save_interval = self.checkpointed_data["save_interval"]
+            if "log_interval" in self.checkpointed_data.keys():
+                if self.log_interval != self.checkpointed_data["log_interval"]:
+                    warnings.warn(
+                        "specified log_interval doesn't match the log interval in the checkpoint, using checkpointed log interval instead",
+                        UserWarning,
+                    )
+                    self.log_interval = self.checkpointed_data["log_interval"]
         else:
             self.checkpointed_data = None
             self.current_timestep = 0
@@ -699,7 +720,10 @@ class _Simulation(object):
             self.simulated_potential[t // self.save_interval] = potential
 
         if self.create_checkpoints:
-            self.checkpoint = deepcopy(data.detach())
+            # self.checkpoint = deepcopy(data.detach())
+            self.checkpoint = {}
+            self.checkpoint[POSITIONS_KEY] = deepcopy(data[POSITIONS_KEY].detach())
+            self.checkpoint[VELOCITY_KEY] = deepcopy(data[VELOCITY_KEY].detach())
 
     def write(self, iter_: int):
         """Utility to write numpy arrays to disk"""
@@ -731,10 +755,12 @@ class _Simulation(object):
             )
 
         if self.create_checkpoints:
-            checkpoint_dict = self.checkpoint.to_dict()
-            checkpoint_dict["current_timestep"] = int(key) + 1
+            self.checkpoint["current_timestep"] = int(key) + 1
+            self.checkpoint["export_interval"] = self.export_interval
+            self.checkpoint["save_interval"] = self.save_interval
+            self.checkpoint["log_interval"] = self.log_interval
             torch.save(
-                checkpoint_dict,
+                self.checkpoint,
                 "{}_checkpoint.pt".format(self.filename),
             )
 
