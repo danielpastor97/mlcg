@@ -733,7 +733,6 @@ class _Simulation(object):
             self.simulated_potential[t // self.save_interval] = potential
 
         if self.create_checkpoints:
-            # self.checkpoint = deepcopy(data.detach())
             self.checkpoint = {}
             self.checkpoint[POSITIONS_KEY] = deepcopy(
                 data[POSITIONS_KEY].detach()
