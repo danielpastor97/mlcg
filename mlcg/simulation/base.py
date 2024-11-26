@@ -283,15 +283,16 @@ class _Simulation(object):
         data = deepcopy(self.initial_data)
         data = data.to(self.device)
         _, forces = self.calculate_potential_and_forces(data)
+        if self.export_interval is not None:
+            t_init = self.current_timestep * self.export_interval 
+        else: 
+            t_init = 0
         for t in tqdm(
-            range(self.n_timesteps),
+            range(t_init, self.n_timesteps),
             desc="Simulation timestep",
             mininterval=self.tqdm_refresh,
-            initial=(
-                self.current_timestep * self.export_interval
-                if self.export_interval is not None
-                else 0
-            ),
+            initial=t_init,
+            total=self.n_timesteps
         ):
             # step forward in time
             data, potential, forces = self.timestep(data, forces)
