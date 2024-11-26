@@ -287,6 +287,8 @@ class _Simulation(object):
             t_init = self.current_timestep * self.export_interval 
         else: 
             t_init = 0
+        if t_init >= self.n_timesteps:
+            raise ValueError(f"Simulation has already been running for {t_init} steps, which is larger than the target number of steps {self.n_timesteps}")
         for t in tqdm(
             range(t_init, self.n_timesteps),
             desc="Simulation timestep",
