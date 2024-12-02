@@ -577,8 +577,20 @@ class _Simulation(object):
                     raise ValueError(
                         "Numpy saving must occur at a multiple of save_interval"
                     )
-                self._npy_file_index = self.current_timestep
-                self._npy_starting_index = 0
+                if self.read_checkpoint_file is not None:
+                    # the `current_timestep` in the checkpoint is actually the number of the last
+                    # numpy filed saved. We need to use it to reset the _npy_file_index
+                    self._npy_file_index = self.current_timestep
+                    # We also need to reset _npy_starting_index, which should carry the last simulation timestep
+                    # in which we saved coordinates, divided by the save interval
+                    self._npy_starting_index = (
+                        self.current_timestep
+                        * self.export_interval
+                        // self.save_interval
+                    )
+                else:
+                    self._npy_file_index = 0
+                    self._npy_starting_index = 0
 
         # logging
         if self.log_interval is not None:
