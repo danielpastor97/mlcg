@@ -589,7 +589,7 @@ class _Simulation(object):
                         // self.save_interval
                     )
                 else:
-                    self._npy_file_index = self.current_timestep
+                    self._npy_file_index = 0
                     self._npy_starting_index = 0
 
         # logging
