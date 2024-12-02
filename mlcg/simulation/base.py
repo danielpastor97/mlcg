@@ -583,7 +583,11 @@ class _Simulation(object):
                     self._npy_file_index = self.current_timestep
                     # We also need to reset _npy_starting_index, which should carry the last simulation timestep
                     # in which we saved coordinates, divided by the save interval
-                    self._npy_starting_index = self.current_timestep*self.export_interval//self.save_interval
+                    self._npy_starting_index = (
+                        self.current_timestep
+                        * self.export_interval
+                        // self.save_interval
+                    )
                 else:
                     self._npy_file_index = self.current_timestep
                     self._npy_starting_index = 0
