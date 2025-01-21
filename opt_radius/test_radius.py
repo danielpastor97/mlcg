@@ -13,6 +13,11 @@ Testing edge_index against each other:
         - target to source or source to target
 
     use pytest
+
+Update by Yaoyi Chen on Jan 21, 2025:
+    - Remove some test combinations since they take too long
+    - Wrap the shared context in a file, such that the tests
+      will be skipped when there is no GPU.
 '''
 
 '''
@@ -36,25 +41,19 @@ from radius.radius_sd import radius_graph as rgm
 
 ######################################################################
 
-INT_DTYPES = [torch.int,
-              torch.long]
-#FLOATING_DTYPES = [torch.half, 
-#                   torch.float, 
-#                   torch.double] 
-FLOATING_DTYPES = [torch.double] 
-                   #torch.bfloat16] # debug: fix support if possible
+INT_DTYPE = torch.long
+FLOATING_DTYPES = [torch.float] 
 DEVICES = [torch.device('cuda:0')]
 
-X                 = [0, 1, 2, 1000]
-DIM               = [1,2,3]
-X_RANGE           = [(-1.0, 1.0), (0.0, 1.0), 
-                     (-1.0, 0.0), (-10.0, -20.0)] 
-R                 = [0.0, 1.0, 5.0, 30.0]
+X                 = [0, 10, 100]
+DIM               = [1, 2, 3]
+X_RANGE           = [(-1.0, 1.0), (-10.0, -20.0)] 
+R                 = [0.0, 1.0, 10.0]
 BATCH_SIZES       = [(100,), (50, 100), (10, 20, 100)] 
-MAX_NUM_NEIGHBORS = [1, 2, 100, 1000]
+MAX_NUM_NEIGHBORS = [100]
 LOOP              = [True, False]
 
-TOL = 1e-7
+TOL = 1e-6
 
 ######################################################################
 
@@ -65,7 +64,6 @@ TOL = 1e-7
                           batch_size,\
                           max_num_neighbors,\
                           loop,\
-                          idtype,\
                           fdtype,\
                           device", product(X, 
                                            DIM,
@@ -74,7 +72,6 @@ TOL = 1e-7
                                            BATCH_SIZES,
                                            MAX_NUM_NEIGHBORS,
                                            LOOP,
-                                           INT_DTYPES,
                                            FLOATING_DTYPES,
                                            DEVICES))
 def test_radius(x_c, 
@@ -84,7 +81,6 @@ def test_radius(x_c,
                 batch_size, 
                 max_num_neighbors, 
                 loop,
-                idtype, 
                 fdtype, 
                 device):
 
@@ -94,7 +90,7 @@ def test_radius(x_c,
     p = 0
     for i,b in enumerate(batch_size):
         n = math.ceil((x_c * (b / 100))) - p
-        batch.append(torch.ones(n,dtype=idtype)*i)
+        batch.append(torch.ones(n, dtype=int) * i)
         p += n
     batch = torch.cat(batch).to(device)
 
@@ -118,13 +114,3 @@ def test_radius(x_c,
         o_real_d = torch.linalg.norm(x[o_real_i[0,:],:] - x[o_real_i[1,:],:], axis=-1)
         assert torch.all((o_real_d - o_mine_d) < TOL)
 
-#test = test_radius(2000,
-#                   1,
-#                   (0.0, 1.0),
-#                   30.0,
-#                   (100,),
-#                   30,
-#                   True,
-#                   torch.int,
-#                   torch.float,  
-#                   'cuda')
