@@ -1,10 +1,17 @@
 from typing import Optional
 import torch
+from os import path
 
+# This means we are compiling every time when loading this module
+# if there is no cache. Ideal for debugging but not release
+# TODO: set a proper "TORCH_CUDA_ARCH_LIST" to remove the warning
+# ref: https://github.com/pytorch/extension-cpp/, Issue #71
+# TODO: a proper setup script to install a compiled version
+# TODO: check whether the module has already been installed. If so, then skip
 from torch.utils.cpp_extension import load
 mc = load(name='radius_kernel', 
-          sources=['cu/radius_sd.cu'],
-          extra_cflags=['-O3'], 
+        sources=[path.join(path.dirname(__file__), '..', 'cu', 'radius_sd.cu')],
+              extra_cflags=['-O3'], 
           extra_cuda_cflags=['-O3'] 
           #extra_cuda_cflags=['-arch=compute_89', 
           #                   '-code=sm_89']

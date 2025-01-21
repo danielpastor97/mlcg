@@ -16,7 +16,7 @@ Testing edge_index against each other:
 
 Update by Yaoyi Chen on Jan 21, 2025:
     - Remove some test combinations since they take too long
-    - Wrap the shared context in a file, such that the tests
+    - TODO: wrap the shared context in a file, such that the tests
       will be skipped when there is no GPU.
 '''
 
