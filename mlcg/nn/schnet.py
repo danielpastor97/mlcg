@@ -17,6 +17,14 @@ from .attention import (
     Nonlocalinteractionblock,
 )
 
+try:
+    from mlcg_opt_radius import radius_cuda
+except ImportError:
+    print(
+        "`mlcg_opt_radius` not installed. Please check the `opt_radius` folder and follow the instructions."
+    )
+    radius_cuda = None
+
 
 class SchNet(torch.nn.Module):
     r"""PyTorch Geometric implementation of SchNet
@@ -111,15 +119,40 @@ class SchNet(torch.nn.Module):
         neighbor_list = data.neighbor_list.get(self.name)
 
         if not self.is_nl_compatible(neighbor_list):
-            neighbor_list = self.neighbor_list(
-                data, self.rbf_layer.cutoff.cutoff_upper, self.max_num_neighbors
-            )[self.name]
-        edge_index = neighbor_list["index_mapping"]
-        distances = compute_distances(
-            data.pos,
-            edge_index,
-            neighbor_list["cell_shifts"],
-        )
+            # we need to generate the neighbor list
+            # check whether we are using the custom kernel
+            # 1. mlcg_opt_radius is installed
+            # 2. input data is on CUDA
+            # 3. not using PBC (TODO)
+            if (radius_cuda is not None) and x.is_cuda:
+                use_custom_kernel = True
+            if not use_custom_kernel:
+                neighbor_list = self.neighbor_list(
+                    data,
+                    self.rbf_layer.cutoff.cutoff_upper,
+                    self.max_num_neighbors,
+                )[self.name]
+        if use_custom_kernel:
+            # TODO: add backward support to radius_cuda
+            edge_index, _ = radius_cuda(
+                data.pos,
+                data.ptr,
+                self.rbf_layer.cutoff.cutoff_upper,
+                self.max_num_neighbors,
+                True,  # ignore_same_index
+            )
+            # we are computing the dists again to enable backward
+            distances = compute_distances(
+                data.pos,
+                edge_index,
+            )
+        else:
+            edge_index = neighbor_list["index_mapping"]
+            distances = compute_distances(
+                data.pos,
+                edge_index,
+                neighbor_list["cell_shifts"],
+            )
 
         rbf_expansion = self.rbf_layer(distances)
         num_batch = data.batch[-1] + 1
