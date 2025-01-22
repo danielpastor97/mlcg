@@ -239,3 +239,6 @@ std::tuple<torch::Tensor, torch::Tensor>
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m){
     m.def("radius_cuda", &radius_cuda);
 }
+
+static auto registry =
+    torch::RegisterOperators().op("mlcg::radius_cuda", &radius_cuda);
