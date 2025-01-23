@@ -10,6 +10,7 @@
 
 namespace cg = cooperative_groups;
 
+namespace mlcg_opt_radius {
 //-------------------------------------------------------------------
 __forceinline__ 
 __device__ 
@@ -22,6 +23,30 @@ get_example_idx(int64_t idx,
             return i;
     }
     return num_examples - 1;
+}
+//-------------------------------------------------------------------
+__forceinline__
+__device__
+int64_t
+is_in_sorted_array(
+                const int64_t query,
+		const int64_t *arr_to_be_searched,
+		int64_t& current_search_id,
+                const int64_t max_search_id) {
+    int64_t current_v;
+    while (current_search_id < max_search_id) {
+        current_v = arr_to_be_searched[current_search_id];
+	if (current_v < query) {
+            current_search_id++;
+	}
+	else if (current_v == query) {
+            return true;
+        }
+	else return false; // pointing at a value bigger than the query
+    }
+    if (current_search_id == max_search_id) {
+        return false; // we have drained the search
+    }
 }
 //-------------------------------------------------------------------
 template <typename scalar_t>
@@ -56,6 +81,8 @@ template <typename scalar_t>
 __global__ void
 radius_kernel(const scalar_t *__restrict__ x, 
               const int64_t *__restrict__ ptr_x,
+              const int64_t *__restrict__ exclude_pair_xs,
+	      const int64_t *__restrict__ ptr_exclude_pair_xs,
               const scalar_t r, 
               const int64_t n,
               const int64_t dim, 
@@ -75,13 +102,20 @@ radius_kernel(const scalar_t *__restrict__ x,
     int64_t count = 0;
     const int64_t example_idx = get_example_idx(n_y, ptr_x, num_examples);
 
+    int64_t exc_pair_i = ptr_exclude_pair_xs[n_y];
+    int64_t bound_exc_pair_i = ptr_exclude_pair_xs[n_y + 1];
+
     for (int64_t n_x = ptr_x[example_idx]; n_x < ptr_x[example_idx + 1]; n_x++) {
         scalar_t dist = 0;
         for (int64_t d = 0; d < dim; d++) {
             dist += (x[n_x * dim + d] - x[n_y * dim + d]) *
                     (x[n_x * dim + d] - x[n_y * dim + d]);
         }
-        if ((dist < r) && !(ignore_same_index && (n_y == n_x))) {
+	bool is_excluded = is_in_sorted_array(
+            n_x, exclude_pair_xs, exc_pair_i, bound_exc_pair_i
+
+        );
+        if (!is_excluded && (dist < r) && !(ignore_same_index && (n_y == n_x))) {
             o_edge_index[(n_y * max_num_neighbors * 2) + (count * 2)    ] = n_y;
             o_edge_index[(n_y * max_num_neighbors * 2) + (count * 2) + 1] = n_x;
             o_distance[(n_y * max_num_neighbors) + count] = sqrt(dist); //squared
@@ -147,6 +181,8 @@ radius_kernel(const scalar_t *__restrict__ x,
 std::tuple<torch::Tensor, torch::Tensor> 
               radius_cuda(const torch::Tensor x, 
                           torch::optional<torch::Tensor> ptr_x,
+                          torch::optional<torch::Tensor> exclude_pair_xs,
+                          torch::optional<torch::Tensor> ptr_exclude_pair_xs,
                           const double r,
                           const int64_t max_num_neighbors,
                           const bool ignore_same_index) {
@@ -161,6 +197,20 @@ std::tuple<torch::Tensor, torch::Tensor>
     } else
         ptr_x = torch::arange(0, x.size(0) + 1, x.size(0),
                               x.options().dtype(torch::kLong));
+    
+    if (exclude_pair_xs.has_value()) {
+        CHECK_CUDA(exclude_pair_xs.value());
+        CHECK_INPUT(exclude_pair_xs.value().dim() == 1);
+        CHECK_INPUT(ptr_exclude_pair_xs.has_value());
+        CHECK_CUDA(ptr_exclude_pair_xs.value());
+        CHECK_INPUT(ptr_exclude_pair_xs.value().dim() == 1);
+        CHECK_INPUT(ptr_exclude_pair_xs.value().size(0) == x.size(0) + 1);
+    } else {
+        // no exclusion? Generate an empty input
+        exclude_pair_xs = torch::empty(1, x.options().dtype(torch::kLong));
+        ptr_exclude_pair_xs = torch::zeros(x.size(0) + 1, x.options().dtype(torch::kLong));
+    }
+        
 
     auto scalar_type = x.scalar_type();
     dim3 BLOCKS((x.size(0) + THREADS - 1) / THREADS);
@@ -179,6 +229,8 @@ std::tuple<torch::Tensor, torch::Tensor>
 
             scalar_t* x_data_ptr = x.data_ptr<scalar_t>();
             int64_t* ptr_x_ptr = ptr_x.value().data_ptr<int64_t>();
+            int64_t* exclude_pair_xs_ptr = exclude_pair_xs.value().data_ptr<int64_t>();
+            int64_t* ptr_exclude_pair_xs_ptr = ptr_exclude_pair_xs.value().data_ptr<int64_t>();
             scalar_t r_squared = r*r;
             int64_t x_size0 = x.size(0);
             int64_t x_size1 = x.size(1);
@@ -189,6 +241,8 @@ std::tuple<torch::Tensor, torch::Tensor>
             void* kernel_args[] = {
                 (void*)&x_data_ptr,
                 (void*)&ptr_x_ptr,
+                (void*)&exclude_pair_xs_ptr,
+                (void*)&ptr_exclude_pair_xs_ptr,
                 (void*)&r_squared,  
                 (void*)&x_size0,    
                 (void*)&x_size1,    
@@ -236,9 +290,11 @@ std::tuple<torch::Tensor, torch::Tensor>
     return std::make_tuple(o_c_edge_index.t(), o_c_distance);
 }
 
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m){
-    m.def("radius_cuda", &radius_cuda);
-}
+//PYBIND11_MODULE(mlcg_opt_radius, m){
+//    m.def("radius_cuda", &radius_cuda);
+//}
 
 static auto registry =
     torch::RegisterOperators().op("mlcg::radius_cuda", &radius_cuda);
+
+}
