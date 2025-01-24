@@ -18,7 +18,7 @@ from .attention import (
 )
 
 try:
-    from mlcg_opt_radius import radius_cuda
+    from mlcg_opt_radius import radius_cuda, exclusion_pair_to_ptr
 except ImportError:
     print(
         "`mlcg_opt_radius` not installed. Please check the `opt_radius` folder and follow the instructions."
@@ -117,7 +117,13 @@ class SchNet(torch.nn.Module):
         x = self.embedding_layer(data.atom_types)
 
         neighbor_list = data.neighbor_list.get(self.name)
-
+        if hasattr(data, "exc_pair_index"):
+            exc_pair_xs, y_level_ptr = exclusion_pair_to_ptr(
+                data.exc_pair_index, len(data.atom_types)
+            )
+            exclude_pairs = True
+        else:
+            exc_pair_xs, y_level_ptr = None, None
         if not self.is_nl_compatible(neighbor_list):
             # we need to generate the neighbor list
             # check whether we are using the custom kernel
@@ -127,6 +133,11 @@ class SchNet(torch.nn.Module):
             if (radius_cuda is not None) and x.is_cuda:
                 use_custom_kernel = True
             if not use_custom_kernel:
+                if exclude_pairs:
+                    raise NotImplementedError(
+                        "Excluding pairs requires `mlcg_opt_radius` "
+                        "to be available and model running with CUDA."
+                    )
                 neighbor_list = self.neighbor_list(
                     data,
                     self.rbf_layer.cutoff.cutoff_upper,
@@ -137,6 +148,8 @@ class SchNet(torch.nn.Module):
             edge_index, _ = radius_cuda(
                 data.pos,
                 data.ptr,
+                exc_pair_xs,
+                y_level_ptr,
                 self.rbf_layer.cutoff.cutoff_upper,
                 self.max_num_neighbors,
                 True,  # ignore_same_index
