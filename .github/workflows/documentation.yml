@@ -1,4 +1,4 @@
-name: Build the latest Documentation
+name: Build the latest documentation
 on: # [push]
   push:
     branches:
@@ -22,7 +22,15 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: 3.9
-      - name: Install Python dependencies
+      - name: Install torch 
+        run: pip install torch==2.1.1
+      - name: Install torch_geometric
+        run: pip install torch_geometric==2.4.0
+      - name: Install torch_geometric dependencies
+        run: pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.1.0+cpu.html
+      - name: Install mlcg requirements
+        run: pip install -r  ${{ github.workspace }}/requirements.txt
+      - name: Install sphinx dependencies
         run: pip install sphinx sphinx_rtd_theme sphinx-autodoc-typehints
       - name: Build Documentation
         run: sphinx-build -b html ${{ github.workspace }}/docs/source ${{ github.workspace }}/docs/
