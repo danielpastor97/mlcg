@@ -23,7 +23,7 @@ os.environ["PYTORCH_JIT"] = "0"
 
 # -- Project information -----------------------------------------------------
 
-project = "mlcg-tools"
+project = "mlcg"
 copyright = "2021, Felix Musil & Nick Charron"
 author = "Felix Musil & Nick Charron"
 

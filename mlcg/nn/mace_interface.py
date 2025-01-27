@@ -27,7 +27,7 @@ from mlcg.neighbor_list.neighbor_list import (
 
 
 class MACEInterface(torch.nn.Module):
-    """MLCG-Tools interface for MACE model. Based on:
+    """MLCG interface for MACE model. Based on:
 
     https://arxiv.org/abs/2206.07697
 

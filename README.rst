@@ -1,4 +1,4 @@
-mlcg-tools
+mlcg
 ==========
 
 .. start-intro
