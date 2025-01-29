@@ -82,4 +82,3 @@ To produce a report locally run:
     coverage run -m pytest
     coverage report
 
-test
