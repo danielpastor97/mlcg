@@ -81,3 +81,5 @@ To produce a report locally run:
 .. code:: bash
     coverage run -m pytest
     coverage report
+
+test
