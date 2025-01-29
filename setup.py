@@ -28,7 +28,7 @@ setup(
     license="MIT",
     author="Fe"
     + "\u0301"
-    + "lix Musil, Nick Charron, Yoayi Chen, Atharva Kelkar, Clark Templeton",
+    + "lix Musil, Nick Charron, Yaoyi Chen, Atharva Kelkar, Clark Templeton, Klara Bonneau, Aldo S. Pasos-Trejo, Andrea Guljas, Jacopo Venturin",
     install_requires=install_requires,
     scripts=[
         "scripts/mlcg-train.py",

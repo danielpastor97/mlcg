@@ -1,6 +1,6 @@
 r"""Python classes for processing data stored in HDF5 format.
 
-HDF5 format benefits the dataset management for mlcg-tools when training/validation involves multiple molecules of vastly different lengths and when parallelization is used.
+HDF5 format benefits the dataset management for mlcg when training/validation involves multiple molecules of vastly different lengths and when parallelization is used.
 The main features are:
 1. The internal structure mimics the hierarchy of the dataset itself, such that we don't have to replicate it on filesystem.
 2. we don't have to actively open all files in the process

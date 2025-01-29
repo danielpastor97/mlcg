@@ -23,7 +23,7 @@ def get_refreshed_cfconv_layer(old_cfconv: CFConv):
         possibly saved with a previous versions of pyg.
     """
     # Tensor was once imported as a standalone symbol in an older
-    # version of mlcg-tools (or pyg) but not anymore, thus we have
+    # version of mlcg (or pyg) but not anymore, thus we have
     # to monkey patch it here in order for some older checkpoints
     # to work
     mlcg.nn.schnet.Tensor = torch.Tensor
@@ -119,9 +119,9 @@ def fixed_pyg_inspector():
         if version.parse(torch_geometric.__version__) >= version.parse("2.5"):
             # monkey patch for the inspector.py, which has been moved to
             # another place in recent pygs
-            sys.modules["torch_geometric.nn.conv.utils.inspector"] = (
-                torch_geometric.inspector
-            )
+            sys.modules[
+                "torch_geometric.nn.conv.utils.inspector"
+            ] = torch_geometric.inspector
 
             # Inspector.implements was also refactored
             def compat_implements(self, func_name: str) -> bool:
