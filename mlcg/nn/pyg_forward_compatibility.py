@@ -1,4 +1,4 @@
-"""Adapts the schnet models that were saved with previous versions of 
+"""Adapts the schnet models that were saved with previous versions of
 pygs (Pytorch Geometric) and make them compatible with a newer version
 in use.
 """

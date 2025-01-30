@@ -79,5 +79,7 @@ The test coverage of this library is monitored with `coverage` for each pull req
 To produce a report locally run:
 
 .. code:: bash
+
     coverage run -m pytest
     coverage report
+
