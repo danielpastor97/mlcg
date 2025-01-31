@@ -1,0 +1,642 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mlcg.simulation.parallel_tempering &mdash; mlcg 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            mlcg
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../data.html">Data Representation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../geometry.html">Geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../neighbor_list.html">Neighbor Lists</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../coarse_graining.html">Coarse Graining</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datasets.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../priors.html">Priors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../models.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simulation.html">Simulations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dev/dev.html">Developer Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../bibliography.html">Bibliography</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">mlcg</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">mlcg.simulation.parallel_tempering</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for mlcg.simulation.parallel_tempering</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Authors: Nick Charron, Felix Musil, Clark Templeton</span>
+<span class="c1"># Based on code from Yaoyi Chen and Andreas Kramer: https://github.com/noegroup/reform</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Sequence</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data.atomic_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">AtomicData</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data._keys</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">MASS_KEY</span><span class="p">,</span>
+    <span class="n">VELOCITY_KEY</span><span class="p">,</span>
+    <span class="n">POSITIONS_KEY</span><span class="p">,</span>
+    <span class="n">ENERGY_KEY</span><span class="p">,</span>
+    <span class="n">ATOM_TYPE_KEY</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">_Simulation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.langevin</span><span class="w"> </span><span class="kn">import</span> <span class="n">LangevinSimulation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.specialize_prior</span><span class="w"> </span><span class="kn">import</span> <span class="n">condense_all_priors_for_simulation</span>
+
+
+<div class="viewcode-block" id="PTSimulation">
+<a class="viewcode-back" href="../../../simulation.html#mlcg.simulation.PTSimulation">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PTSimulation</span><span class="p">(</span><span class="n">LangevinSimulation</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Parallel tempering simulation using a Langevin update scheme.</span>
+<span class="sd">    For theoretical details on replica exchange/parallel tempering, see</span>
+<span class="sd">    https://github.com/noegroup/reform.</span>
+
+<span class="sd">    Briefly, a pair exchange is proposed, and the associated potential energies are used</span>
+<span class="sd">    to compute a Metroplis-Hastings Boltzmann ratio. This ratio defines an acceptance threshold</span>
+<span class="sd">        aginst which approved exchanges are sampled according to a unit uniform distribution.</span>
+<span class="sd">        For a pair of configurations :math:`A` and :math:`B`, characterized by the respective</span>
+<span class="sd">        potential energies :math:`U_A` and :math:`U_B` the the inverse thermodynamic temperatures</span>
+<span class="sd">        :math:`\beta_A` and :math:`\beta_B`, the acceptance rate for exchanging configurations is:</span>
+
+<span class="sd">        .. math::</span>
+
+<span class="sd">                Acc = \exp{\left( (U_A - U_B) \times (\beta_A - \beta_B) \right)}</span>
+
+<span class="sd">        Pairs of candidate configurations undergo exchange if :math:`\rho \sim U(0,1) &lt; Acc`. Note</span>
+<span class="sd">        that the exchanged velocities for each configuration must further be rescaled according to the</span>
+<span class="sd">        square root of their inverse beta ratios. See _perform_exchange for more details.</span>
+
+<span class="sd">    Currently we only implement parallel tempering for Langevin dynamics.</span>
+<span class="sd">    Be aware that the output will contain information (e.g., coordinates)</span>
+<span class="sd">    for all replicas.</span>
+
+<span class="sd">    In addition to the typical outputs of `LangevinSimulation`, `PTSimulation` also</span>
+<span class="sd">    ouputs information about exchange acceptance between replicas at each export.</span>
+<span class="sd">    This information takes the form of an `acceptance_matrix`, which has shape</span>
+<span class="sd">    `(n_betas, n_betas)`. The upper triangular portion of the matrix counts</span>
+<span class="sd">    accepted exchanges between adjacent tempeartures, while the lower triangular</span>
+<span class="sd">    portion of the matrix counts rejected exchanges between adjacent temperatures. For</span>
+<span class="sd">    example, the entry `[1,2]` contains the number of accepted exchanges between replicas</span>
+<span class="sd">    running at the temperatures associated with `beta_1` and `beta_2`, while the entry</span>
+<span class="sd">    `[2,1]` counts the number of rejected echanges at those two temperatures. The sum of</span>
+<span class="sd">    such complementary entries across the matrix diagonal always sum to the total number</span>
+<span class="sd">    of exhchanges proposed between each export interval.</span>
+
+
+<span class="sd">    Note: This implementation only allows for replica exchanges between directly</span>
+<span class="sd">    adjecent temperatures implied by the user-supplied list of beta values.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    friction:</span>
+<span class="sd">        Scalar friction to use for Langevin updates</span>
+<span class="sd">    exchange_interval:</span>
+<span class="sd">        Specifies the number of simulation steps to take before attempting</span>
+<span class="sd">        replica exchange.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">friction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-3</span><span class="p">,</span>
+        <span class="n">exchange_interval</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PTSimulation</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">friction</span><span class="o">=</span><span class="n">friction</span><span class="p">,</span>
+            <span class="n">sim_subroutine</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">detect_and_exchange_replicas</span><span class="p">,</span>
+            <span class="n">sim_subroutine_interval</span><span class="o">=</span><span class="n">exchange_interval</span><span class="p">,</span>
+            <span class="n">save_subroutine</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">save_exchanges</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_replica_exchange_approved</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_replica_exchange_attempts</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_reset_exchange_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Setup function that resets exchange statistics before running a simulation&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_replica_exchange_attempts</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_replica_exchange_approved</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_up_simulation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PTSimulation</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">_set_up_simulation</span><span class="p">(</span><span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_exchange_stats</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">acceptance_matrix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">attach_model_and_configurations</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">configurations</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">AtomicData</span><span class="p">],</span>
+        <span class="n">betas</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">specialize_priors</span><span class="p">:</span>
+            <span class="n">new_configurations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attach_configurations</span><span class="p">(</span>
+                <span class="n">configurations</span><span class="p">,</span> <span class="n">betas</span><span class="o">=</span><span class="n">betas</span>
+            <span class="p">)</span>
+            <span class="p">(</span>
+                <span class="n">model</span><span class="p">,</span>
+                <span class="n">condensed_configurations</span><span class="p">,</span>
+            <span class="p">)</span> <span class="o">=</span> <span class="n">condense_all_priors_for_simulation</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">new_configurations</span><span class="p">)</span>
+            <span class="c1"># Repeat attachment, this time with the condensed configurations</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_manually_reattach_configurations</span><span class="p">(</span><span class="n">condensed_configurations</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_attach_model</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Prior models have been specialized for the simulation.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_attach_configurations</span><span class="p">(</span><span class="n">configurations</span><span class="p">,</span> <span class="n">betas</span><span class="o">=</span><span class="n">betas</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_attach_model</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">model</span><span class="p">),</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">configurations</span><span class="p">)),</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="si">}</span><span class="s2">_specialized_model_and_config.pt&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_manually_reattach_configurations</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">configurations</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">AtomicData</span><span class="p">]</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Helper method that allows for re-attachment of prior-condensed configurations&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate_data_list</span><span class="p">(</span><span class="n">configurations</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collate</span><span class="p">(</span><span class="n">configurations</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpointed_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Load in checkpointed data values and then wipe to conserve space</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">VELOCITY_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpointed_data</span><span class="p">[</span>
+                <span class="n">VELOCITY_KEY</span>
+            <span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">POSITIONS_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpointed_data</span><span class="p">[</span>
+                <span class="n">POSITIONS_KEY</span>
+            <span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">checkpointed_data</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Initialize velocities according to Maxwell-Boltzmann distribution</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">VELOCITY_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">LangevinSimulation</span><span class="o">.</span><span class="n">sample_maxwell_boltzmann</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">),</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">MASS_KEY</span><span class="p">],</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">MASS_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">MASS_KEY</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">POSITIONS_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">POSITIONS_KEY</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_attach_configurations</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">configurations</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">AtomicData</span><span class="p">],</span> <span class="n">betas</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">AtomicData</span><span class="p">]:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Attaches the configurations at each of the temperatures defined for</span>
+<span class="sd">        parallel tempering simulations. If the initial configurations do not contain</span>
+<span class="sd">        specified velocities, all velocities will be initialized to zero. Unlike</span>
+<span class="sd">        other `_attach_configurations` methods of the other simulation classes,</span>
+<span class="sd">        this method also returns the extended configurations across all temperatures</span>
+<span class="sd">        for use in condensing the priors if specified for the simulation.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        configurations:</span>
+<span class="sd">            List of `AtomicData` instances representing the initial configurations.</span>
+<span class="sd">        betas:</span>
+<span class="sd">            List of floats, from largest to smallest, representing beta values</span>
+<span class="sd">            for each subset of replicas</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        new_configurations:</span>
+<span class="sd">            List of extended initial configurations across all temperatures</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># beta checks</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">betas</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Parallel tempering requires multiple temperatures, but only </span><span class="si">{}</span><span class="s2"> was supplied.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">betas</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="n">b</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">betas</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;All betas must be positive, but </span><span class="si">{}</span><span class="s2"> contains an illegal value.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">beta</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">all</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">betas</span><span class="p">])</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">betas</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">betas</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Betas must be in order of increasing temperature.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">configurations</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">betas</span><span class="p">)</span>
+        <span class="c1"># copy the configurations across each beta/temperature</span>
+        <span class="n">new_configurations</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">extended_betas</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">beta</span> <span class="ow">in</span> <span class="n">betas</span><span class="p">:</span>
+            <span class="n">extended_betas</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span> <span class="o">*</span> <span class="p">[</span><span class="n">beta</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">configuration</span> <span class="ow">in</span> <span class="n">configurations</span><span class="p">:</span>
+                <span class="n">config</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">configuration</span><span class="p">)</span>
+                <span class="n">new_configurations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">extended_betas</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate_data_list</span><span class="p">(</span><span class="n">new_configurations</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collate</span><span class="p">(</span><span class="n">new_configurations</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span>
+            <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_sims</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_configurations</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_configurations</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">atom_types</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_dims</span> <span class="o">=</span> <span class="n">new_configurations</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># Initialize velocities according to Maxwell-Boltzmann distribution</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">VELOCITY_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">LangevinSimulation</span><span class="o">.</span><span class="n">sample_maxwell_boltzmann</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">MASS_KEY</span><span class="p">],</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">MASS_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">MASS_KEY</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">POSITIONS_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">POSITIONS_KEY</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_mass_ratio</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span>
+            <span class="mf">1.0</span>
+            <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">)</span>
+            <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_data</span><span class="p">[</span><span class="n">MASS_KEY</span><span class="p">]</span>
+        <span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span>
+
+        <span class="c1"># Setup alternating even/odd pair exchanges</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_propose_even_pairs</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># (0, 1), (2, 3), ...</span>
+        <span class="n">even_pairs</span> <span class="o">=</span> <span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span><span class="mi">2</span><span class="p">]]</span>
+        <span class="c1"># (1, 2), (3, 4), ...</span>
+        <span class="n">odd_pairs</span> <span class="o">=</span> <span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span><span class="p">)[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span><span class="mi">2</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">odd_pairs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">odd_pairs</span> <span class="o">=</span> <span class="n">even_pairs</span>
+        <span class="n">pair_a</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">pair_b</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pair</span> <span class="ow">in</span> <span class="n">even_pairs</span><span class="p">:</span>
+            <span class="n">pair_a</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span><span class="p">)</span> <span class="o">+</span> <span class="n">pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span>
+            <span class="p">)</span>
+            <span class="n">pair_b</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span><span class="p">)</span> <span class="o">+</span> <span class="n">pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_even_pairs</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">pair_a</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">pair_b</span><span class="p">)]</span>
+        <span class="n">pair_a</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">pair_b</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pair</span> <span class="ow">in</span> <span class="n">odd_pairs</span><span class="p">:</span>
+            <span class="n">pair_a</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span><span class="p">)</span> <span class="o">+</span> <span class="n">pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span>
+            <span class="p">)</span>
+            <span class="n">pair_b</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span><span class="p">)</span> <span class="o">+</span> <span class="n">pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_odd_pairs</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">pair_a</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">pair_b</span><span class="p">)]</span>
+
+        <span class="c1"># maps pairs to beta idx for acceptance matrix updates</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pair_to_beta_idx</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span><span class="p">)</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">acceptance_matrix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_pos_spread</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">data</span><span class="o">.</span><span class="n">pos</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">new_configurations</span><span class="p">])</span>
+            <span class="o">.</span><span class="n">max</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">new_configurations</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">attach_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;using &#39;attach_model&#39; is deprecated, use &#39;attach_model_and_configurations&#39; instead.&quot;</span><span class="p">,</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attach_model</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">attach_configurations</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">configurations</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">AtomicData</span><span class="p">],</span> <span class="n">betas</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+    <span class="p">):</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;using &#39;attach_configurations&#39; is deprecated, use &#39;attach_model_and_configurations&#39; instead.&quot;</span><span class="p">,</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attach_configurations</span><span class="p">(</span><span class="n">configurations</span><span class="p">,</span> <span class="n">betas</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_replica_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">replica_num</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns information for the specified replica after the</span>
+<span class="sd">        parallel tempering simulation has completed</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        replica_num:</span>
+<span class="sd">            integer specifying which replica to interrogate</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict:</span>
+<span class="sd">            dictionary with replica exchange information about the</span>
+<span class="sd">            desired replica</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="nb">type</span><span class="p">(</span><span class="n">replica_num</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">int</span>
+            <span class="ow">or</span> <span class="n">replica_num</span> <span class="o">&lt;</span> <span class="mi">0</span>
+            <span class="ow">or</span> <span class="n">replica_num</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Please provide a valid replica number.&quot;</span><span class="p">)</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span>
+            <span class="n">replica_num</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">replica_num</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;beta&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">betas</span><span class="p">[</span><span class="n">replica_num</span><span class="p">],</span>
+            <span class="s2">&quot;indices_in_the_output&quot;</span><span class="p">:</span> <span class="n">indices</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_proposed_pairs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Proposes the even and odd exchange pairs alternatively each time the</span>
+<span class="sd">        _detect_exchange method is called. Exchanges can only happen between direcly adjacent</span>
+<span class="sd">        temperatures defined by the user supplied beta series.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        torch.Tensor:</span>
+<span class="sd">            pair_a, all possible even/odd pairs across all of the simulations/replicas</span>
+<span class="sd">        torch.Tensor:</span>
+<span class="sd">            pair_b, all possible</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_propose_even_pairs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_propose_even_pairs</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_even_pairs</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_propose_even_pairs</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_odd_pairs</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_detect_exchange</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">AtomicData</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Proposes and checks pairs to be exchanged for parallel tempering, tracking</span>
+<span class="sd">        the associated acceptance/rejection statistics for each temperature pair at</span>
+<span class="sd">        each detection query.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data:</span>
+<span class="sd">            Collated AtomicData instance containing the beta values and current potential</span>
+<span class="sd">            energies for each replica.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict:</span>
+<span class="sd">            Dictionary containing the approved exchanges</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pair_a</span><span class="p">,</span> <span class="n">pair_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_proposed_pairs</span><span class="p">()</span>
+        <span class="n">u_a</span><span class="p">,</span> <span class="n">u_b</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">out</span><span class="p">[</span><span class="n">ENERGY_KEY</span><span class="p">][</span><span class="n">pair_a</span><span class="p">],</span> <span class="n">data</span><span class="o">.</span><span class="n">out</span><span class="p">[</span><span class="n">ENERGY_KEY</span><span class="p">][</span><span class="n">pair_b</span><span class="p">]</span>
+        <span class="n">betas_a</span><span class="p">,</span> <span class="n">betas_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="p">[</span><span class="n">pair_a</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="p">[</span><span class="n">pair_b</span><span class="p">]</span>
+        <span class="n">beta_idx_a</span><span class="p">,</span> <span class="n">beta_idx_b</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pair_to_beta_idx</span><span class="p">[</span><span class="n">pair_a</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pair_to_beta_idx</span><span class="p">[</span><span class="n">pair_b</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="c1"># Assemble pairs of beta undergoing exchange - useful for indexing below</span>
+        <span class="n">beta_pairs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">((</span><span class="n">beta_idx_a</span><span class="p">,</span> <span class="n">beta_idx_b</span><span class="p">)),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">p_pair</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">((</span><span class="n">u_a</span> <span class="o">-</span> <span class="n">u_b</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">betas_a</span> <span class="o">-</span> <span class="n">betas_b</span><span class="p">))</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+        <span class="n">approved</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">p_pair</span><span class="p">))</span> <span class="o">&lt;</span> <span class="n">p_pair</span>
+        <span class="n">num_approved</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">approved</span><span class="p">)</span>
+        <span class="n">num_attempted</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">pair_a</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_replica_exchange_approved</span> <span class="o">+=</span> <span class="n">num_approved</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_replica_exchange_attempts</span> <span class="o">+=</span> <span class="n">num_attempted</span>
+        <span class="n">pairs_for_exchange</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="n">pair_a</span><span class="p">[</span><span class="n">approved</span><span class="p">],</span> <span class="s2">&quot;b&quot;</span><span class="p">:</span> <span class="n">pair_b</span><span class="p">[</span><span class="n">approved</span><span class="p">]}</span>
+
+        <span class="c1"># Count the number of approved for each temperature pair</span>
+        <span class="n">approved_per_beta</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+            <span class="n">approved</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">betas_a</span><span class="p">)),</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span><span class="p">),</span>
+            <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="c1"># accumulate the symmetric acceptance/rejection matrices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">acceptance_matrix</span><span class="p">[</span>
+            <span class="n">beta_pairs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:],</span> <span class="n">beta_pairs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="p">]</span> <span class="o">+=</span> <span class="n">approved_per_beta</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">acceptance_matrix</span><span class="p">[</span><span class="n">beta_pairs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:],</span> <span class="n">beta_pairs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]]</span> <span class="o">+=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_indep_sims</span> <span class="o">-</span> <span class="n">approved_per_beta</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">pairs_for_exchange</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_perform_exchange</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">AtomicData</span><span class="p">,</span> <span class="n">pairs_for_exchange</span><span class="p">:</span> <span class="n">Dict</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AtomicData</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Exchanges the coordinates and velcities for those pairs marked for exchange.</span>
+<span class="sd">        Exchanged velocities are rescaled based on ratios of beta values from the two configurations.</span>
+<span class="sd">        For a pair of configurations :math:`A` and :math:`B`, characterized by the respective</span>
+<span class="sd">        potential energies :math:`U_A` and :math:`U_B` the the inverse thermodynamic temperatures</span>
+<span class="sd">        :math:`\beta_A` and :math:`\beta_B`, the the velocity exchange rescaling factor is:</span>
+
+<span class="sd">        .. math::</span>
+
+<span class="sd">            vscale = \sqrt{\frac{\beta_{old}}{\beta_{new}}}</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data:</span>
+<span class="sd">            Collated AtomicData instance containing the current Cartesian coordinates and</span>
+<span class="sd">            velocities for each simulation/replica</span>
+<span class="sd">        pairs_for_exchange:</span>
+<span class="sd">            Dictionary that denotes which pairs have been accepted for exchange</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AtomicData:</span>
+<span class="sd">            The updated collated atomic data where the coordinates and (rescaled) velocities</span>
+<span class="sd">            have been exchanged according to the appropriate supplied exchange pairs</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pair_a</span><span class="p">,</span> <span class="n">pair_b</span> <span class="o">=</span> <span class="n">pairs_for_exchange</span><span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">],</span> <span class="n">pairs_for_exchange</span><span class="p">[</span><span class="s2">&quot;b&quot;</span><span class="p">]</span>
+        <span class="c1"># exchange the coordinates</span>
+        <span class="c1"># Here we must make swaps in the coordinates and velocities</span>
+        <span class="c1"># according to to the collated batch attribute</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pair_a</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">pair_b</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">data</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">batch_pair_a_cond</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">batch_pair_b_cond</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">for</span> <span class="n">idx_a</span><span class="p">,</span> <span class="n">idx_b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">pair_a</span><span class="p">,</span> <span class="n">pair_b</span><span class="p">):</span>
+                <span class="c1"># cumulative bitwise OR to grab corresponding pair batch index</span>
+                <span class="n">batch_pair_a_cond</span> <span class="o">|=</span> <span class="n">data</span><span class="o">.</span><span class="n">batch</span> <span class="o">==</span> <span class="n">idx_a</span>
+                <span class="n">batch_pair_b_cond</span> <span class="o">|=</span> <span class="n">data</span><span class="o">.</span><span class="n">batch</span> <span class="o">==</span> <span class="n">idx_b</span>
+
+            <span class="c1"># exchange coordinates</span>
+            <span class="n">x_changed</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">POSITIONS_KEY</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+            <span class="n">x_changed</span><span class="p">[</span><span class="n">batch_pair_a_cond</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">POSITIONS_KEY</span><span class="p">][</span>
+                <span class="n">batch_pair_b_cond</span>
+            <span class="p">]</span>
+            <span class="n">x_changed</span><span class="p">[</span><span class="n">batch_pair_b_cond</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">POSITIONS_KEY</span><span class="p">][</span>
+                <span class="n">batch_pair_a_cond</span>
+            <span class="p">]</span>
+
+            <span class="c1"># scale and exchange the velocities</span>
+            <span class="c1"># reshape the betas for simpler elementwise multiplication</span>
+            <span class="n">betas_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="p">[</span><span class="n">pair_a</span><span class="p">]</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="n">betas_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="p">[</span><span class="n">pair_b</span><span class="p">]</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="n">vscale_a_to_b</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">betas_a</span> <span class="o">/</span> <span class="n">betas_b</span><span class="p">)</span>
+            <span class="n">vscale_b_to_a</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">betas_b</span> <span class="o">/</span> <span class="n">betas_a</span><span class="p">)</span>
+            <span class="n">v_changed</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">VELOCITY_KEY</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+            <span class="n">v_changed</span><span class="p">[</span><span class="n">batch_pair_a_cond</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">VELOCITY_KEY</span><span class="p">][</span><span class="n">batch_pair_b_cond</span><span class="p">]</span> <span class="o">*</span> <span class="n">vscale_a_to_b</span>
+            <span class="p">)</span>
+            <span class="n">v_changed</span><span class="p">[</span><span class="n">batch_pair_b_cond</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">VELOCITY_KEY</span><span class="p">][</span><span class="n">batch_pair_a_cond</span><span class="p">]</span> <span class="o">*</span> <span class="n">vscale_b_to_a</span>
+            <span class="p">)</span>
+
+            <span class="n">data</span><span class="p">[</span><span class="n">POSITIONS_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">x_changed</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">VELOCITY_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">v_changed</span>
+            <span class="k">return</span> <span class="n">data</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">detect_and_exchange_replicas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">AtomicData</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AtomicData</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Subroutine for replica exchange: Modifies the internal coordinates and velocities</span>
+<span class="sd">        according to the algorithm specified by `reform`:</span>
+
+<span class="sd">        https://github.com/noegroup/reform</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data:</span>
+<span class="sd">            Current `AtomicData` instance containing all replicas, their coordinates, velocities,</span>
+<span class="sd">            potential energies, and beta values</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data:</span>
+<span class="sd">            Updated `AtomicData` instance containing potentially exchanged replicas.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pairs_for_exchange</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_detect_exchange</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_perform_exchange</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">pairs_for_exchange</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">save_exchanges</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">AtomicData</span><span class="p">,</span> <span class="n">save_step</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save routine to record the ratio of acceptances/attempts for each temperature during the simulation.</span>
+<span class="sd">        After saving to file, the acceptances/attempts are reset. For this particular method, the AtomicData</span>
+<span class="sd">        and save_step are not used, though they are included as arguments for the sake of saving</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_numpy_count</span><span class="p">()</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span>
+            <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_acceptance_</span><span class="si">{}</span><span class="s2">.npy&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="n">key</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">acceptance_matrix</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span>
+        <span class="p">)</span>
+        <span class="c1"># Reset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">acceptance_matrix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">summary</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">attempted</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_replica_exchange_attempts</span>
+        <span class="n">exchanged</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_replica_exchange_approved</span>
+        <span class="n">printstring</span> <span class="o">=</span> <span class="s2">&quot;Done simulating (</span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">())</span>
+        <span class="n">printstring</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Replica-exchange rate: </span><span class="si">%.2f%%</span><span class="s2"> (</span><span class="si">%d</span><span class="s2">/</span><span class="si">%d</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">exchanged</span> <span class="o">/</span> <span class="n">attempted</span> <span class="o">*</span> <span class="mf">100.0</span><span class="p">,</span>
+            <span class="n">exchanged</span><span class="p">,</span>
+            <span class="n">attempted</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">printstring</span> <span class="o">+=</span> <span class="p">(</span>
+            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Note that you can call .get_replica_info&quot;</span>
+            <span class="s2">&quot;(#replica) to query the inverse temperature&quot;</span>
+            <span class="s2">&quot; and trajectory indices for a given replica.&quot;</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_type</span> <span class="o">==</span> <span class="s2">&quot;print&quot;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">printstring</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_type</span> <span class="o">==</span> <span class="s2">&quot;write&quot;</span><span class="p">:</span>
+            <span class="n">printstring</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_log_file</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">lfile</span><span class="p">:</span>
+                <span class="n">lfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">printstring</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># pipe the doc from the base class into the child class so that it&#39;s properly</span>
+<span class="c1"># displayed by sphinx</span>
+<span class="n">PTSimulation</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">+=</span> <span class="n">_Simulation</span><span class="o">.</span><span class="vm">__doc__</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Felix Musil &amp; Nick Charron.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,1019 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mlcg.geometry.topology &mdash; mlcg 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            mlcg
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../data.html">Data Representation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../geometry.html">Geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../neighbor_list.html">Neighbor Lists</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../coarse_graining.html">Coarse Graining</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datasets.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../priors.html">Priors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../models.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simulation.html">Simulations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dev/dev.html">Developer Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../bibliography.html">Bibliography</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">mlcg</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">mlcg.geometry.topology</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for mlcg.geometry.topology</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">mdtraj</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mdtraj.core.element</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">ase.geometry.analysis</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analysis</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">Atoms</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">NamedTuple</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">networkx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nx</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">itertools</span><span class="w"> </span><span class="kn">import</span> <span class="n">combinations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">ase_z2name</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..neighbor_list.neighbor_list</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_neighbor_list</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._symmetrize</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">_symmetrise_map</span><span class="p">,</span>
+    <span class="n">_symmetrise_angle_interaction</span><span class="p">,</span>
+    <span class="n">_symmetrise_distance_interaction</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="Atom">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Atom">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Atom</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Define an atom</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    type: int</span>
+<span class="sd">        Atom type/integer label</span>
+<span class="sd">    name: Optional[str] = None</span>
+<span class="sd">        Atom name</span>
+<span class="sd">    resname: Optional[str] = None</span>
+<span class="sd">        Name of the residue containing the atom</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1">#: type of the atom</span>
+    <span class="nb">type</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="c1">#: name of the atom</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1">#: name of the residue containing the atom</span>
+    <span class="n">resname</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1">#: number of the resid containing the atom</span>
+    <span class="n">resid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1">#: partial charge of the atom</span>
+    <span class="n">charge</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="Topology">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Topology</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Topology of an isolated protein.&quot;&quot;&quot;</span>
+
+    <span class="c1">#: types of the atoms</span>
+    <span class="n">types</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="c1">#: name of the atoms</span>
+    <span class="n">names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="c1">#: name of the residue containing the atoms</span>
+    <span class="n">resnames</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="c1">#: number of the resid containing the atoms</span>
+    <span class="n">resids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="c1">#: charge of the atoms</span>
+    <span class="n">charges</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="c1">#: list of bonds between the atoms. Defines the bonded topology.</span>
+    <span class="n">bonds</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span>
+    <span class="c1">#: list of angles formed by triplets of atoms</span>
+    <span class="n">angles</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span>
+    <span class="c1">#: list of dihedrals formed by quadruplets of atoms</span>
+    <span class="n">dihedrals</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span>
+    <span class="c1">#: list of impropers formed by quadruplets of atoms</span>
+    <span class="n">impropers</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Topology</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">types</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resnames</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resids</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">charges</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bonds</span> <span class="o">=</span> <span class="p">([],</span> <span class="p">[])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">angles</span> <span class="o">=</span> <span class="p">([],</span> <span class="p">[],</span> <span class="p">[])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dihedrals</span> <span class="o">=</span> <span class="p">([],</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">impropers</span> <span class="o">=</span> <span class="p">([],</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_atom</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="nb">type</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">resname</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">resid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">charge</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">types</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resnames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">resname</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">resid</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">charges</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">charge</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">atoms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="nb">type</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">resname</span><span class="p">,</span> <span class="n">resid</span><span class="p">,</span> <span class="n">charge</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">types</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">resnames</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">resids</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">charges</span>
+        <span class="p">):</span>
+            <span class="k">yield</span> <span class="n">Atom</span><span class="p">(</span>
+                <span class="nb">type</span><span class="o">=</span><span class="nb">type</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">resname</span><span class="o">=</span><span class="n">resname</span><span class="p">,</span>
+                <span class="n">resid</span><span class="o">=</span><span class="n">resid</span><span class="p">,</span>
+                <span class="n">charge</span><span class="o">=</span><span class="n">charge</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">n_atoms</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Number of atoms in the topology.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">types</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">types2torch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">types</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">bonds2torch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bonds</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">angles2torch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">angles</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">dihedrals2torch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dihedrals</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">impropers2torch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">impropers</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">fully_connected2torch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">ids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">)</span>
+        <span class="n">mapping</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cartesian_prod</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="n">ids</span><span class="p">)</span><span class="o">.</span><span class="n">t</span><span class="p">()</span>
+        <span class="n">mapping</span> <span class="o">=</span> <span class="n">mapping</span><span class="p">[:,</span> <span class="n">mapping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">mapping</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="k">return</span> <span class="n">mapping</span>
+
+<div class="viewcode-block" id="Topology.neighbor_list">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.neighbor_list">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">neighbor_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build Neighborlist from a :ref:`mlcg.neighbor_list.neighbor_list.Topology`.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        type:</span>
+<span class="sd">            kind of information to extract (should be in [&quot;bonds&quot;, &quot;angles&quot;,</span>
+<span class="sd">            &quot;dihedrals&quot;, &quot;fully connected&quot;]).</span>
+<span class="sd">        device:</span>
+<span class="sd">            device upon which the neighborlist is returned</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Dict:</span>
+<span class="sd">            Neighborlist dictionary</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">allowed_types</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s2">&quot;bonds&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;angles&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;dihedrals&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;impropers&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;fully connected&quot;</span><span class="p">,</span>
+        <span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">type</span> <span class="ow">in</span> <span class="n">allowed_types</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;type should be any of </span><span class="si">{</span><span class="n">allowed_types</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">if</span> <span class="nb">type</span> <span class="o">==</span> <span class="s2">&quot;bonds&quot;</span><span class="p">:</span>
+            <span class="n">mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bonds2torch</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">type</span> <span class="o">==</span> <span class="s2">&quot;angles&quot;</span><span class="p">:</span>
+            <span class="n">mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">angles2torch</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">type</span> <span class="o">==</span> <span class="s2">&quot;dihedrals&quot;</span><span class="p">:</span>
+            <span class="n">mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dihedrals2torch</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">type</span> <span class="o">==</span> <span class="s2">&quot;impropers&quot;</span><span class="p">:</span>
+            <span class="n">mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">impropers2torch</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">type</span> <span class="o">==</span> <span class="s2">&quot;fully connected&quot;</span><span class="p">:</span>
+            <span class="n">mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fully_connected2torch</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="n">nl</span> <span class="o">=</span> <span class="n">make_neighbor_list</span><span class="p">(</span>
+            <span class="n">tag</span><span class="o">=</span><span class="nb">type</span><span class="p">,</span>
+            <span class="n">order</span><span class="o">=</span><span class="n">mapping</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="n">index_mapping</span><span class="o">=</span><span class="n">mapping</span><span class="p">,</span>
+            <span class="n">self_interaction</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">nl</span></div>
+
+
+<div class="viewcode-block" id="Topology.add_bond">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.add_bond">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_bond</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx1</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">idx2</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Define a bond between two atoms.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        idx1:</span>
+<span class="sd">            The index of the first atom in the bond</span>
+<span class="sd">        idx2:</span>
+<span class="sd">            The index of the second atom in the bond</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bonds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bonds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Topology.add_angle">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.add_angle">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_angle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx1</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">idx2</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">idx3</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Define an angle between three atoms. `idx2` represents the</span>
+<span class="sd">        apex/central angles:</span>
+
+<span class="sd">        .. code::</span>
+
+<span class="sd">              2---3</span>
+<span class="sd">             /</span>
+<span class="sd">            1</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        idx1:</span>
+<span class="sd">            The index of the first atom defining the angle</span>
+<span class="sd">        idx2:</span>
+<span class="sd">            The index of the central atom defining the angle</span>
+<span class="sd">        idx3:</span>
+<span class="sd">            The index of the last atom defining the angle</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx3</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Topology.add_dihedral">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.add_dihedral">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_dihedral</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx1</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">idx2</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">idx3</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">idx4</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The dihedral angle formed by a quadruplet of indices (1,2,3,4) is</span>
+<span class="sd">        difined around the axis connecting index 2 and 3 (i.e., the angle</span>
+<span class="sd">        between the planes spanned by indices (1,2,3) and (2,3,4)):</span>
+
+<span class="sd">        .. code::</span>
+
+<span class="sd">                     4</span>
+<span class="sd">                     |</span>
+<span class="sd">               2-----3</span>
+<span class="sd">              /</span>
+<span class="sd">             1</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        idx1:</span>
+<span class="sd">            The index of the first atom defining the dihedral</span>
+<span class="sd">        idx2:</span>
+<span class="sd">            The index of the second atom defining the dihedral</span>
+<span class="sd">        idx3:</span>
+<span class="sd">            The index of the third atom defining the dihedral</span>
+<span class="sd">        idx3:</span>
+<span class="sd">            The index of the last atom defining the dihedral</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">dihedrals</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dihedrals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dihedrals</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx3</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dihedrals</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx4</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Topology.bonds_from_edge_index">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.bonds_from_edge_index">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">bonds_from_edge_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">edge_index</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Overwrites the internal bond list with the bonds</span>
+<span class="sd">        defined in the supplied bond edge_index</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        edge_index:</span>
+<span class="sd">            Edge index tensor of shape (2, n_bonds)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">edge_index</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Bond edge index must have shape (2, n_bonds)&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bonds</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">edge_index</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="Topology.angles_from_edge_index">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.angles_from_edge_index">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">angles_from_edge_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">edge_index</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Overwrites the internal angle list with the angles</span>
+<span class="sd">        defined in the supplied angle edge_index</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        edge_index:</span>
+<span class="sd">            Edge index tensor of shape (3, n_angles)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">edge_index</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Angle edge index must have shape (3, n_angles)&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">angles</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">edge_index</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="Topology.dihedrals_from_edge_index">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.dihedrals_from_edge_index">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dihedrals_from_edge_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">edge_index</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Overwrites the internal dihedral list with the dihedral</span>
+<span class="sd">        defined in the supplied dihedral edge_index</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        edge_index:</span>
+<span class="sd">            Edge index tensor of shape (4, n_dihedrals)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">edge_index</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Dihedral edge index must have shape (4, n_dihedrals)&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">dihedrals</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">edge_index</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="Topology.impropers_from_edge_index">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.impropers_from_edge_index">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">impropers_from_edge_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">edge_index</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Overwrites the internal improper list with the improper</span>
+<span class="sd">        defined in the supplied improper edge_index</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        edge_index:</span>
+<span class="sd">            Edge index tensor of shape (4, n_impropers)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">edge_index</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;improper edge index must have shape (4, n_impropers)&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">impropers</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">edge_index</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="Topology.remove_bond">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.remove_bond">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">remove_bond</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bond_removal_list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Method to remove bonds given list of bonds to be removed.</span>
+<span class="sd">        The changes are made in place to the Topology.bonds attribute.</span>
+
+<span class="sd">        .. warning::</span>
+
+<span class="sd">            The order of the removal list matters, e.g., [1,2] and [2,1] are treated differently.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        bond_removal_list : list</span>
+<span class="sd">            List of bonds, of shape (2, n_bonds), to be removed from current bond list.</span>
+<span class="sd">            Format: [[index1, index2], ..., [index1, index2]]</span>
+<span class="sd">                where index1 and index are the indices of the first and second atom involved in bonding,</span>
+<span class="sd">                respectively.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">bond</span> <span class="ow">in</span> <span class="n">bond_removal_list</span><span class="p">:</span>
+            <span class="n">index1</span> <span class="o">=</span> <span class="n">bond</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">index2</span> <span class="o">=</span> <span class="n">bond</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">mask_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bonds</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">==</span> <span class="n">index1</span>
+            <span class="n">mask_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bonds</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">==</span> <span class="n">index2</span>
+
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mask_1</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mask_2</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="kc">True</span> <span class="ow">in</span> <span class="n">mask</span><span class="p">:</span>
+                <span class="n">to_pop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bonds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">to_pop</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bonds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">to_pop</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Topology.remove_angle">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.remove_angle">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">remove_angle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">angle_removal_list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Method to remove angles given list of angles to be removed. The changes</span>
+<span class="sd">        are made in place to the Topology.angles attribute.</span>
+
+<span class="sd">        .. warning::</span>
+
+<span class="sd">            The order of the removal list matters, e.g., [1,2,3] and [3,2,1] are treated differently</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        angle_removal_list : list</span>
+<span class="sd">            List of angles, of shape (3, n_angles), to be removed from current angle list.</span>
+<span class="sd">            Format: [[index1, index2, index3], ..., [index1, index2, index3]]</span>
+<span class="sd">                where index1, index2, index3 are the indices of the first, second, and third</span>
+<span class="sd">                atom involved in angle formation, respectively.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">angle</span> <span class="ow">in</span> <span class="n">angle_removal_list</span><span class="p">:</span>
+            <span class="n">index1</span> <span class="o">=</span> <span class="n">angle</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">index2</span> <span class="o">=</span> <span class="n">angle</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">index3</span> <span class="o">=</span> <span class="n">angle</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+            <span class="n">mask_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">==</span> <span class="n">index1</span>
+            <span class="n">mask_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">==</span> <span class="n">index2</span>
+            <span class="n">mask_3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">==</span> <span class="n">index3</span>
+
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mask_1</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mask_2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mask_3</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="kc">True</span> <span class="ow">in</span> <span class="n">mask</span><span class="p">:</span>
+                <span class="n">to_pop</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">to_pop</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">to_pop</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">to_pop</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Topology.to_mdtraj">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.to_mdtraj">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_mdtraj</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">mdtraj</span><span class="o">.</span><span class="n">Topology</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Convert to mdtraj format. If the topology does not have a resids</span>
+<span class="sd">        attribute, the resids will be written incrementally for each atom.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        mdtraj.Topology:</span>
+<span class="sd">            MDTraj topology instance from mlcg Topology</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">topo</span> <span class="o">=</span> <span class="n">mdtraj</span><span class="o">.</span><span class="n">Topology</span><span class="p">()</span>
+        <span class="n">chain</span> <span class="o">=</span> <span class="n">topo</span><span class="o">.</span><span class="n">add_chain</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i_at</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">i_at</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+                <span class="ow">not</span> <span class="ow">in</span> <span class="n">Element</span><span class="o">.</span><span class="n">_elements_by_symbol</span>
+            <span class="p">):</span>
+                <span class="n">element</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">types</span><span class="p">[</span><span class="n">i_at</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">i_at</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">i_at</span><span class="p">],</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">2</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">element</span> <span class="o">=</span> <span class="n">Element</span><span class="o">.</span><span class="n">getBySymbol</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">i_at</span><span class="p">])</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">resids</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">residue</span> <span class="o">=</span> <span class="n">topo</span><span class="o">.</span><span class="n">add_residue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">resnames</span><span class="p">[</span><span class="n">i_at</span><span class="p">],</span> <span class="n">chain</span><span class="o">=</span><span class="n">chain</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">residue</span> <span class="o">=</span> <span class="n">topo</span><span class="o">.</span><span class="n">add_residue</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">resnames</span><span class="p">[</span><span class="n">i_at</span><span class="p">],</span> <span class="n">chain</span><span class="o">=</span><span class="n">chain</span><span class="p">,</span> <span class="n">resSeq</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">resids</span><span class="p">[</span><span class="n">i_at</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="n">topo</span><span class="o">.</span><span class="n">add_atom</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">i_at</span><span class="p">],</span> <span class="n">element</span><span class="p">,</span> <span class="n">residue</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bonds</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
+            <span class="n">idx1</span><span class="p">,</span> <span class="n">idx2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bonds</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">idx</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">bonds</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">idx</span><span class="p">]</span>
+            <span class="n">a1</span><span class="p">,</span> <span class="n">a2</span> <span class="o">=</span> <span class="n">topo</span><span class="o">.</span><span class="n">atom</span><span class="p">(</span><span class="n">idx1</span><span class="p">),</span> <span class="n">topo</span><span class="o">.</span><span class="n">atom</span><span class="p">(</span><span class="n">idx2</span><span class="p">)</span>
+            <span class="n">topo</span><span class="o">.</span><span class="n">add_bond</span><span class="p">(</span><span class="n">a1</span><span class="p">,</span> <span class="n">a2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">topo</span></div>
+
+
+<div class="viewcode-block" id="Topology.from_mdtraj">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.from_mdtraj">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_mdtraj</span><span class="p">(</span><span class="n">topology</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Topology&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Build topology from an existing mdtraj topology.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        topology:</span>
+<span class="sd">            Input MDTraj topology</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Topology:</span>
+<span class="sd">            Topology instance created from the input MDTraj topology</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># assert (</span>
+        <span class="c1">#     topology.n_chains == 1</span>
+        <span class="c1"># ), f&quot;Does not support multiple chains but {topology.n_chains}&quot;</span>
+        <span class="n">topo</span> <span class="o">=</span> <span class="n">Topology</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="n">topology</span><span class="o">.</span><span class="n">atoms</span><span class="p">:</span>
+            <span class="n">topo</span><span class="o">.</span><span class="n">add_atom</span><span class="p">(</span>
+                <span class="n">at</span><span class="o">.</span><span class="n">element</span><span class="o">.</span><span class="n">atomic_number</span><span class="p">,</span>
+                <span class="n">at</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">at</span><span class="o">.</span><span class="n">residue</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">at</span><span class="o">.</span><span class="n">residue</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">for</span> <span class="n">at1</span><span class="p">,</span> <span class="n">at2</span> <span class="ow">in</span> <span class="n">topology</span><span class="o">.</span><span class="n">bonds</span><span class="p">:</span>
+            <span class="n">topo</span><span class="o">.</span><span class="n">add_bond</span><span class="p">(</span><span class="n">at1</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">at2</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">topo</span></div>
+
+
+<div class="viewcode-block" id="Topology.from_ase">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.from_ase">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_ase</span><span class="p">(</span><span class="n">mol</span><span class="p">:</span> <span class="n">Atoms</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Topology&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Build topology from an ASE Atoms instance</span>
+
+<span class="sd">        .. warning::</span>
+
+<span class="sd">            The minimum image convention is applied to build the topology.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        mol:</span>
+<span class="sd">            ASE atoms instance</span>
+<span class="sd">        unique:</span>
+<span class="sd">            If True, only the unique bonds and angles will be added to the</span>
+<span class="sd">            resulting Topology object. If False, all redundant (backwards)</span>
+<span class="sd">            bonds and angles will be added as well.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Topology:</span>
+<span class="sd">            Topology instance based on the ASE input</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">analysis</span> <span class="o">=</span> <span class="n">Analysis</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+        <span class="n">topo</span> <span class="o">=</span> <span class="n">Topology</span><span class="p">()</span>
+        <span class="n">types</span> <span class="o">=</span> <span class="n">mol</span><span class="o">.</span><span class="n">get_atomic_numbers</span><span class="p">()</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="n">ase_z2name</span><span class="p">[</span><span class="n">anum</span><span class="p">]</span> <span class="k">for</span> <span class="n">anum</span> <span class="ow">in</span> <span class="n">types</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">atom_type</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">types</span><span class="p">):</span>
+            <span class="n">topo</span><span class="o">.</span><span class="n">add_atom</span><span class="p">(</span><span class="n">atom_type</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">unique</span><span class="p">:</span>
+            <span class="n">bond_list</span> <span class="o">=</span> <span class="n">analysis</span><span class="o">.</span><span class="n">unique_bonds</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">bond_list</span> <span class="o">=</span> <span class="n">analysis</span><span class="o">.</span><span class="n">all_bonds</span>
+
+        <span class="k">for</span> <span class="n">atom</span><span class="p">,</span> <span class="n">neighbors</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bond_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">bonded_neighbor</span> <span class="ow">in</span> <span class="n">neighbors</span><span class="p">:</span>
+                <span class="n">topo</span><span class="o">.</span><span class="n">bonds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">atom</span><span class="p">)</span>
+                <span class="n">topo</span><span class="o">.</span><span class="n">bonds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bonded_neighbor</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">unique</span><span class="p">:</span>
+            <span class="n">angle_list</span> <span class="o">=</span> <span class="n">analysis</span><span class="o">.</span><span class="n">unique_angles</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">angle_list</span> <span class="o">=</span> <span class="n">analysis</span><span class="o">.</span><span class="n">all_angles</span>
+
+        <span class="k">for</span> <span class="n">atom</span><span class="p">,</span> <span class="n">end_point_list</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">angle_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">end_points</span> <span class="ow">in</span> <span class="n">end_point_list</span><span class="p">:</span>
+                <span class="n">topo</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">end_points</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">topo</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">atom</span><span class="p">)</span>
+                <span class="n">topo</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">end_points</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">topo</span></div>
+
+
+<div class="viewcode-block" id="Topology.from_file">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.from_file">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Topology&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Uses mdtraj reader to read the input topology.&quot;&quot;&quot;</span>
+        <span class="n">topo</span> <span class="o">=</span> <span class="n">mdtraj</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">topology</span>
+        <span class="k">return</span> <span class="n">Topology</span><span class="o">.</span><span class="n">from_mdtraj</span><span class="p">(</span><span class="n">topo</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Topology.draw">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.Topology.draw">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">draw</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">layout</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">drawing</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">spring_layout</span><span class="p">,</span>
+        <span class="n">layout_kwargs</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">drawing_kwargs</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Use NetworkX to draw the current molecular topology.</span>
+<span class="sd">        by default, node labels correspond to atom types.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        layout:</span>
+<span class="sd">            NetworkX layout drawing function (from networkx.drawing.layout) that</span>
+<span class="sd">            determines the positions of the nodes</span>
+<span class="sd">        layout_kwargs:</span>
+<span class="sd">            keyword arguments for the node layout drawing function</span>
+<span class="sd">        drawing_kwargs:</span>
+<span class="sd">            keyword arguments for nx.draw</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_cmap</span>
+
+        <span class="k">if</span> <span class="n">layout_kwargs</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">layout_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">drawing_kwargs</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">drawing_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">connectivity</span> <span class="o">=</span> <span class="n">get_connectivity_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">(</span><span class="n">connectivity</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+        <span class="n">node_pos</span> <span class="o">=</span> <span class="n">layout</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="o">**</span><span class="n">layout_kwargs</span><span class="p">)</span>
+        <span class="n">drawing_kwargs</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">node_pos</span>
+
+        <span class="k">if</span> <span class="s2">&quot;labels&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">drawing_kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">drawing_kwargs</span><span class="p">[</span><span class="s2">&quot;labels&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">node</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">types</span><span class="p">[</span><span class="n">node</span><span class="p">])</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span>
+            <span class="p">}</span>
+        <span class="k">if</span> <span class="s2">&quot;node_color&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">drawing_kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">num_colors</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">types</span><span class="p">)</span> <span class="o">+</span> <span class="mi">2</span><span class="p">))</span>
+            <span class="n">cmap</span> <span class="o">=</span> <span class="n">get_cmap</span><span class="p">(</span><span class="s2">&quot;viridis&quot;</span><span class="p">,</span> <span class="n">num_colors</span><span class="p">)</span>
+            <span class="n">drawing_kwargs</span><span class="p">[</span><span class="s2">&quot;node_color&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">cmap</span><span class="o">.</span><span class="n">colors</span><span class="p">[</span><span class="n">node_type</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="k">for</span> <span class="n">node_type</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">types</span>
+            <span class="p">]</span>
+
+        <span class="n">nx</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="o">**</span><span class="n">drawing_kwargs</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="get_connectivity_matrix">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.get_connectivity_matrix">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_connectivity_matrix</span><span class="p">(</span>
+    <span class="n">topology</span><span class="p">:</span> <span class="n">Topology</span><span class="p">,</span> <span class="n">directed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Produces a full connectivity matrix from the graph structure</span>
+<span class="sd">    implied by Topology.bonds</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    topology:</span>
+<span class="sd">        Topology for which a connectivity matrix will be constructed</span>
+<span class="sd">    directed:</span>
+<span class="sd">        If True, an asymmetric connectivity matrix will be returned</span>
+<span class="sd">        correspending to a directed graph. If false, the connectivity</span>
+<span class="sd">        matrix will be symmetric and the corresponding graph will be</span>
+<span class="sd">        undirected.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    torch.Tensor:</span>
+<span class="sd">        Torch tensor of shape (n_atoms, n_atoms) representing the</span>
+<span class="sd">        connectivity/adjacency matrix from the bonded graph.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">topology</span><span class="o">.</span><span class="n">bonds</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">topology</span><span class="o">.</span><span class="n">bonds</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No bonds in the topology.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">topology</span><span class="o">.</span><span class="n">n_atoms</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;n_atoms is not specified in the topology&quot;</span><span class="p">)</span>
+
+    <span class="n">connectivity_matrix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">topology</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">,</span> <span class="n">topology</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">)</span>
+    <span class="n">bonds</span> <span class="o">=</span> <span class="n">topology</span><span class="o">.</span><span class="n">bonds2torch</span><span class="p">()</span>
+    <span class="n">connectivity_matrix</span><span class="p">[</span><span class="n">bonds</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:],</span> <span class="n">bonds</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">directed</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">connectivity_matrix</span><span class="p">[</span><span class="n">bonds</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:],</span> <span class="n">bonds</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="n">connectivity_matrix</span></div>
+
+
+
+<div class="viewcode-block" id="add_chain_bonds">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.add_chain_bonds">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">add_chain_bonds</span><span class="p">(</span><span class="n">topology</span><span class="p">:</span> <span class="n">Topology</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Add bonds to the topology assuming a chain-like pattern, i.e. atoms are</span>
+<span class="sd">    linked together following their insertion order.</span>
+<span class="sd">    A four atoms chain will are linked like: `1-2-3-4`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    topology:</span>
+<span class="sd">        Topology instance to which the bonds should be added</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">topology</span><span class="o">.</span><span class="n">n_atoms</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">topology</span><span class="o">.</span><span class="n">add_bond</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="add_chain_angles">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.add_chain_angles">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">add_chain_angles</span><span class="p">(</span><span class="n">topology</span><span class="p">:</span> <span class="n">Topology</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Add angles to the topology assuming a chain-like pattern, i.e. angles are</span>
+<span class="sd">    defined following the insertion order of the atoms in the topology.</span>
+<span class="sd">    A four atoms chain `1-2-3-4` will fine the angles: `1-2-3, 2-3-4`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    topology:</span>
+<span class="sd">        Topology instance to which the angles should be added</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">topology</span><span class="o">.</span><span class="n">n_atoms</span> <span class="o">-</span> <span class="mi">2</span><span class="p">):</span>
+        <span class="n">topology</span><span class="o">.</span><span class="n">add_angle</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">add_chain_dihedrals</span><span class="p">(</span><span class="n">topology</span><span class="p">:</span> <span class="n">Topology</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Add dihedrals to the topology assuming a chain-like pattern, i.e. dihedrals are</span>
+<span class="sd">    defined following the insertion order of the atoms in the topology.</span>
+<span class="sd">    A four atoms chain `1-2-3-4` will find the dihedral: `1-2-3-4`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">topology</span><span class="o">.</span><span class="n">n_atoms</span> <span class="o">-</span> <span class="mi">3</span><span class="p">):</span>
+        <span class="n">topology</span><span class="o">.</span><span class="n">add_dihedral</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">2</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">3</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_n_pairs">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.get_n_pairs">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_n_pairs</span><span class="p">(</span>
+    <span class="n">connectivity_matrix</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">],</span>
+    <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">unique</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;This function uses networkx to identify those pairs</span>
+<span class="sd">    that are exactly n atoms away. Paths are found using Dijkstra&#39;s algorithm.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    connectivity_matrix:</span>
+<span class="sd">        Connectivity/adjacency matrix of the molecular graph of shape</span>
+<span class="sd">        (n_atoms, n_atoms)</span>
+<span class="sd">        or a networkx graph object</span>
+<span class="sd">    n:</span>
+<span class="sd">        Number of atoms to count away from the starting atom, with the starting</span>
+<span class="sd">        atom counting as n=1</span>
+<span class="sd">    unique:</span>
+<span class="sd">        If True, the returned pairs will be unique and symmetrised.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    torch.Tensor:</span>
+<span class="sd">        Edge index tensor of shape (2, n_pairs)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">connectivity_matrix</span><span class="p">,</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">):</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">connectivity_matrix</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">connectivity_matrix</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">(</span><span class="n">connectivity_matrix</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">(</span><span class="n">connectivity_matrix</span><span class="p">)</span>
+    <span class="n">pairs</span> <span class="o">=</span> <span class="p">([],</span> <span class="p">[])</span>
+    <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="n">n_hop_paths</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">single_source_dijkstra_path</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">atom</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
+        <span class="n">termini</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">path</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">sub_atom</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">n_hop_paths</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="o">==</span> <span class="n">n</span>
+        <span class="p">]</span>
+        <span class="k">for</span> <span class="n">child_atom</span> <span class="ow">in</span> <span class="n">termini</span><span class="p">:</span>
+            <span class="n">pairs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">atom</span><span class="p">)</span>
+            <span class="n">pairs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">child_atom</span><span class="p">)</span>
+
+    <span class="n">pairs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">pairs</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">unique</span><span class="p">:</span>
+        <span class="n">pairs</span> <span class="o">=</span> <span class="n">_symmetrise_distance_interaction</span><span class="p">(</span><span class="n">pairs</span><span class="p">)</span>
+        <span class="n">pairs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">pairs</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pairs</span></div>
+
+
+
+<div class="viewcode-block" id="get_n_paths">
+<a class="viewcode-back" href="../../../geometry.html#mlcg.geometry.topology.get_n_paths">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_n_paths</span><span class="p">(</span>
+    <span class="n">connectivity_matrix</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">],</span>
+    <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">unique</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;This function use networkx to grab all connected paths defined</span>
+<span class="sd">    by n connecting edges. Paths are found using Dijkstra&#39;s algorithm.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    connectivity_matrix:</span>
+<span class="sd">        Connectivity/adjacency matrix of the molecular graph of shape (n_atoms, n_atoms)</span>
+<span class="sd">        or a networkx graph object</span>
+<span class="sd">    n:</span>
+<span class="sd">        Number of atoms to count away from the starting atom, with the starting atom counting as n=1</span>
+<span class="sd">    unique:</span>
+<span class="sd">        If True, the returned pairs will be unique and symmetrised such that the lower bead index precedes</span>
+<span class="sd">        the higher bead index in each pair.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    torch.Tensor:</span>
+<span class="sd">        Path index tensor of shape (n, n_pairs)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">n</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span> <span class="ow">and</span> <span class="n">unique</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Unique currently only works for n=2,3&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">connectivity_matrix</span><span class="p">,</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">):</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">connectivity_matrix</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">connectivity_matrix</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">(</span><span class="n">connectivity_matrix</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">(</span><span class="n">connectivity_matrix</span><span class="p">)</span>
+    <span class="n">final_paths</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)]</span>
+    <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+        <span class="n">n_hop_paths</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">single_source_dijkstra_path</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">atom</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
+        <span class="n">paths</span> <span class="o">=</span> <span class="p">[</span><span class="n">path</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">n_hop_paths</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="o">==</span> <span class="n">n</span><span class="p">]</span>
+        <span class="c1"># print(paths)</span>
+        <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
+            <span class="c1"># print(path)</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">sub_atom</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                <span class="c1"># print(sub_atom)</span>
+                <span class="n">final_paths</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sub_atom</span><span class="p">)</span>
+    <span class="n">final_paths</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">final_paths</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">unique</span> <span class="ow">and</span> <span class="n">n</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]:</span>
+        <span class="n">final_paths</span> <span class="o">=</span> <span class="n">_symmetrise_map</span><span class="p">[</span><span class="n">n</span><span class="p">](</span><span class="n">final_paths</span><span class="p">)</span>
+        <span class="n">final_paths</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">final_paths</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">final_paths</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_improper_paths</span><span class="p">(</span>
+    <span class="n">connectivity_matrix</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">unique</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;This function returns all paths defining an improper dihedral</span>
+
+<span class="sd">    .. code::</span>
+
+<span class="sd">            k</span>
+<span class="sd">            |</span>
+<span class="sd">        i - j - l</span>
+
+<span class="sd">    where the order of connected nodes is given as `[i,k,l,j]` - i.e., the</span>
+<span class="sd">    central node is reported last.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    connectivity_matrix:</span>
+<span class="sd">        Connectivity/adjacency matrix of the molecular graph of shape (n_atoms, n_atoms)</span>
+<span class="sd">    unique:</span>
+<span class="sd">        If True, the returned paths will be unique</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    torch.Tensor:</span>
+<span class="sd">        Path index tensor of shape (4, n_impropers)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">n</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">neigh_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">connectivity_matrix</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">final_paths</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)]</span>
+    <span class="k">for</span> <span class="n">i_nc</span><span class="p">,</span> <span class="n">neigh_count</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">neigh_counts</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">neigh_count</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">neigh_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">connectivity_matrix</span><span class="o">.</span><span class="n">numpy</span><span class="p">()[</span><span class="n">i_nc</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">combo</span> <span class="ow">in</span> <span class="n">combinations</span><span class="p">(</span><span class="n">neigh_list</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+                <span class="n">final_paths</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i_nc</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">ic</span><span class="p">,</span> <span class="n">ind</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">combo</span><span class="p">):</span>
+                    <span class="n">final_paths</span><span class="p">[</span><span class="n">ic</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ind</span><span class="p">)</span>
+
+    <span class="n">final_paths</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">final_paths</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">unique</span><span class="p">:</span>
+        <span class="n">final_paths</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">final_paths</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">final_paths</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_grab_atom_index_by_name</span><span class="p">(</span>
+    <span class="n">topology</span><span class="p">:</span> <span class="n">mdtraj</span><span class="o">.</span><span class="n">Topology</span><span class="p">,</span> <span class="n">atom_selection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    rHelper function to select atoms indices based on atom names according to mdtraj scheme</span>
+<span class="sd">        Some useful examples of possible :obj:`atom_selection` for (improper) dihedrals:</span>
+<span class="sd">            Impropers: (Central atom must go last)</span>
+<span class="sd">                GAMMA1_ATOMS = [&quot;N&quot;, &quot;CB&quot;, &quot;C&quot;, &quot;CA&quot;]</span>
+<span class="sd">                GAMMA2_ATOMS = [&quot;CA&quot;, &quot;O&quot;, &quot;+N&quot;, &quot;C&quot;]</span>
+<span class="sd">            Dihedrals: (Previous and next residue indicated by (-) and (+) sign)</span>
+<span class="sd">                PHI_ATOMS = [&quot;-C&quot;, &quot;N&quot;, &quot;CA&quot;, &quot;C&quot;]</span>
+<span class="sd">                PSI_ATOMS = [&quot;N&quot;, &quot;CA&quot;, &quot;C&quot;, &quot;+N&quot;]</span>
+<span class="sd">                OMEGA_ATOMS = [&quot;CA&quot;, &quot;C&quot;, &quot;+N&quot;, &quot;+CA&quot;]</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    topology:</span>
+<span class="sd">        MDTraj topology instance</span>
+<span class="sd">    atom_selection:</span>
+<span class="sd">        Array of MDtraj atom names to select</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    np.ndarray:</span>
+<span class="sd">        Atom indices according to name</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">topology</span><span class="p">,</span> <span class="s2">&quot;topology&quot;</span><span class="p">):</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;Passing a Trajectory object. Please pass a Topology object&quot;</span><span class="p">,</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">topology</span> <span class="o">=</span> <span class="n">topology</span><span class="o">.</span><span class="n">topology</span>
+
+    <span class="k">if</span> <span class="n">atom_selection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">improper_atoms</span> <span class="o">=</span> <span class="n">mdtraj</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">dihedral</span><span class="o">.</span><span class="n">_atom_sequence</span><span class="p">(</span>
+            <span class="n">topology</span><span class="p">,</span> <span class="n">atom_selection</span>
+        <span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">improper_atoms</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">improper_atoms</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_residue_mapping_dictionary</span><span class="p">(</span>
+    <span class="n">topology</span><span class="p">:</span> <span class="n">mdtraj</span><span class="o">.</span><span class="n">Topology</span><span class="p">,</span> <span class="n">atom_indices</span><span class="o">=</span><span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper function to assign each set of atom_indices to a specific residue type</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        topology:</span>
+<span class="sd">                mdtraj topology object</span>
+<span class="sd">        atom_indices:</span>
+<span class="sd">                np.ndarray (n_instances,n_atoms).</span>
+<span class="sd">                A row is a specific interaction and where each column are the atoms involved in it.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Dict:</span>
+<span class="sd">        Dictionary that maps residues to atom indices within them</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">topology</span><span class="p">,</span> <span class="s2">&quot;topology&quot;</span><span class="p">):</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;Passing a Trajectory object. Please pass a Topology object&quot;</span><span class="p">,</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">topology</span> <span class="o">=</span> <span class="n">topology</span><span class="o">.</span><span class="n">topology</span>
+
+    <span class="n">residue_dictionary</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">resids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">atom</span><span class="o">.</span><span class="n">residue</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="n">topology</span><span class="o">.</span><span class="n">atoms</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">atom_indices</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">atom_indices</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">res_group</span> <span class="o">=</span> <span class="n">resids</span><span class="p">[</span><span class="n">group</span><span class="p">]</span>
+        <span class="n">unique_res</span><span class="p">,</span> <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">res_group</span><span class="p">,</span> <span class="n">return_counts</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">current_res</span> <span class="o">=</span> <span class="n">unique_res</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">counts</span><span class="p">)]</span>
+        <span class="n">residue_dictionary</span><span class="p">[</span><span class="n">current_res</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">residue_dictionary</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">residue_dictionary</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">residue_dictionary</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Felix Musil &amp; Nick Charron.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

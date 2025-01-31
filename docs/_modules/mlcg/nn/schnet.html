@@ -1,0 +1,777 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mlcg.nn.schnet &mdash; mlcg 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            mlcg
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../data.html">Data Representation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../geometry.html">Geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../neighbor_list.html">Neighbor Lists</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../coarse_graining.html">Coarse Graining</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datasets.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../priors.html">Priors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../models.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simulation.html">Simulations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dev/dev.html">Developer Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../bibliography.html">Bibliography</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">mlcg</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">mlcg.nn.schnet</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for mlcg.nn.schnet</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Final</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">MessagePassing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_scatter</span><span class="w"> </span><span class="kn">import</span> <span class="n">scatter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..neighbor_list.neighbor_list</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">atomic_data2neighbor_list</span><span class="p">,</span>
+    <span class="n">validate_neighborlist</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..data.atomic_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">AtomicData</span><span class="p">,</span> <span class="n">ENERGY_KEY</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..geometry.internal_coordinates</span><span class="w"> </span><span class="kn">import</span> <span class="n">compute_distances</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.mlp</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._module_init</span><span class="w"> </span><span class="kn">import</span> <span class="n">init_xavier_uniform</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.attention</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AttentiveInteractionBlock</span><span class="p">,</span>
+    <span class="n">AttentiveInteractionBlock2</span><span class="p">,</span>
+    <span class="n">Nonlocalinteractionblock</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="SchNet">
+<a class="viewcode-back" href="../../../models.html#mlcg.nn.schnet.SchNet">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SchNet</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;PyTorch Geometric implementation of SchNet</span>
+<span class="sd">    Code adapted from [PT_geom_schnet]_  which is based on the architecture</span>
+<span class="sd">    described in [Schnet]_ .</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    embedding_layer:</span>
+<span class="sd">        Initial embedding layer that transforms atoms/coarse grain bead</span>
+<span class="sd">        types into embedded features</span>
+<span class="sd">    interaction_blocks: list of torch.nn.Module or torch.nn.Sequential</span>
+<span class="sd">        Sequential interaction blocks of the model, where each interaction</span>
+<span class="sd">        block applies</span>
+<span class="sd">    rbf_layer:</span>
+<span class="sd">        The set of radial basis functions that expands pairwise distances</span>
+<span class="sd">        between atoms/CG beads.</span>
+<span class="sd">    output_network:</span>
+<span class="sd">        Output neural network that predicts scalar energies from SchNet</span>
+<span class="sd">        features. This network should transform (num_examples * num_atoms,</span>
+<span class="sd">        hidden_channels) to (num_examples * num atoms, 1).</span>
+<span class="sd">    upper_distance_cutoff:</span>
+<span class="sd">        Upper distance cutoff used for making neighbor lists.</span>
+<span class="sd">    self_interaction:</span>
+<span class="sd">        If True, self interactions/distancess are calculated.</span>
+<span class="sd">    max_num_neighbors:</span>
+<span class="sd">        Maximum number of neighbors to return for a</span>
+<span class="sd">        given node/atom when constructing the molecular graph during forward</span>
+<span class="sd">        passes. This attribute is passed to the torch_cluster radius_graph</span>
+<span class="sd">        routine keyword max_num_neighbors, which normally defaults to 32.</span>
+<span class="sd">        Users should set this to higher values if they are using higher upper</span>
+<span class="sd">        distance cutoffs and expect more than 32 neighbors per node/atom.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">name</span><span class="p">:</span> <span class="n">Final</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;SchNet&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">embedding_layer</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">interaction_blocks</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">],</span>
+        <span class="n">rbf_layer</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">output_network</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">self_interaction</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">max_num_neighbors</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SchNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding_layer</span> <span class="o">=</span> <span class="n">embedding_layer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rbf_layer</span> <span class="o">=</span> <span class="n">rbf_layer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_num_neighbors</span> <span class="o">=</span> <span class="n">max_num_neighbors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">self_interaction</span> <span class="o">=</span> <span class="n">self_interaction</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">interaction_blocks</span><span class="p">,</span> <span class="n">List</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">interaction_blocks</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span><span class="o">*</span><span class="n">interaction_blocks</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">interaction_blocks</span><span class="p">,</span> <span class="n">InteractionBlock</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">interaction_blocks</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span><span class="n">interaction_blocks</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;interaction_blocks must be a single InteractionBlock or &quot;</span>
+                <span class="s2">&quot;a list of InteractionBlocks.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_network</span> <span class="o">=</span> <span class="n">output_network</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset_parameters</span><span class="p">()</span>
+
+<div class="viewcode-block" id="SchNet.reset_parameters">
+<a class="viewcode-back" href="../../../autodoc.html#mlcg.nn.schnet.SchNet.reset_parameters">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Method for resetting linear layers in each SchNet component&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding_layer</span><span class="o">.</span><span class="n">reset_parameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rbf_layer</span><span class="o">.</span><span class="n">reset_parameters</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">interaction_blocks</span><span class="p">:</span>
+            <span class="n">block</span><span class="o">.</span><span class="n">reset_parameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_network</span><span class="o">.</span><span class="n">reset_parameters</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="SchNet.forward">
+<a class="viewcode-back" href="../../../autodoc.html#mlcg.nn.schnet.SchNet.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">AtomicData</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AtomicData</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Forward pass through the SchNet architecture.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data:</span>
+<span class="sd">            Input data object containing batch atom/bead positions</span>
+<span class="sd">            and atom/bead types.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data:</span>
+<span class="sd">           Data dictionary, updated with predicted energy of shape</span>
+<span class="sd">           (num_examples * num_atoms, 1), as well as neighbor list</span>
+<span class="sd">           information.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">embedding_layer</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">atom_types</span><span class="p">)</span>
+
+        <span class="n">neighbor_list</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">neighbor_list</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_nl_compatible</span><span class="p">(</span><span class="n">neighbor_list</span><span class="p">):</span>
+            <span class="n">neighbor_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">neighbor_list</span><span class="p">(</span>
+                <span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rbf_layer</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_upper</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_num_neighbors</span>
+            <span class="p">)[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+        <span class="n">edge_index</span> <span class="o">=</span> <span class="n">neighbor_list</span><span class="p">[</span><span class="s2">&quot;index_mapping&quot;</span><span class="p">]</span>
+        <span class="n">distances</span> <span class="o">=</span> <span class="n">compute_distances</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">pos</span><span class="p">,</span>
+            <span class="n">edge_index</span><span class="p">,</span>
+            <span class="n">neighbor_list</span><span class="p">[</span><span class="s2">&quot;cell_shifts&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+
+        <span class="n">rbf_expansion</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rbf_layer</span><span class="p">(</span><span class="n">distances</span><span class="p">)</span>
+        <span class="n">num_batch</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">batch</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">interaction_blocks</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">block</span><span class="p">(</span>
+                <span class="n">x</span><span class="p">,</span> <span class="n">edge_index</span><span class="p">,</span> <span class="n">distances</span><span class="p">,</span> <span class="n">rbf_expansion</span><span class="p">,</span> <span class="n">num_batch</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">batch</span>
+            <span class="p">)</span>
+
+        <span class="n">energy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_network</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="n">energy</span> <span class="o">=</span> <span class="n">scatter</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">reduce</span><span class="o">=</span><span class="s2">&quot;sum&quot;</span><span class="p">)</span>
+        <span class="n">energy</span> <span class="o">=</span> <span class="n">energy</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">out</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">ENERGY_KEY</span><span class="p">:</span> <span class="n">energy</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">data</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_nl_compatible</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nl</span><span class="p">):</span>
+        <span class="n">is_compatible</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">validate_neighborlist</span><span class="p">(</span><span class="n">nl</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">nl</span><span class="p">[</span><span class="s2">&quot;order&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span>
+                <span class="ow">and</span> <span class="n">nl</span><span class="p">[</span><span class="s2">&quot;self_interaction&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="kc">False</span>
+                <span class="ow">and</span> <span class="n">nl</span><span class="p">[</span><span class="s2">&quot;rcut&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_upper</span>
+            <span class="p">):</span>
+                <span class="n">is_compatible</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="n">is_compatible</span>
+
+<div class="viewcode-block" id="SchNet.neighbor_list">
+<a class="viewcode-back" href="../../../autodoc.html#mlcg.nn.schnet.SchNet.neighbor_list">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">neighbor_list</span><span class="p">(</span>
+        <span class="n">data</span><span class="p">:</span> <span class="n">AtomicData</span><span class="p">,</span> <span class="n">rcut</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">max_num_neighbors</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Computes the neighborlist for :obj:`data` using a strict cutoff of :obj:`rcut`.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">SchNet</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">atomic_data2neighbor_list</span><span class="p">(</span>
+                <span class="n">data</span><span class="p">,</span>
+                <span class="n">rcut</span><span class="p">,</span>
+                <span class="n">self_interaction</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">max_num_neighbors</span><span class="o">=</span><span class="n">max_num_neighbors</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="InteractionBlock">
+<a class="viewcode-back" href="../../../models.html#mlcg.nn.schnet.InteractionBlock">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">InteractionBlock</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Interaction blocks for SchNet. Consists of atomwise</span>
+<span class="sd">    transformations of embedded features that are continuously</span>
+<span class="sd">    convolved with filters generated from radial basis function-expanded</span>
+<span class="sd">    pairwise distances.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    cfconv_layer:</span>
+<span class="sd">        Continuous filter convolution layer for convolutions of radial basis</span>
+<span class="sd">        function-expanded distances with embedded features</span>
+<span class="sd">    hidden_channels:</span>
+<span class="sd">        Hidden dimension of embedded features</span>
+<span class="sd">    activation:</span>
+<span class="sd">        Activation function applied to linear layer outputs</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cfconv_layer</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">hidden_channels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Tanh</span><span class="p">(),</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">InteractionBlock</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv</span> <span class="o">=</span> <span class="n">cfconv_layer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">activation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lin</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">hidden_channels</span><span class="p">,</span> <span class="n">hidden_channels</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset_parameters</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv</span><span class="o">.</span><span class="n">reset_parameters</span><span class="p">()</span>
+        <span class="n">init_xavier_uniform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lin</span><span class="p">)</span>
+
+<div class="viewcode-block" id="InteractionBlock.forward">
+<a class="viewcode-back" href="../../../autodoc.html#mlcg.nn.schnet.InteractionBlock.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">edge_index</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">edge_weight</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">edge_attr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Forward pass through the interaction block.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x:</span>
+<span class="sd">            Embedded features of shape (num_examples, num_atoms,</span>
+<span class="sd">            hidden_channels)</span>
+<span class="sd">        edge_index:</span>
+<span class="sd">            Graph edge index tensor of shape (2, total_num_edges)</span>
+<span class="sd">        edge_weight:</span>
+<span class="sd">            Graph edge weight (eg, distances), of shape (total_num_edges)</span>
+<span class="sd">        edge_attr:</span>
+<span class="sd">            Graph edge attributes (eg, expanded distances), of shape</span>
+<span class="sd">            (total_num_edges, num_rbf)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x:</span>
+<span class="sd">            Updated embedded features of shape (num_examples * num_atoms,</span>
+<span class="sd">            hidden_channels)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">edge_index</span><span class="p">,</span> <span class="n">edge_weight</span><span class="p">,</span> <span class="n">edge_attr</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">activation</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lin</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="CFConv">
+<a class="viewcode-back" href="../../../models.html#mlcg.nn.schnet.CFConv">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CFConv</span><span class="p">(</span><span class="n">MessagePassing</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Continuous filter convolutions for `SchNet`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filter_net:</span>
+<span class="sd">        Neural network for generating filters from expanded pairwise distances</span>
+<span class="sd">    cutoff:</span>
+<span class="sd">        Cutoff envelope to apply to the output of the filter generating network.</span>
+<span class="sd">    in_channels:</span>
+<span class="sd">        Hidden input dimensions</span>
+<span class="sd">    out_channels:</span>
+<span class="sd">        Hidden output dimensions</span>
+<span class="sd">    num_filters:</span>
+<span class="sd">        Number of filters</span>
+<span class="sd">    aggr:</span>
+<span class="sd">        Aggregation scheme for continuous filter output. For all options,</span>
+<span class="sd">        see `here &lt;https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class&gt;`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">filter_network</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">cutoff</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">in_channels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
+        <span class="n">out_channels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
+        <span class="n">num_filters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
+        <span class="n">aggr</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;add&quot;</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CFConv</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">aggr</span><span class="o">=</span><span class="n">aggr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lin1</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">num_filters</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lin2</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">num_filters</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter_network</span> <span class="o">=</span> <span class="n">filter_network</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span> <span class="o">=</span> <span class="n">cutoff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset_parameters</span><span class="p">()</span>
+
+<div class="viewcode-block" id="CFConv.reset_parameters">
+<a class="viewcode-back" href="../../../autodoc.html#mlcg.nn.schnet.CFConv.reset_parameters">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Method for resetting the weights of the linear</span>
+<span class="sd">        layers and filter network according the the</span>
+<span class="sd">        Xavier uniform strategy. Biases</span>
+<span class="sd">        are set to 0.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter_network</span><span class="o">.</span><span class="n">reset_parameters</span><span class="p">()</span>
+        <span class="n">init_xavier_uniform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lin1</span><span class="p">)</span>
+        <span class="n">init_xavier_uniform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lin2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CFConv.forward">
+<a class="viewcode-back" href="../../../autodoc.html#mlcg.nn.schnet.CFConv.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">edge_index</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">edge_weight</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">edge_attr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Forward pass through the continuous filter convolution.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x:</span>
+<span class="sd">            Embedded features of shape (num_examples * num_atoms,</span>
+<span class="sd">            hidden_channels)</span>
+<span class="sd">        edge_index</span>
+<span class="sd">            Graph edge index tensor of shape (2, total_num_edges)</span>
+<span class="sd">        edge_weight:</span>
+<span class="sd">            Graph edge weight (eg, distances), of shape (total_num_edges)</span>
+<span class="sd">        edge_attr:</span>
+<span class="sd">            Graph edge attributes (eg, expanded distances), of shape</span>
+<span class="sd">            (total_num_edges, num_rbf)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x:</span>
+<span class="sd">            Updated embedded features of shape (num_examples * num_atoms,</span>
+<span class="sd">            hidden_channels)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">C</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cutoff</span><span class="p">(</span><span class="n">edge_weight</span><span class="p">)</span>
+        <span class="n">W</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_network</span><span class="p">(</span><span class="n">edge_attr</span><span class="p">)</span> <span class="o">*</span> <span class="n">C</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lin1</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="c1"># propagate_type: (x: Tensor, W: Tensor)</span>
+        <span class="c1"># Perform the continuous filter convolution</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate</span><span class="p">(</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lin2</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span></div>
+
+
+<div class="viewcode-block" id="CFConv.message">
+<a class="viewcode-back" href="../../../autodoc.html#mlcg.nn.schnet.CFConv.message">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_j</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">W</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Message passing operation to perform the continuous filter</span>
+<span class="sd">        convolution through element-wise multiplcation of embedded</span>
+<span class="sd">        features with the output of the filter network.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x_j:</span>
+<span class="sd">            Tensor of embedded features of shape (total_num_edges,</span>
+<span class="sd">            hidden_channels)</span>
+<span class="sd">        W:</span>
+<span class="sd">            Tensor of filter values of shape (total_num_edges, num_filters)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x_j * W:</span>
+<span class="sd">            Elementwise multiplication of the filters with embedded features.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">x_j</span> <span class="o">*</span> <span class="n">W</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="StandardSchNet">
+<a class="viewcode-back" href="../../../models.html#mlcg.nn.schnet.StandardSchNet">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">StandardSchNet</span><span class="p">(</span><span class="n">SchNet</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Small wrapper class for :ref:`SchNet` to simplify the definition of the</span>
+<span class="sd">    SchNet model through an input file. The upper distance cutoff attribute</span>
+<span class="sd">    in is set by default to match the upper cutoff value in the cutoff function.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    rbf_layer:</span>
+<span class="sd">        radial basis function used to project the distances :math:`r_{ij}`.</span>
+<span class="sd">    cutoff:</span>
+<span class="sd">        smooth cutoff function to supply to the CFConv</span>
+<span class="sd">    output_hidden_layer_widths:</span>
+<span class="sd">        List giving the number of hidden nodes of each hidden layer of the MLP</span>
+<span class="sd">        used to predict the target property from the learned representation.</span>
+<span class="sd">    hidden_channels:</span>
+<span class="sd">        dimension of the learned representation, i.e. dimension of the embeding projection, convolution layers, and interaction block.</span>
+<span class="sd">    embedding_size:</span>
+<span class="sd">        dimension of the input embeddings (should be larger than :obj:`AtomicData.atom_types.max()+1`).</span>
+<span class="sd">    num_filters:</span>
+<span class="sd">        number of nodes of the networks used to filter the projected distances</span>
+<span class="sd">    num_interactions:</span>
+<span class="sd">        number of interaction blocks</span>
+<span class="sd">    activation:</span>
+<span class="sd">        activation function</span>
+<span class="sd">    max_num_neighbors:</span>
+<span class="sd">        The maximum number of neighbors to return for each atom in :obj:`data`.</span>
+<span class="sd">        If the number of actual neighbors is greater than</span>
+<span class="sd">        :obj:`max_num_neighbors`, returned neighbors are picked randomly.</span>
+<span class="sd">    aggr:</span>
+<span class="sd">        Aggregation scheme for continuous filter output. For all options,</span>
+<span class="sd">        see `here &lt;https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class&gt;`_</span>
+<span class="sd">        for more options.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">rbf_layer</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">cutoff</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">output_hidden_layer_widths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="n">hidden_channels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
+        <span class="n">embedding_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+        <span class="n">num_filters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
+        <span class="n">num_interactions</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Tanh</span><span class="p">(),</span>
+        <span class="n">max_num_neighbors</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span>
+        <span class="n">aggr</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;add&quot;</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="n">num_interactions</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one interaction block must be specified&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_lower</span> <span class="o">!=</span> <span class="n">rbf_layer</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_lower</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Cutoff function lower cutoff, </span><span class="si">{}</span><span class="s2">, and radial basis function &quot;</span>
+                <span class="s2">&quot; lower cutoff, </span><span class="si">{}</span><span class="s2">, do not match.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_lower</span><span class="p">,</span> <span class="n">rbf_layer</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_lower</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_upper</span> <span class="o">!=</span> <span class="n">rbf_layer</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_upper</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Cutoff function upper cutoff, </span><span class="si">{}</span><span class="s2">, and radial basis function &quot;</span>
+                <span class="s2">&quot; upper cutoff, </span><span class="si">{}</span><span class="s2">, do not match.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_upper</span><span class="p">,</span> <span class="n">rbf_layer</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_upper</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">embedding_layer</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">embedding_size</span><span class="p">,</span> <span class="n">hidden_channels</span><span class="p">)</span>
+
+        <span class="n">interaction_blocks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_interactions</span><span class="p">):</span>
+            <span class="n">filter_network</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span>
+                <span class="n">layer_widths</span><span class="o">=</span><span class="p">[</span><span class="n">rbf_layer</span><span class="o">.</span><span class="n">num_rbf</span><span class="p">,</span> <span class="n">num_filters</span><span class="p">,</span> <span class="n">num_filters</span><span class="p">],</span>
+                <span class="n">activation_func</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
+                <span class="n">last_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">cfconv</span> <span class="o">=</span> <span class="n">CFConv</span><span class="p">(</span>
+                <span class="n">filter_network</span><span class="p">,</span>
+                <span class="n">cutoff</span><span class="o">=</span><span class="n">cutoff</span><span class="p">,</span>
+                <span class="n">num_filters</span><span class="o">=</span><span class="n">num_filters</span><span class="p">,</span>
+                <span class="n">in_channels</span><span class="o">=</span><span class="n">hidden_channels</span><span class="p">,</span>
+                <span class="n">out_channels</span><span class="o">=</span><span class="n">hidden_channels</span><span class="p">,</span>
+                <span class="n">aggr</span><span class="o">=</span><span class="n">aggr</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">block</span> <span class="o">=</span> <span class="n">InteractionBlock</span><span class="p">(</span><span class="n">cfconv</span><span class="p">,</span> <span class="n">hidden_channels</span><span class="p">,</span> <span class="n">activation</span><span class="p">)</span>
+            <span class="n">interaction_blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
+        <span class="n">output_layer_widths</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">[</span><span class="n">hidden_channels</span><span class="p">]</span> <span class="o">+</span> <span class="n">output_hidden_layer_widths</span> <span class="o">+</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">output_network</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span>
+            <span class="n">output_layer_widths</span><span class="p">,</span> <span class="n">activation_func</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span> <span class="n">last_bias</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">StandardSchNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">embedding_layer</span><span class="p">,</span>
+            <span class="n">interaction_blocks</span><span class="p">,</span>
+            <span class="n">rbf_layer</span><span class="p">,</span>
+            <span class="n">output_network</span><span class="p">,</span>
+            <span class="n">max_num_neighbors</span><span class="o">=</span><span class="n">max_num_neighbors</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="AttentiveSchNet">
+<a class="viewcode-back" href="../../../autodoc.html#mlcg.nn.schnet.AttentiveSchNet">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AttentiveSchNet</span><span class="p">(</span><span class="n">SchNet</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Small wrapper class for :ref:`SchNet` to simplify the definition of the</span>
+<span class="sd">    SchNet model with an Interaction block that includes attention through an input file. The upper distance cutoff attribute</span>
+<span class="sd">    in is set by default to match the upper cutoff value in the cutoff function.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    rbf_layer:</span>
+<span class="sd">        radial basis function used to project the distances :math:`r_{ij}`.</span>
+<span class="sd">    cutoff:</span>
+<span class="sd">        smooth cutoff function to supply to the CFConv</span>
+<span class="sd">    output_hidden_layer_widths:</span>
+<span class="sd">        List giving the number of hidden nodes of each hidden layer of the MLP</span>
+<span class="sd">        used to predict the target property from the learned representation.</span>
+<span class="sd">    num_features_in:</span>
+<span class="sd">        size of each input sample for linear layer</span>
+<span class="sd">    num_features_out:</span>
+<span class="sd">        size of each output sample for liner layer</span>
+<span class="sd">    num_residuals_q, num_residuals_k, num_residuals_v:</span>
+<span class="sd">        Number of residual blocks applied to features via self-attention</span>
+<span class="sd">        for queries, keys, and values</span>
+<span class="sd">    attention_block:</span>
+<span class="sd">        Specify if you want to use softmax attention (input: ExactAttention) or favor+ (input: FavorAttention)</span>
+<span class="sd">    hidden_channels:</span>
+<span class="sd">        dimension of the learned representation, i.e. dimension of the embeding projection, convolution layers, and interaction block.</span>
+<span class="sd">    embedding_size:</span>
+<span class="sd">        dimension of the input embeddings (should be larger than :obj:`AtomicData.atom_types.max()+1`).</span>
+<span class="sd">    num_filters:</span>
+<span class="sd">        number of nodes of the networks used to filter the projected distances</span>
+<span class="sd">    num_interactions:</span>
+<span class="sd">        number of interaction blocks</span>
+<span class="sd">    activation:</span>
+<span class="sd">        activation function</span>
+<span class="sd">    max_num_neighbors:</span>
+<span class="sd">        The maximum number of neighbors to return for each atom in :obj:`data`.</span>
+<span class="sd">        If the number of actual neighbors is greater than</span>
+<span class="sd">        :obj:`max_num_neighbors`, returned neighbors are picked randomly.</span>
+<span class="sd">    aggr:</span>
+<span class="sd">        Aggregation scheme for continuous filter output. For all options,</span>
+<span class="sd">        see `here &lt;https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class&gt;`_</span>
+<span class="sd">        for more options.</span>
+<span class="sd">    activation_first:</span>
+<span class="sd">        Inverting the order of linear layers and activation functions.</span>
+<span class="sd">    attention_version:</span>
+<span class="sd">        Specifiy which interaction block architecture to choose. By default normal.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">rbf_layer</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">cutoff</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">output_hidden_layer_widths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="n">num_features_in</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">num_features_out</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">num_residual_q</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">num_residual_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">num_residual_v</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">attention_block</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">hidden_channels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
+        <span class="n">embedding_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+        <span class="n">num_filters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
+        <span class="n">num_interactions</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">activation_func</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Tanh</span><span class="p">(),</span>
+        <span class="n">max_num_neighbors</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span>
+        <span class="n">layer_widths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">activation_first</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">aggr</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;add&quot;</span><span class="p">,</span>
+        <span class="n">attention_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;normal&quot;</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="n">layer_widths</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">layer_widths</span> <span class="o">=</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">num_interactions</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one interaction block must be specified&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_lower</span> <span class="o">!=</span> <span class="n">rbf_layer</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_lower</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Cutoff function lower cutoff, </span><span class="si">{}</span><span class="s2">, and radial basis function &quot;</span>
+                <span class="s2">&quot; lower cutoff, </span><span class="si">{}</span><span class="s2">, do not match.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_lower</span><span class="p">,</span> <span class="n">rbf_layer</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_lower</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_upper</span> <span class="o">!=</span> <span class="n">rbf_layer</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_upper</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Cutoff function upper cutoff, </span><span class="si">{}</span><span class="s2">, and radial basis function &quot;</span>
+                <span class="s2">&quot; upper cutoff, </span><span class="si">{}</span><span class="s2">, do not match.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_upper</span><span class="p">,</span> <span class="n">rbf_layer</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_upper</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">embedding_layer</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">embedding_size</span><span class="p">,</span> <span class="n">hidden_channels</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">attention_version</span> <span class="o">==</span> <span class="s2">&quot;normal&quot;</span><span class="p">:</span>
+            <span class="n">attention_cls</span> <span class="o">=</span> <span class="n">AttentiveInteractionBlock</span>
+        <span class="k">elif</span> <span class="n">attention_version</span> <span class="o">==</span> <span class="s2">&quot;2&quot;</span><span class="p">:</span>
+            <span class="n">attention_cls</span> <span class="o">=</span> <span class="n">AttentiveInteractionBlock2</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;attention_version not recognized&quot;</span><span class="p">)</span>
+
+        <span class="n">interaction_blocks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_interactions</span><span class="p">):</span>
+            <span class="n">filter_network</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span>
+                <span class="n">layer_widths</span><span class="o">=</span><span class="p">[</span><span class="n">rbf_layer</span><span class="o">.</span><span class="n">num_rbf</span><span class="p">,</span> <span class="n">num_filters</span><span class="p">,</span> <span class="n">num_filters</span><span class="p">],</span>
+                <span class="n">activation_func</span><span class="o">=</span><span class="n">activation_func</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">cfconv</span> <span class="o">=</span> <span class="n">CFConv</span><span class="p">(</span>
+                <span class="n">filter_network</span><span class="p">,</span>
+                <span class="n">cutoff</span><span class="o">=</span><span class="n">cutoff</span><span class="p">,</span>
+                <span class="n">num_filters</span><span class="o">=</span><span class="n">num_filters</span><span class="p">,</span>
+                <span class="n">in_channels</span><span class="o">=</span><span class="n">hidden_channels</span><span class="p">,</span>
+                <span class="n">out_channels</span><span class="o">=</span><span class="n">hidden_channels</span><span class="p">,</span>
+                <span class="n">aggr</span><span class="o">=</span><span class="n">aggr</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">all</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">arg</span> <span class="o">!=</span> <span class="kc">None</span>
+                    <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">[</span>
+                        <span class="n">num_features_in</span><span class="p">,</span>
+                        <span class="n">num_features_out</span><span class="p">,</span>
+                        <span class="n">num_residual_q</span><span class="p">,</span>
+                        <span class="n">num_residual_k</span><span class="p">,</span>
+                        <span class="n">num_residual_v</span><span class="p">,</span>
+                        <span class="n">attention_block</span><span class="p">,</span>
+                    <span class="p">]</span>
+                <span class="p">]</span>
+            <span class="p">):</span>
+                <span class="n">int_block</span> <span class="o">=</span> <span class="n">Nonlocalinteractionblock</span><span class="p">(</span>
+                    <span class="n">num_features_in</span><span class="p">,</span>
+                    <span class="n">num_features_out</span><span class="p">,</span>
+                    <span class="n">num_residual_q</span><span class="p">,</span>
+                    <span class="n">num_residual_k</span><span class="p">,</span>
+                    <span class="n">num_residual_v</span><span class="p">,</span>
+                    <span class="n">attention_block</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">all</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">arg</span> <span class="o">==</span> <span class="kc">None</span>
+                    <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">[</span>
+                        <span class="n">num_features_in</span><span class="p">,</span>
+                        <span class="n">num_features_out</span><span class="p">,</span>
+                        <span class="n">num_residual_q</span><span class="p">,</span>
+                        <span class="n">num_residual_k</span><span class="p">,</span>
+                        <span class="n">num_residual_v</span><span class="p">,</span>
+                        <span class="n">attention_block</span><span class="p">,</span>
+                    <span class="p">]</span>
+                <span class="p">]</span>
+            <span class="p">):</span>
+                <span class="n">int_block</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;To use Attention, you must specify &#39;num_features_in&#39;,&#39;num_features_out&#39;,&#39;num_residual_q&#39;,&#39;num_residual_k&#39;, &#39;num_residual_v&#39; and &#39;attention_block&#39;, but only </span><span class="si">{}</span><span class="s2"> was specified&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="p">[</span>
+                            <span class="n">arg</span>
+                            <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">[</span>
+                                <span class="n">num_features_in</span><span class="p">,</span>
+                                <span class="n">num_features_out</span><span class="p">,</span>
+                                <span class="n">num_residual_q</span><span class="p">,</span>
+                                <span class="n">num_residual_k</span><span class="p">,</span>
+                                <span class="n">num_residual_v</span><span class="p">,</span>
+                                <span class="n">attention_block</span><span class="p">,</span>
+                            <span class="p">]</span>
+                            <span class="k">if</span> <span class="n">arg</span> <span class="o">!=</span> <span class="kc">None</span>
+                        <span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+            <span class="n">block</span> <span class="o">=</span> <span class="n">attention_cls</span><span class="p">(</span>
+                <span class="n">cfconv_layer</span><span class="o">=</span><span class="n">cfconv</span><span class="p">,</span>
+                <span class="n">hidden_channels</span><span class="o">=</span><span class="n">hidden_channels</span><span class="p">,</span>
+                <span class="n">activation_func</span><span class="o">=</span><span class="n">activation_func</span><span class="p">,</span>
+                <span class="n">attention_block</span><span class="o">=</span><span class="n">int_block</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">interaction_blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
+        <span class="n">output_layer_widths</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">[</span><span class="n">hidden_channels</span><span class="p">]</span> <span class="o">+</span> <span class="n">output_hidden_layer_widths</span> <span class="o">+</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">output_network</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span>
+            <span class="n">output_layer_widths</span><span class="p">,</span>
+            <span class="n">activation_func</span><span class="o">=</span><span class="n">activation_func</span><span class="p">,</span>
+            <span class="n">last_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">AttentiveSchNet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">interaction_blocks</span><span class="o">=</span><span class="n">interaction_blocks</span><span class="p">,</span>
+            <span class="n">rbf_layer</span><span class="o">=</span><span class="n">rbf_layer</span><span class="p">,</span>
+            <span class="n">embedding_layer</span><span class="o">=</span><span class="n">embedding_layer</span><span class="p">,</span>
+            <span class="n">output_network</span><span class="o">=</span><span class="n">output_network</span><span class="p">,</span>
+            <span class="n">max_num_neighbors</span><span class="o">=</span><span class="n">max_num_neighbors</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Felix Musil &amp; Nick Charron.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
