@@ -1,7 +1,16 @@
-mlcg-tools
+mlcg
 ==========
 
 .. start-intro
+
+|Docs badge| |License|
+
+.. |Docs badge| image:: https://img.shields.io/badge/mlcg-docs-blue.svg
+   :target: https://clementigroup.github.io/mlcg/
+
+.. |License| image:: https://img.shields.io/github/license/Naereen/StrapDown.js.svg
+   :target: https://opensource.org/licenses/MIT
+
 
 This repository collects a set of tools to apply machine learning techniques to coarse grain atomic systems.
 
