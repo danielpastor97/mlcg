@@ -26,5 +26,5 @@ module load gcc/11.3.0
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-srun python /home/bepmusil/git/mlcg-tools/scripts/mlcg-train_h5.py fit --config train.yaml --config model.yaml
+srun python /home/bepmusil/git/mlcg/scripts/mlcg-train_h5.py fit --config train.yaml --config model.yaml
 

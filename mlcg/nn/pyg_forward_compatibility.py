@@ -1,4 +1,4 @@
-"""Adapts the schnet models that were saved with previous versions of 
+"""Adapts the schnet models that were saved with previous versions of
 pygs (Pytorch Geometric) and make them compatible with a newer version
 in use.
 """
@@ -23,7 +23,7 @@ def get_refreshed_cfconv_layer(old_cfconv: CFConv):
         possibly saved with a previous versions of pyg.
     """
     # Tensor was once imported as a standalone symbol in an older
-    # version of mlcg-tools (or pyg) but not anymore, thus we have
+    # version of mlcg (or pyg) but not anymore, thus we have
     # to monkey patch it here in order for some older checkpoints
     # to work
     mlcg.nn.schnet.Tensor = torch.Tensor

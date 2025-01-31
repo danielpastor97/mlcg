@@ -4,7 +4,7 @@ from ._module_init import init_xavier_uniform
 from typing import Optional
 import math
 
-"""MLCG-Tools for attention. Based on:
+"""MLCG for attention. Based on:
 
     Unke, O. T. et al. (2021).
     Spookynet: Learning force fields with electronic degrees of freedom and nonlocal effects.

@@ -1,5 +1,4 @@
-"""TODO: write tests
-"""
+"""TODO: write tests"""
 
 import math
 import torch

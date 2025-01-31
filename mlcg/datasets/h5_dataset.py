@@ -1,6 +1,6 @@
 r"""Python classes for processing data stored in HDF5 format.
 
-HDF5 format benefits the dataset management for mlcg-tools when training/validation involves multiple molecules of vastly different lengths and when parallelization is used.
+HDF5 format benefits the dataset management for mlcg when training/validation involves multiple molecules of vastly different lengths and when parallelization is used.
 The main features are:
 1. The internal structure mimics the hierarchy of the dataset itself, such that we don't have to replicate it on filesystem.
 2. we don't have to actively open all files in the process
@@ -11,18 +11,18 @@ An example HDF5 file structure and correponding class types after loading:
 
 .. code-block::
 
-	/ (HDF-group, => `H5Dataset._h5_root`)
-	├── OPEP (HDF-group =(part, according to "partition_options")=> `Metaset` in a `Partition`)
-	│   ├── opep_0000 (HDF-group, => `MolData`)
-	│   │   ├── attrs (HDF-attributes of the molecule "/OPEP/opep_0000")
-	│   │   │   ├── cg_embeds (a 1-d numpy.int array)
-	│   │   │   ├── N_frames (int, number of frames = size of cg_coords on axis 0)
-	│   │   │   ... (optional, e.g., cg_top, cg_pdb, etc that corrsponds to the molecule)
-	│   │   ├── cg_coords (HDF-dataset of the molecule "/OPEP/opep_0000", 3-d numpy.float32 array)
-	│   │   └── cg(_delta)_forces (HDF-dataset of the molecule "/OPEP/opep_0000", 3-d numpy.float32 array)
-	│   ... (other molecules in "/OPEP")
-	├── CATH (HDF-group ="partition_options"=> `Metaset` in a `Partition`)
-	...
+        / (HDF-group, => `H5Dataset._h5_root`)
+        ├── OPEP (HDF-group =(part, according to "partition_options")=> `Metaset` in a `Partition`)
+        │   ├── opep_0000 (HDF-group, => `MolData`)
+        │   │   ├── attrs (HDF-attributes of the molecule "/OPEP/opep_0000")
+        │   │   │   ├── cg_embeds (a 1-d numpy.int array)
+        │   │   │   ├── N_frames (int, number of frames = size of cg_coords on axis 0)
+        │   │   │   ... (optional, e.g., cg_top, cg_pdb, etc that corrsponds to the molecule)
+        │   │   ├── cg_coords (HDF-dataset of the molecule "/OPEP/opep_0000", 3-d numpy.float32 array)
+        │   │   └── cg(_delta)_forces (HDF-dataset of the molecule "/OPEP/opep_0000", 3-d numpy.float32 array)
+        │   ... (other molecules in "/OPEP")
+        ├── CATH (HDF-group ="partition_options"=> `Metaset` in a `Partition`)
+        ...
 
 
 > Data structure `MolData` is the basic brick of the dataset.
@@ -54,19 +54,19 @@ An example "partition_options" (as a Python Mappable (e.g., dict)):
 
 .. code-block::
 
-	{
-		"train": {
-			"metasets": {
-				"OPEP": {
-					"molecules": [
-						"opep_0000",
-						"opep_0001",
-						...
-					],
-					"stride": 1, # optional, default 1
-					"detailed_indices": {
+        {
+                "train": {
+                        "metasets": {
+                                "OPEP": {
+                                        "molecules": [
+                                                "opep_0000",
+                                                "opep_0001",
+                                                ...
+                                        ],
+                                        "stride": 1, # optional, default 1
+                                        "detailed_indices": {
                         # optional, providing the indices of frames to work with (before striding and splitting for parallel processes).
-						# optional,
+                                                # optional,
                             "opep_0000":
                                 val_ratio: 0.1
                                 test_ratio: 0.1
@@ -78,52 +78,52 @@ An example "partition_options" (as a Python Mappable (e.g., dict)):
                             "filename": ./splits
 
                         # If detailed_indices are not provided for a given molecule, then it is equivalent to np.arange(N_frames)
-						    "opep_0000": [1, 3, 5, 7, 9, ...],
+                                                    "opep_0000": [1, 3, 5, 7, 9, ...],
 
 
-					},
-				},
-				"CATH": {
-					"molecules": [
-						"cath_1b43A02",
-						...
-					],
-					"stride": 1, # optional
-					"detailed_indices": {}, # optional
-				}
-			},
-			"batch_size": {
-				# each batch will contain 24 samples from
-				# The two metasets will be trimmed down according to this ratio
-				# so optimally it should be proportional to the ratio of numbers of frames in the metasets.
-				"OPEP": 24,
-				"CATH": 6,
-			},
-			"subsample_random_seed": 42, # optional, default 42. Random seed for trimming down the frames.
-			"max_epoch_samples": None, # optional, default None. For setting a desired dataset size.
-			# Works by subsampling the dataset after it is loaded with the given stride.
-		},
-		"val": { # similar
-		}
-	}
+                                        },
+                                },
+                                "CATH": {
+                                        "molecules": [
+                                                "cath_1b43A02",
+                                                ...
+                                        ],
+                                        "stride": 1, # optional
+                                        "detailed_indices": {}, # optional
+                                }
+                        },
+                        "batch_size": {
+                                # each batch will contain 24 samples from
+                                # The two metasets will be trimmed down according to this ratio
+                                # so optimally it should be proportional to the ratio of numbers of frames in the metasets.
+                                "OPEP": 24,
+                                "CATH": 6,
+                        },
+                        "subsample_random_seed": 42, # optional, default 42. Random seed for trimming down the frames.
+                        "max_epoch_samples": None, # optional, default None. For setting a desired dataset size.
+                        # Works by subsampling the dataset after it is loaded with the given stride.
+                },
+                "val": { # similar
+                }
+        }
 
 An example "loading_options" (as a Python Mappable (e.g., dict)):
 
 .. code-block::
 
-	{
-		"hdf_key_mapping": {
-			# keys for reading CG data from HDF5 groups
-			"embeds": "attrs:cg_embeds",
-			"coords": "cg_coords",
-			"forces": "cg_delta_forces",
-		},
-		"parallel": { # optional, default rank=0 and world_size=1 (single process).
-			# For split the dataset evenly and load only the necessary parts to each process in a parallelized train/val setup
-			"rank": 0, # which process is this
-			"world_size": 1, # how many processes are there
-		}
-	}
+        {
+                "hdf_key_mapping": {
+                        # keys for reading CG data from HDF5 groups
+                        "embeds": "attrs:cg_embeds",
+                        "coords": "cg_coords",
+                        "forces": "cg_delta_forces",
+                },
+                "parallel": { # optional, default rank=0 and world_size=1 (single process).
+                        # For split the dataset evenly and load only the necessary parts to each process in a parallelized train/val setup
+                        "rank": 0, # which process is this
+                        "world_size": 1, # how many processes are there
+                }
+        }
 
 
 > Class `H5PartitionDataLoader` mimics the pytorch data loader and can generate training/validation batches with fixed proportion of samples from several Metasets in a Partition.
