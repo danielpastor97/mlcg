@@ -1,0 +1,219 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to mlcg-tools’s documentation! &mdash; mlcg-tools 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=8d563738"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Data Representation" href="data.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            mlcg-tools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="data.html">Data Representation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry.html">Geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="neighbor_list.html">Neighbor Lists</a></li>
+<li class="toctree-l1"><a class="reference internal" href="coarse_graining.html">Coarse Graining</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="priors.html">Priors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="models.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simulation.html">Simulations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev/dev.html">Developer Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bibliography.html">Bibliography</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">mlcg-tools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Welcome to mlcg-tools’s documentation!</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="welcome-to-mlcg-tools-s-documentation">
+<h1>Welcome to mlcg-tools’s documentation!<a class="headerlink" href="#welcome-to-mlcg-tools-s-documentation" title="Link to this heading"></a></h1>
+<p><a class="reference external" href="https://clementigroup.github.io/mlcg/"><img alt="Docs badge" src="https://img.shields.io/badge/mlcg-docs-blue.svg" /></a> <a class="reference external" href="https://opensource.org/licenses/MIT"><img alt="License" src="https://img.shields.io/github/license/Naereen/StrapDown.js.svg" /></a></p>
+<p>This repository collects a set of tools to apply machine learning techniques to coarse grain atomic systems.</p>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<p>The dependencies are defined in <cite>requirements.txt</cite> but some packages are not well handled by pip. So start by installing <a class="reference external" href="https://pytorch.org/">pytorch</a> and <a class="reference external" href="https://pytorch-geometric.readthedocs.io/en/latest/">pytorch-geometric</a> with conda, e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">install</span> <span class="n">pytorch</span> <span class="n">cudatoolkit</span><span class="o">=</span><span class="mf">11.3</span> <span class="o">-</span><span class="n">c</span> <span class="n">pytorch</span>
+<span class="n">conda</span> <span class="n">install</span> <span class="n">pyg</span> <span class="o">-</span><span class="n">c</span> <span class="n">pyg</span> <span class="o">-</span><span class="n">c</span> <span class="n">conda</span><span class="o">-</span><span class="n">forge</span>
+</pre></div>
+</div>
+<p>Support for the MACE model can be enabled with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">git</span><span class="o">+</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">felixmusil</span><span class="o">/</span><span class="n">mace</span><span class="o">.</span><span class="n">git</span><span class="nd">@develop</span>
+</pre></div>
+</div>
+<p>Support for the TorchMD-Net models can be enabled with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">git</span><span class="o">+</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">felixmusil</span><span class="o">/</span><span class="n">torchmd</span><span class="o">-</span><span class="n">net</span><span class="o">.</span><span class="n">git</span>
+</pre></div>
+</div>
+</section>
+<section id="cli">
+<h2>CLI<a class="headerlink" href="#cli" title="Link to this heading"></a></h2>
+<p>The models defined in this library can be convinietly trained using the pytorch-lightning
+<a class="reference external" href="https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_cli.html">cli</a> utilities.</p>
+</section>
+<section id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="data.html">Data Representation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="data.html#mlcg.data.atomic_data.AtomicData"><code class="docutils literal notranslate"><span class="pre">AtomicData</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="geometry.html">Geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="geometry.html#internal-coordinate-functions">Internal Coordinate Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geometry.html#topology-utilities">Topology Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geometry.html#statistics">Statistics</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="neighbor_list.html">Neighbor Lists</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="neighbor_list.html#neighbor-list-utilities">Neighbor List Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="neighbor_list.html#torch-implementation">Torch Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="neighbor_list.html#ase-implementation">ASE Implementation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="coarse_graining.html">Coarse Graining</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="coarse_graining.html#mlcg.cg.projection.build_cg_topology"><code class="docutils literal notranslate"><span class="pre">build_cg_topology()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="coarse_graining.html#mlcg.cg.projection.build_cg_matrix"><code class="docutils literal notranslate"><span class="pre">build_cg_matrix()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">Datasets</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="datasets.html#chignolin-dataset">Chignolin Dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="datasets.html#alanine-dipeptide-dataset">Alanine Dipeptide Dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="datasets.html#custom-h5-dataset">Custom H5 Dataset</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="priors.html">Priors</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="priors.html#mlcg.nn.prior.Harmonic"><code class="docutils literal notranslate"><span class="pre">Harmonic</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="priors.html#mlcg.nn.prior.HarmonicBonds"><code class="docutils literal notranslate"><span class="pre">HarmonicBonds</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="priors.html#mlcg.nn.prior.HarmonicAngles"><code class="docutils literal notranslate"><span class="pre">HarmonicAngles</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="priors.html#mlcg.nn.prior.Dihedral"><code class="docutils literal notranslate"><span class="pre">Dihedral</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="priors.html#mlcg.nn.prior.Repulsion"><code class="docutils literal notranslate"><span class="pre">Repulsion</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="models.html">Models</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="models.html#schnet-utilities">SchNet Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models.html#mace-utilities">MACE Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models.html#radial-basis-functions">Radial Basis Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models.html#cutoff-functions">Cutoff Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models.html#model-building-utilities">Model Building Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models.html#loss-functions">Loss Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="training.html#scripts">Scripts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html#utils-for-using-pytorch-lightning">Utils for using Pytorch Lightning</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="simulation.html">Simulations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="simulation.html#nvt-ensemble">NVT ensemble</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simulation.html#module-mlcg.simulation.specialize_prior">Utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="dev/dev.html">Developer Documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="dev/doc.html">Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="bibliography.html">Bibliography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="bibliography.html#dataset-simulation-references">Dataset &amp; Simulation References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bibliography.html#cgnet-references">CGnet References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bibliography.html#neural-network-architectures-implementations">Neural Network Architectures &amp; Implementations</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading"></a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="data.html" class="btn btn-neutral float-right" title="Data Representation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Felix Musil &amp; Nick Charron.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

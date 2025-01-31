@@ -1,0 +1,1345 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mlcg.nn.angular_basis.spherical_harmonics &mdash; mlcg-tools 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            mlcg-tools
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../data.html">Data Representation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../geometry.html">Geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../neighbor_list.html">Neighbor Lists</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../coarse_graining.html">Coarse Graining</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../datasets.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../priors.html">Priors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../models.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../simulation.html">Simulations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../dev/dev.html">Developer Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../bibliography.html">Bibliography</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">mlcg-tools</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">mlcg.nn.angular_basis.spherical_harmonics</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for mlcg.nn.angular_basis.spherical_harmonics</h1><div class="highlight"><pre>
+<span></span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Spherical Harmonics as polynomials of x, y, z</span>
+<span class="sd">taken from the e3nn repo changing the layout of the output sph</span>
+<span class="sd">(https://github.com/e3nn/e3nn/tree/34ebae91b094392a9f26dfa153f9350d0e24d185)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">sympy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sympy.printing.pycode</span><span class="w"> </span><span class="kn">import</span> <span class="n">pycode</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">e3nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">o3</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">e3nn.util.jit</span><span class="w"> </span><span class="kn">import</span> <span class="n">compile_mode</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">...geometry.internal_coordinates</span><span class="w"> </span><span class="kn">import</span> <span class="n">safe_norm</span><span class="p">,</span> <span class="n">safe_normalization</span>
+
+
+<div class="viewcode-block" id="SphericalHarmonics">
+<a class="viewcode-back" href="../../../../models.html#mlcg.nn.angular_basis.spherical_harmonics.SphericalHarmonics">[docs]</a>
+<span class="nd">@compile_mode</span><span class="p">(</span><span class="s2">&quot;script&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SphericalHarmonics</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;JITable module version of real Spherical harmonics</span>
+
+<span class="sd">    .. image:: https://user-images.githubusercontent.com/333780/79220728-dbe82c00-7e54-11ea-82c7-b3acbd9b2246.gif</span>
+
+<span class="sd">    | Polynomials defined on the 3d space :math:`Y^l: \mathbb{R}^3 \longrightarrow \mathbb{R}^{2l+1}`</span>
+<span class="sd">    | Usually restricted on the sphere (with ``normalize=True``) :math:`Y^l: S^2 \longrightarrow \mathbb{R}^{2l+1}`</span>
+<span class="sd">    | who satisfies the following properties:</span>
+
+<span class="sd">    * are polynomials of the cartesian coordinates ``x, y, z``</span>
+<span class="sd">    * is equivariant :math:`Y^l(R x) = D^l(R) Y^l(x)`</span>
+<span class="sd">    * are orthogonal :math:`\int_{S^2} Y^l_m(x) Y^j_n(x) dx = \text{cste} \; \delta_{lj} \delta_{mn}`</span>
+
+<span class="sd">    The value of the constant depends on the choice of normalization.</span>
+
+<span class="sd">    It obeys the following property:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        Y^{l+1}_i(x) &amp;= \text{cste}(l) \; &amp; C_{ijk} Y^l_j(x) x_k</span>
+
+<span class="sd">        \partial_k Y^{l+1}_i(x) &amp;= \text{cste}(l) \; (l+1) &amp; C_{ijk} Y^l_j(x)</span>
+
+<span class="sd">    Where :math:`C` are the `wigner_3j`.</span>
+
+<span class="sd">    .. note::</span>
+
+<span class="sd">        This function matches with the following table of standard real spherical harmonics from Wikipedia_</span>
+<span class="sd">        when ``normalize=True``, ``normalization=&#39;integral&#39;`` and is called with the argument in the order ``y,z,x`` (instead of ``x,y,z``).</span>
+
+<span class="sd">    .. _Wikipedia: https://en.wikipedia.org/wiki/Table_of_spherical_harmonics#Real_spherical_harmonics</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    l : int or list of int</span>
+<span class="sd">        degree of the spherical harmonics.</span>
+
+<span class="sd">    x : `torch.Tensor`</span>
+<span class="sd">        tensor :math:`x` of shape ``(..., 3)``.</span>
+
+<span class="sd">    normalize : bool</span>
+<span class="sd">        whether to normalize the ``x`` to vectors that lie on the unit sphere before projecting onto the spherical harmonics</span>
+
+<span class="sd">    normalization : {&#39;integral&#39;, &#39;component&#39;, &#39;norm&#39;}</span>
+<span class="sd">        normalization of the output tensors --- note that this option is independent of ``normalize``, which controls the processing of the *input*, rather than the output.</span>
+<span class="sd">        Valid options:</span>
+<span class="sd">        * *component*: :math:`\|Y^l(x)\|^2 = 2l+1, x \in S^2`</span>
+<span class="sd">        * *norm*: :math:`\|Y^l(x)\| = 1, x \in S^2`, ``component / sqrt(2l+1)``</span>
+<span class="sd">        * *integral*: :math:`\int_{S^2} Y^l_m(x)^2 dx = 1`, ``component / sqrt(4pi)``</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+
+<span class="sd">    List[torch.Tensor]</span>
+<span class="sd">        a list of tensors of shapes ``[lmax][n_neighbor, m]`` where :math:`m&lt;=l`</span>
+
+<span class="sd">        .. math:: Y^l(x)</span>
+
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">normalize</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">normalization</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">_ls_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="n">_lmax</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">lmax</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">normalize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">normalization</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;integral&quot;</span><span class="p">,</span>
+        <span class="n">irreps_in</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span> <span class="o">=</span> <span class="n">normalize</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalization</span> <span class="o">=</span> <span class="n">normalization</span>
+        <span class="k">assert</span> <span class="n">normalization</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;integral&quot;</span><span class="p">,</span> <span class="s2">&quot;component&quot;</span><span class="p">,</span> <span class="s2">&quot;norm&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lmax</span> <span class="o">=</span> <span class="n">lmax</span>
+        <span class="n">irreps_out</span> <span class="o">=</span> <span class="n">o3</span><span class="o">.</span><span class="n">Irreps</span><span class="o">.</span><span class="n">spherical_harmonics</span><span class="p">(</span><span class="n">lmax</span><span class="o">=</span><span class="n">lmax</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">irreps_out</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">irreps_out</span> <span class="o">=</span> <span class="n">o3</span><span class="o">.</span><span class="n">Irreps</span><span class="p">(</span><span class="n">irreps_out</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">irreps_out</span><span class="p">,</span> <span class="n">o3</span><span class="o">.</span><span class="n">Irreps</span><span class="p">)</span> <span class="ow">and</span> <span class="n">irreps_in</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">mul</span><span class="p">,</span> <span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="ow">in</span> <span class="n">irreps_out</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">l</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">p</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">irreps_in</span> <span class="o">=</span> <span class="n">o3</span><span class="o">.</span><span class="n">Irreps</span><span class="p">(</span><span class="s2">&quot;1e&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">irreps_in</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">irreps_in</span> <span class="o">=</span> <span class="n">o3</span><span class="o">.</span><span class="n">Irreps</span><span class="p">(</span><span class="s2">&quot;1o&quot;</span><span class="p">)</span>
+
+        <span class="n">irreps_in</span> <span class="o">=</span> <span class="n">o3</span><span class="o">.</span><span class="n">Irreps</span><span class="p">(</span><span class="n">irreps_in</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">irreps_in</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">o3</span><span class="o">.</span><span class="n">Irreps</span><span class="p">(</span><span class="s2">&quot;1x1o&quot;</span><span class="p">),</span> <span class="n">o3</span><span class="o">.</span><span class="n">Irreps</span><span class="p">(</span><span class="s2">&quot;1x1e&quot;</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;irreps_in for SphericalHarmonics must be either a vector (`1x1o`) or a pseudovector (`1x1e`), not `</span><span class="si">{</span><span class="n">irreps_in</span><span class="si">}</span><span class="s2">`&quot;</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">irreps_in</span> <span class="o">=</span> <span class="n">irreps_in</span>
+        <span class="n">input_p</span> <span class="o">=</span> <span class="n">irreps_in</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ir</span><span class="o">.</span><span class="n">p</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">irreps_out</span><span class="p">,</span> <span class="n">o3</span><span class="o">.</span><span class="n">Irreps</span><span class="p">):</span>
+            <span class="n">ls</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">mul</span><span class="p">,</span> <span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="ow">in</span> <span class="n">irreps_out</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">p</span> <span class="o">!=</span> <span class="n">input_p</span><span class="o">**</span><span class="n">l</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;irreps_out `</span><span class="si">{</span><span class="n">irreps_out</span><span class="si">}</span><span class="s2">` passed to SphericalHarmonics asked for an output of l = </span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s2"> with parity p = </span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s2">, which is inconsistent with the input parity </span><span class="si">{</span><span class="n">input_p</span><span class="si">}</span><span class="s2"> — the output parity should have been p = </span><span class="si">{</span><span class="n">input_p</span><span class="o">**</span><span class="n">l</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+                <span class="n">ls</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">l</span><span class="p">]</span> <span class="o">*</span> <span class="n">mul</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">irreps_out</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">ls</span> <span class="o">=</span> <span class="p">[</span><span class="n">irreps_out</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ls</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">irreps_out</span><span class="p">)</span>
+
+        <span class="n">irreps_out</span> <span class="o">=</span> <span class="n">o3</span><span class="o">.</span><span class="n">Irreps</span><span class="p">([(</span><span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">input_p</span><span class="o">**</span><span class="n">l</span><span class="p">))</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">ls</span><span class="p">])</span><span class="o">.</span><span class="n">simplify</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">irreps_out</span> <span class="o">=</span> <span class="n">irreps_out</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ls_list</span> <span class="o">=</span> <span class="n">ls</span>
+
+        <span class="n">_lmax</span> <span class="o">=</span> <span class="mi">11</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lmax</span> <span class="o">&gt;</span> <span class="n">_lmax</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;spherical_harmonics maximum l implemented is </span><span class="si">{</span><span class="n">_lmax</span><span class="si">}</span><span class="s2">, send us an email to ask for more&quot;</span>
+            <span class="p">)</span>
+
+<div class="viewcode-block" id="SphericalHarmonics.forward">
+<a class="viewcode-back" href="../../../../autodoc.html#mlcg.nn.angular_basis.spherical_harmonics.SphericalHarmonics.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">:</span>
+            <span class="n">norms</span> <span class="o">=</span> <span class="n">safe_norm</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">safe_normalization</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">norms</span><span class="p">)</span>
+
+        <span class="n">sh</span> <span class="o">=</span> <span class="n">_spherical_harmonics</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lmax</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalization</span> <span class="o">==</span> <span class="s2">&quot;integral&quot;</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ls_list</span><span class="p">):</span>
+                <span class="n">sh</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">l</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalization</span> <span class="o">==</span> <span class="s2">&quot;component&quot;</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ls_list</span><span class="p">):</span>
+                <span class="n">sh</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">l</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">sh</span></div>
+</div>
+
+
+
+<span class="nd">@torch</span><span class="o">.</span><span class="n">jit</span><span class="o">.</span><span class="n">script</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_spherical_harmonics</span><span class="p">(</span>
+    <span class="n">lmax</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the spherical harmonics up to lmax (included) from the cartesian</span>
+<span class="sd">    positions `x,y,z` that should correspond to normalized vectors (direction</span>
+<span class="sd">    vectors). This function uses explicit recursion formulas that were generated</span>
+<span class="sd">    unsing the :func:`_generate_spherical_harmonics` function (defined below).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    lmax : int</span>
+<span class="sd">        maximum order of the spherical harmonics (lmax is included)</span>
+<span class="sd">    x : torch.Tensor</span>
+
+<span class="sd">    y : torch.Tensor</span>
+
+<span class="sd">    z : torch.Tensor</span>
+
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    List[torch.Tensor]</span>
+<span class="sd">        direction vectors expanded on the spherical harmonic basis of shape</span>
+<span class="sd">        :math:`[l_max+1][n_vectors, m]`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">sh_0_0</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">sh_0_0</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+    <span class="p">]</span>
+    <span class="k">if</span> <span class="n">lmax</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="n">sh_1_0</span> <span class="o">=</span> <span class="n">x</span>
+    <span class="n">sh_1_1</span> <span class="o">=</span> <span class="n">y</span>
+    <span class="n">sh_1_2</span> <span class="o">=</span> <span class="n">z</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">sh_1_0</span><span class="p">,</span> <span class="n">sh_1_1</span><span class="p">,</span> <span class="n">sh_1_2</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">lmax</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="n">sh_2_0</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">3.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">x</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="n">sh_2_1</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">3.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="n">y2</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">x2z2</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">z</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">sh_2_2</span> <span class="o">=</span> <span class="n">y2</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">x2z2</span>
+    <span class="n">sh_2_3</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">3.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">y</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="n">sh_2_4</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">3.0</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">x</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">sh_2_0</span><span class="p">,</span> <span class="n">sh_2_1</span><span class="p">,</span> <span class="n">sh_2_2</span><span class="p">,</span> <span class="n">sh_2_3</span><span class="p">,</span> <span class="n">sh_2_4</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">lmax</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="n">sh_3_0</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">5.0</span> <span class="o">/</span> <span class="mf">6.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">sh_2_0</span> <span class="o">*</span> <span class="n">z</span> <span class="o">+</span> <span class="n">sh_2_4</span> <span class="o">*</span> <span class="n">x</span><span class="p">)</span>
+    <span class="n">sh_3_1</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">5.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">sh_2_0</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="n">sh_3_2</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">3.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">4.0</span> <span class="o">*</span> <span class="n">y2</span> <span class="o">-</span> <span class="n">x2z2</span><span class="p">)</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="n">sh_3_3</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">y</span> <span class="o">*</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">y2</span> <span class="o">-</span> <span class="mf">3.0</span> <span class="o">*</span> <span class="n">x2z2</span><span class="p">)</span>
+    <span class="n">sh_3_4</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">3.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">z</span> <span class="o">*</span> <span class="p">(</span><span class="mf">4.0</span> <span class="o">*</span> <span class="n">y2</span> <span class="o">-</span> <span class="n">x2z2</span><span class="p">)</span>
+    <span class="n">sh_3_5</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">5.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">sh_2_4</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="n">sh_3_6</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">5.0</span> <span class="o">/</span> <span class="mf">6.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">sh_2_4</span> <span class="o">*</span> <span class="n">z</span> <span class="o">-</span> <span class="n">sh_2_0</span> <span class="o">*</span> <span class="n">x</span><span class="p">)</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">sh_3_0</span><span class="p">,</span> <span class="n">sh_3_1</span><span class="p">,</span> <span class="n">sh_3_2</span><span class="p">,</span> <span class="n">sh_3_3</span><span class="p">,</span> <span class="n">sh_3_4</span><span class="p">,</span> <span class="n">sh_3_5</span><span class="p">,</span> <span class="n">sh_3_6</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">lmax</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="n">sh_4_0</span> <span class="o">=</span> <span class="mf">0.935414346693485</span> <span class="o">*</span> <span class="n">sh_3_0</span> <span class="o">*</span> <span class="n">z</span> <span class="o">+</span> <span class="mf">0.935414346693485</span> <span class="o">*</span> <span class="n">sh_3_6</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="n">sh_4_1</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.661437827766148</span> <span class="o">*</span> <span class="n">sh_3_0</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.810092587300982</span> <span class="o">*</span> <span class="n">sh_3_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.810092587300983</span> <span class="o">*</span> <span class="n">sh_3_5</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_4_2</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.176776695296637</span> <span class="o">*</span> <span class="n">sh_3_0</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.866025403784439</span> <span class="o">*</span> <span class="n">sh_3_1</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.684653196881458</span> <span class="o">*</span> <span class="n">sh_3_2</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.684653196881457</span> <span class="o">*</span> <span class="n">sh_3_4</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.176776695296637</span> <span class="o">*</span> <span class="n">sh_3_6</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_4_3</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.306186217847897</span> <span class="o">*</span> <span class="n">sh_3_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.968245836551855</span> <span class="o">*</span> <span class="n">sh_3_2</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.790569415042095</span> <span class="o">*</span> <span class="n">sh_3_3</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.306186217847897</span> <span class="o">*</span> <span class="n">sh_3_5</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_4_4</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.612372435695795</span> <span class="o">*</span> <span class="n">sh_3_2</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="n">sh_3_3</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.612372435695795</span> <span class="o">*</span> <span class="n">sh_3_4</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_4_5</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.306186217847897</span> <span class="o">*</span> <span class="n">sh_3_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.790569415042096</span> <span class="o">*</span> <span class="n">sh_3_3</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.968245836551854</span> <span class="o">*</span> <span class="n">sh_3_4</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.306186217847897</span> <span class="o">*</span> <span class="n">sh_3_5</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_4_6</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.176776695296637</span> <span class="o">*</span> <span class="n">sh_3_0</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.684653196881457</span> <span class="o">*</span> <span class="n">sh_3_2</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.684653196881457</span> <span class="o">*</span> <span class="n">sh_3_4</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.866025403784439</span> <span class="o">*</span> <span class="n">sh_3_5</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.176776695296637</span> <span class="o">*</span> <span class="n">sh_3_6</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_4_7</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.810092587300982</span> <span class="o">*</span> <span class="n">sh_3_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.810092587300982</span> <span class="o">*</span> <span class="n">sh_3_5</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.661437827766148</span> <span class="o">*</span> <span class="n">sh_3_6</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="p">)</span>
+    <span class="n">sh_4_8</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.935414346693485</span> <span class="o">*</span> <span class="n">sh_3_0</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="mf">0.935414346693486</span> <span class="o">*</span> <span class="n">sh_3_6</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">sh_4_0</span><span class="p">,</span>
+                <span class="n">sh_4_1</span><span class="p">,</span>
+                <span class="n">sh_4_2</span><span class="p">,</span>
+                <span class="n">sh_4_3</span><span class="p">,</span>
+                <span class="n">sh_4_4</span><span class="p">,</span>
+                <span class="n">sh_4_5</span><span class="p">,</span>
+                <span class="n">sh_4_6</span><span class="p">,</span>
+                <span class="n">sh_4_7</span><span class="p">,</span>
+                <span class="n">sh_4_8</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">lmax</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="n">sh_5_0</span> <span class="o">=</span> <span class="mf">0.948683298050513</span> <span class="o">*</span> <span class="n">sh_4_0</span> <span class="o">*</span> <span class="n">z</span> <span class="o">+</span> <span class="mf">0.948683298050513</span> <span class="o">*</span> <span class="n">sh_4_8</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="n">sh_5_1</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.6</span> <span class="o">*</span> <span class="n">sh_4_0</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.848528137423857</span> <span class="o">*</span> <span class="n">sh_4_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.848528137423858</span> <span class="o">*</span> <span class="n">sh_4_7</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_5_2</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.14142135623731</span> <span class="o">*</span> <span class="n">sh_4_0</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.8</span> <span class="o">*</span> <span class="n">sh_4_1</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.748331477354788</span> <span class="o">*</span> <span class="n">sh_4_2</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.748331477354788</span> <span class="o">*</span> <span class="n">sh_4_6</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.14142135623731</span> <span class="o">*</span> <span class="n">sh_4_8</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_5_3</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.244948974278318</span> <span class="o">*</span> <span class="n">sh_4_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.916515138991168</span> <span class="o">*</span> <span class="n">sh_4_2</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.648074069840786</span> <span class="o">*</span> <span class="n">sh_4_3</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.648074069840787</span> <span class="o">*</span> <span class="n">sh_4_5</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.244948974278318</span> <span class="o">*</span> <span class="n">sh_4_7</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_5_4</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.346410161513776</span> <span class="o">*</span> <span class="n">sh_4_2</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.979795897113272</span> <span class="o">*</span> <span class="n">sh_4_3</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.774596669241484</span> <span class="o">*</span> <span class="n">sh_4_4</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.346410161513776</span> <span class="o">*</span> <span class="n">sh_4_6</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_5_5</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.632455532033676</span> <span class="o">*</span> <span class="n">sh_4_3</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="n">sh_4_4</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.632455532033676</span> <span class="o">*</span> <span class="n">sh_4_5</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_5_6</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.346410161513776</span> <span class="o">*</span> <span class="n">sh_4_2</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.774596669241483</span> <span class="o">*</span> <span class="n">sh_4_4</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.979795897113273</span> <span class="o">*</span> <span class="n">sh_4_5</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.346410161513776</span> <span class="o">*</span> <span class="n">sh_4_6</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_5_7</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.244948974278318</span> <span class="o">*</span> <span class="n">sh_4_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.648074069840787</span> <span class="o">*</span> <span class="n">sh_4_3</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.648074069840786</span> <span class="o">*</span> <span class="n">sh_4_5</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.916515138991169</span> <span class="o">*</span> <span class="n">sh_4_6</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.244948974278318</span> <span class="o">*</span> <span class="n">sh_4_7</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_5_8</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.141421356237309</span> <span class="o">*</span> <span class="n">sh_4_0</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.748331477354788</span> <span class="o">*</span> <span class="n">sh_4_2</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.748331477354788</span> <span class="o">*</span> <span class="n">sh_4_6</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.8</span> <span class="o">*</span> <span class="n">sh_4_7</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.141421356237309</span> <span class="o">*</span> <span class="n">sh_4_8</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_5_9</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.848528137423857</span> <span class="o">*</span> <span class="n">sh_4_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.848528137423857</span> <span class="o">*</span> <span class="n">sh_4_7</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.6</span> <span class="o">*</span> <span class="n">sh_4_8</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="p">)</span>
+    <span class="n">sh_5_10</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.948683298050513</span> <span class="o">*</span> <span class="n">sh_4_0</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="mf">0.948683298050513</span> <span class="o">*</span> <span class="n">sh_4_8</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">sh_5_0</span><span class="p">,</span>
+                <span class="n">sh_5_1</span><span class="p">,</span>
+                <span class="n">sh_5_2</span><span class="p">,</span>
+                <span class="n">sh_5_3</span><span class="p">,</span>
+                <span class="n">sh_5_4</span><span class="p">,</span>
+                <span class="n">sh_5_5</span><span class="p">,</span>
+                <span class="n">sh_5_6</span><span class="p">,</span>
+                <span class="n">sh_5_7</span><span class="p">,</span>
+                <span class="n">sh_5_8</span><span class="p">,</span>
+                <span class="n">sh_5_9</span><span class="p">,</span>
+                <span class="n">sh_5_10</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">lmax</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="n">sh_6_0</span> <span class="o">=</span> <span class="mf">0.957427107756337</span> <span class="o">*</span> <span class="n">sh_5_0</span> <span class="o">*</span> <span class="n">z</span> <span class="o">+</span> <span class="mf">0.957427107756338</span> <span class="o">*</span> <span class="n">sh_5_10</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="n">sh_6_1</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.552770798392565</span> <span class="o">*</span> <span class="n">sh_5_0</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.874007373475125</span> <span class="o">*</span> <span class="n">sh_5_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.874007373475125</span> <span class="o">*</span> <span class="n">sh_5_9</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_6_2</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.117851130197757</span> <span class="o">*</span> <span class="n">sh_5_0</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.745355992499929</span> <span class="o">*</span> <span class="n">sh_5_1</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.117851130197758</span> <span class="o">*</span> <span class="n">sh_5_10</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.790569415042094</span> <span class="o">*</span> <span class="n">sh_5_2</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.790569415042093</span> <span class="o">*</span> <span class="n">sh_5_8</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_6_3</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.204124145231931</span> <span class="o">*</span> <span class="n">sh_5_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.866025403784437</span> <span class="o">*</span> <span class="n">sh_5_2</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.707106781186546</span> <span class="o">*</span> <span class="n">sh_5_3</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.707106781186547</span> <span class="o">*</span> <span class="n">sh_5_7</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.204124145231931</span> <span class="o">*</span> <span class="n">sh_5_9</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_6_4</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.288675134594813</span> <span class="o">*</span> <span class="n">sh_5_2</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.942809041582062</span> <span class="o">*</span> <span class="n">sh_5_3</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.623609564462323</span> <span class="o">*</span> <span class="n">sh_5_4</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.623609564462322</span> <span class="o">*</span> <span class="n">sh_5_6</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.288675134594812</span> <span class="o">*</span> <span class="n">sh_5_8</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_6_5</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.372677996249965</span> <span class="o">*</span> <span class="n">sh_5_3</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.986013297183268</span> <span class="o">*</span> <span class="n">sh_5_4</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.763762615825972</span> <span class="o">*</span> <span class="n">sh_5_5</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.372677996249964</span> <span class="o">*</span> <span class="n">sh_5_7</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_6_6</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.645497224367901</span> <span class="o">*</span> <span class="n">sh_5_4</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="n">sh_5_5</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.645497224367902</span> <span class="o">*</span> <span class="n">sh_5_6</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_6_7</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.372677996249964</span> <span class="o">*</span> <span class="n">sh_5_3</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.763762615825972</span> <span class="o">*</span> <span class="n">sh_5_5</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.986013297183269</span> <span class="o">*</span> <span class="n">sh_5_6</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.372677996249965</span> <span class="o">*</span> <span class="n">sh_5_7</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_6_8</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.288675134594813</span> <span class="o">*</span> <span class="n">sh_5_2</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.623609564462323</span> <span class="o">*</span> <span class="n">sh_5_4</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.623609564462323</span> <span class="o">*</span> <span class="n">sh_5_6</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.942809041582062</span> <span class="o">*</span> <span class="n">sh_5_7</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.288675134594812</span> <span class="o">*</span> <span class="n">sh_5_8</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_6_9</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.20412414523193</span> <span class="o">*</span> <span class="n">sh_5_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.707106781186546</span> <span class="o">*</span> <span class="n">sh_5_3</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.707106781186547</span> <span class="o">*</span> <span class="n">sh_5_7</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.866025403784438</span> <span class="o">*</span> <span class="n">sh_5_8</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.204124145231931</span> <span class="o">*</span> <span class="n">sh_5_9</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_6_10</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.117851130197757</span> <span class="o">*</span> <span class="n">sh_5_0</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.117851130197757</span> <span class="o">*</span> <span class="n">sh_5_10</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.790569415042094</span> <span class="o">*</span> <span class="n">sh_5_2</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.790569415042093</span> <span class="o">*</span> <span class="n">sh_5_8</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.745355992499929</span> <span class="o">*</span> <span class="n">sh_5_9</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="p">)</span>
+    <span class="n">sh_6_11</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.874007373475124</span> <span class="o">*</span> <span class="n">sh_5_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.552770798392566</span> <span class="o">*</span> <span class="n">sh_5_10</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.874007373475125</span> <span class="o">*</span> <span class="n">sh_5_9</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_6_12</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.957427107756337</span> <span class="o">*</span> <span class="n">sh_5_0</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="mf">0.957427107756336</span> <span class="o">*</span> <span class="n">sh_5_10</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">sh_6_0</span><span class="p">,</span>
+                <span class="n">sh_6_1</span><span class="p">,</span>
+                <span class="n">sh_6_2</span><span class="p">,</span>
+                <span class="n">sh_6_3</span><span class="p">,</span>
+                <span class="n">sh_6_4</span><span class="p">,</span>
+                <span class="n">sh_6_5</span><span class="p">,</span>
+                <span class="n">sh_6_6</span><span class="p">,</span>
+                <span class="n">sh_6_7</span><span class="p">,</span>
+                <span class="n">sh_6_8</span><span class="p">,</span>
+                <span class="n">sh_6_9</span><span class="p">,</span>
+                <span class="n">sh_6_10</span><span class="p">,</span>
+                <span class="n">sh_6_11</span><span class="p">,</span>
+                <span class="n">sh_6_12</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">lmax</span> <span class="o">==</span> <span class="mi">6</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="n">sh_7_0</span> <span class="o">=</span> <span class="mf">0.963624111659433</span> <span class="o">*</span> <span class="n">sh_6_0</span> <span class="o">*</span> <span class="n">z</span> <span class="o">+</span> <span class="mf">0.963624111659432</span> <span class="o">*</span> <span class="n">sh_6_12</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="n">sh_7_1</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.515078753637713</span> <span class="o">*</span> <span class="n">sh_6_0</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.892142571199771</span> <span class="o">*</span> <span class="n">sh_6_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.892142571199771</span> <span class="o">*</span> <span class="n">sh_6_11</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_7_2</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.101015254455221</span> <span class="o">*</span> <span class="n">sh_6_0</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.699854212223765</span> <span class="o">*</span> <span class="n">sh_6_1</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.82065180664829</span> <span class="o">*</span> <span class="n">sh_6_10</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.101015254455222</span> <span class="o">*</span> <span class="n">sh_6_12</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.82065180664829</span> <span class="o">*</span> <span class="n">sh_6_2</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_7_3</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.174963553055942</span> <span class="o">*</span> <span class="n">sh_6_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.174963553055941</span> <span class="o">*</span> <span class="n">sh_6_11</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.82065180664829</span> <span class="o">*</span> <span class="n">sh_6_2</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.749149177264394</span> <span class="o">*</span> <span class="n">sh_6_3</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.749149177264394</span> <span class="o">*</span> <span class="n">sh_6_9</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_7_4</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.247435829652697</span> <span class="o">*</span> <span class="n">sh_6_10</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.247435829652697</span> <span class="o">*</span> <span class="n">sh_6_2</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.903507902905251</span> <span class="o">*</span> <span class="n">sh_6_3</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.677630927178938</span> <span class="o">*</span> <span class="n">sh_6_4</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.677630927178938</span> <span class="o">*</span> <span class="n">sh_6_8</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_7_5</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.31943828249997</span> <span class="o">*</span> <span class="n">sh_6_3</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.95831484749991</span> <span class="o">*</span> <span class="n">sh_6_4</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.606091526731326</span> <span class="o">*</span> <span class="n">sh_6_5</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.606091526731326</span> <span class="o">*</span> <span class="n">sh_6_7</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.31943828249997</span> <span class="o">*</span> <span class="n">sh_6_9</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_7_6</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.391230398217976</span> <span class="o">*</span> <span class="n">sh_6_4</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.989743318610787</span> <span class="o">*</span> <span class="n">sh_6_5</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.755928946018454</span> <span class="o">*</span> <span class="n">sh_6_6</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.391230398217975</span> <span class="o">*</span> <span class="n">sh_6_8</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_7_7</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.654653670707977</span> <span class="o">*</span> <span class="n">sh_6_5</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="n">sh_6_6</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.654653670707978</span> <span class="o">*</span> <span class="n">sh_6_7</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_7_8</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.391230398217976</span> <span class="o">*</span> <span class="n">sh_6_4</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.755928946018455</span> <span class="o">*</span> <span class="n">sh_6_6</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.989743318610787</span> <span class="o">*</span> <span class="n">sh_6_7</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.391230398217975</span> <span class="o">*</span> <span class="n">sh_6_8</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_7_9</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.31943828249997</span> <span class="o">*</span> <span class="n">sh_6_3</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.606091526731327</span> <span class="o">*</span> <span class="n">sh_6_5</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.606091526731326</span> <span class="o">*</span> <span class="n">sh_6_7</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.95831484749991</span> <span class="o">*</span> <span class="n">sh_6_8</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.31943828249997</span> <span class="o">*</span> <span class="n">sh_6_9</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_7_10</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.247435829652697</span> <span class="o">*</span> <span class="n">sh_6_10</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.247435829652697</span> <span class="o">*</span> <span class="n">sh_6_2</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.677630927178938</span> <span class="o">*</span> <span class="n">sh_6_4</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.677630927178938</span> <span class="o">*</span> <span class="n">sh_6_8</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.903507902905251</span> <span class="o">*</span> <span class="n">sh_6_9</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="p">)</span>
+    <span class="n">sh_7_11</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.174963553055942</span> <span class="o">*</span> <span class="n">sh_6_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.820651806648289</span> <span class="o">*</span> <span class="n">sh_6_10</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.174963553055941</span> <span class="o">*</span> <span class="n">sh_6_11</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.749149177264394</span> <span class="o">*</span> <span class="n">sh_6_3</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.749149177264394</span> <span class="o">*</span> <span class="n">sh_6_9</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_7_12</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.101015254455221</span> <span class="o">*</span> <span class="n">sh_6_0</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.82065180664829</span> <span class="o">*</span> <span class="n">sh_6_10</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.699854212223766</span> <span class="o">*</span> <span class="n">sh_6_11</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.101015254455221</span> <span class="o">*</span> <span class="n">sh_6_12</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.82065180664829</span> <span class="o">*</span> <span class="n">sh_6_2</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_7_13</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.892142571199772</span> <span class="o">*</span> <span class="n">sh_6_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.892142571199772</span> <span class="o">*</span> <span class="n">sh_6_11</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.515078753637713</span> <span class="o">*</span> <span class="n">sh_6_12</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="p">)</span>
+    <span class="n">sh_7_14</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.963624111659431</span> <span class="o">*</span> <span class="n">sh_6_0</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="mf">0.963624111659433</span> <span class="o">*</span> <span class="n">sh_6_12</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">sh_7_0</span><span class="p">,</span>
+                <span class="n">sh_7_1</span><span class="p">,</span>
+                <span class="n">sh_7_2</span><span class="p">,</span>
+                <span class="n">sh_7_3</span><span class="p">,</span>
+                <span class="n">sh_7_4</span><span class="p">,</span>
+                <span class="n">sh_7_5</span><span class="p">,</span>
+                <span class="n">sh_7_6</span><span class="p">,</span>
+                <span class="n">sh_7_7</span><span class="p">,</span>
+                <span class="n">sh_7_8</span><span class="p">,</span>
+                <span class="n">sh_7_9</span><span class="p">,</span>
+                <span class="n">sh_7_10</span><span class="p">,</span>
+                <span class="n">sh_7_11</span><span class="p">,</span>
+                <span class="n">sh_7_12</span><span class="p">,</span>
+                <span class="n">sh_7_13</span><span class="p">,</span>
+                <span class="n">sh_7_14</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">lmax</span> <span class="o">==</span> <span class="mi">7</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="n">sh_8_0</span> <span class="o">=</span> <span class="mf">0.968245836551854</span> <span class="o">*</span> <span class="n">sh_7_0</span> <span class="o">*</span> <span class="n">z</span> <span class="o">+</span> <span class="mf">0.968245836551853</span> <span class="o">*</span> <span class="n">sh_7_14</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="n">sh_8_1</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.484122918275928</span> <span class="o">*</span> <span class="n">sh_7_0</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.90571104663684</span> <span class="o">*</span> <span class="n">sh_7_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.90571104663684</span> <span class="o">*</span> <span class="n">sh_7_13</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_2</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.0883883476483189</span> <span class="o">*</span> <span class="n">sh_7_0</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.661437827766148</span> <span class="o">*</span> <span class="n">sh_7_1</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.843171097702002</span> <span class="o">*</span> <span class="n">sh_7_12</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.088388347648318</span> <span class="o">*</span> <span class="n">sh_7_14</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.843171097702003</span> <span class="o">*</span> <span class="n">sh_7_2</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_3</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.153093108923948</span> <span class="o">*</span> <span class="n">sh_7_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.7806247497998</span> <span class="o">*</span> <span class="n">sh_7_11</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.153093108923949</span> <span class="o">*</span> <span class="n">sh_7_13</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.7806247497998</span> <span class="o">*</span> <span class="n">sh_7_2</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.780624749799799</span> <span class="o">*</span> <span class="n">sh_7_3</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_4</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.718070330817253</span> <span class="o">*</span> <span class="n">sh_7_10</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.21650635094611</span> <span class="o">*</span> <span class="n">sh_7_12</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.21650635094611</span> <span class="o">*</span> <span class="n">sh_7_2</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.866025403784439</span> <span class="o">*</span> <span class="n">sh_7_3</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.718070330817254</span> <span class="o">*</span> <span class="n">sh_7_4</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_5</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.279508497187474</span> <span class="o">*</span> <span class="n">sh_7_11</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.279508497187474</span> <span class="o">*</span> <span class="n">sh_7_3</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.927024810886958</span> <span class="o">*</span> <span class="n">sh_7_4</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.655505530106345</span> <span class="o">*</span> <span class="n">sh_7_5</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.655505530106344</span> <span class="o">*</span> <span class="n">sh_7_9</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_6</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.342326598440729</span> <span class="o">*</span> <span class="n">sh_7_10</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.342326598440729</span> <span class="o">*</span> <span class="n">sh_7_4</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.968245836551854</span> <span class="o">*</span> <span class="n">sh_7_5</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.592927061281572</span> <span class="o">*</span> <span class="n">sh_7_6</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.592927061281571</span> <span class="o">*</span> <span class="n">sh_7_8</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_7</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.405046293650492</span> <span class="o">*</span> <span class="n">sh_7_5</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.992156741649221</span> <span class="o">*</span> <span class="n">sh_7_6</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.75</span> <span class="o">*</span> <span class="n">sh_7_7</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.405046293650492</span> <span class="o">*</span> <span class="n">sh_7_9</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_8</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.661437827766148</span> <span class="o">*</span> <span class="n">sh_7_6</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="n">sh_7_7</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.661437827766148</span> <span class="o">*</span> <span class="n">sh_7_8</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_9</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.405046293650492</span> <span class="o">*</span> <span class="n">sh_7_5</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.75</span> <span class="o">*</span> <span class="n">sh_7_7</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.992156741649221</span> <span class="o">*</span> <span class="n">sh_7_8</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.405046293650491</span> <span class="o">*</span> <span class="n">sh_7_9</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_10</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.342326598440728</span> <span class="o">*</span> <span class="n">sh_7_10</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.342326598440729</span> <span class="o">*</span> <span class="n">sh_7_4</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.592927061281571</span> <span class="o">*</span> <span class="n">sh_7_6</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.592927061281571</span> <span class="o">*</span> <span class="n">sh_7_8</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.968245836551855</span> <span class="o">*</span> <span class="n">sh_7_9</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_11</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.927024810886958</span> <span class="o">*</span> <span class="n">sh_7_10</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.279508497187474</span> <span class="o">*</span> <span class="n">sh_7_11</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.279508497187474</span> <span class="o">*</span> <span class="n">sh_7_3</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.655505530106345</span> <span class="o">*</span> <span class="n">sh_7_5</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.655505530106345</span> <span class="o">*</span> <span class="n">sh_7_9</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_12</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.718070330817253</span> <span class="o">*</span> <span class="n">sh_7_10</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.866025403784439</span> <span class="o">*</span> <span class="n">sh_7_11</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.216506350946109</span> <span class="o">*</span> <span class="n">sh_7_12</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.216506350946109</span> <span class="o">*</span> <span class="n">sh_7_2</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.718070330817254</span> <span class="o">*</span> <span class="n">sh_7_4</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_13</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.153093108923948</span> <span class="o">*</span> <span class="n">sh_7_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.7806247497998</span> <span class="o">*</span> <span class="n">sh_7_11</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.7806247497998</span> <span class="o">*</span> <span class="n">sh_7_12</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.153093108923948</span> <span class="o">*</span> <span class="n">sh_7_13</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.780624749799799</span> <span class="o">*</span> <span class="n">sh_7_3</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_14</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.0883883476483179</span> <span class="o">*</span> <span class="n">sh_7_0</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.843171097702002</span> <span class="o">*</span> <span class="n">sh_7_12</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.661437827766147</span> <span class="o">*</span> <span class="n">sh_7_13</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.088388347648319</span> <span class="o">*</span> <span class="n">sh_7_14</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.843171097702002</span> <span class="o">*</span> <span class="n">sh_7_2</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_15</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.90571104663684</span> <span class="o">*</span> <span class="n">sh_7_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.90571104663684</span> <span class="o">*</span> <span class="n">sh_7_13</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.484122918275927</span> <span class="o">*</span> <span class="n">sh_7_14</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="p">)</span>
+    <span class="n">sh_8_16</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.968245836551853</span> <span class="o">*</span> <span class="n">sh_7_0</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="mf">0.968245836551855</span> <span class="o">*</span> <span class="n">sh_7_14</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">sh_8_0</span><span class="p">,</span>
+                <span class="n">sh_8_1</span><span class="p">,</span>
+                <span class="n">sh_8_2</span><span class="p">,</span>
+                <span class="n">sh_8_3</span><span class="p">,</span>
+                <span class="n">sh_8_4</span><span class="p">,</span>
+                <span class="n">sh_8_5</span><span class="p">,</span>
+                <span class="n">sh_8_6</span><span class="p">,</span>
+                <span class="n">sh_8_7</span><span class="p">,</span>
+                <span class="n">sh_8_8</span><span class="p">,</span>
+                <span class="n">sh_8_9</span><span class="p">,</span>
+                <span class="n">sh_8_10</span><span class="p">,</span>
+                <span class="n">sh_8_11</span><span class="p">,</span>
+                <span class="n">sh_8_12</span><span class="p">,</span>
+                <span class="n">sh_8_13</span><span class="p">,</span>
+                <span class="n">sh_8_14</span><span class="p">,</span>
+                <span class="n">sh_8_15</span><span class="p">,</span>
+                <span class="n">sh_8_16</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">lmax</span> <span class="o">==</span> <span class="mi">8</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="n">sh_9_0</span> <span class="o">=</span> <span class="mf">0.97182531580755</span> <span class="o">*</span> <span class="n">sh_8_0</span> <span class="o">*</span> <span class="n">z</span> <span class="o">+</span> <span class="mf">0.971825315807551</span> <span class="o">*</span> <span class="n">sh_8_16</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="n">sh_9_1</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.458122847290851</span> <span class="o">*</span> <span class="n">sh_8_0</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.916245694581702</span> <span class="o">*</span> <span class="n">sh_8_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.916245694581702</span> <span class="o">*</span> <span class="n">sh_8_15</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_2</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.078567420131839</span> <span class="o">*</span> <span class="n">sh_8_0</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.62853936105471</span> <span class="o">*</span> <span class="n">sh_8_1</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.86066296582387</span> <span class="o">*</span> <span class="n">sh_8_14</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.0785674201318385</span> <span class="o">*</span> <span class="n">sh_8_16</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.860662965823871</span> <span class="o">*</span> <span class="n">sh_8_2</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_3</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.136082763487955</span> <span class="o">*</span> <span class="n">sh_8_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.805076485899413</span> <span class="o">*</span> <span class="n">sh_8_13</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.136082763487954</span> <span class="o">*</span> <span class="n">sh_8_15</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.74535599249993</span> <span class="o">*</span> <span class="n">sh_8_2</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.805076485899413</span> <span class="o">*</span> <span class="n">sh_8_3</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_4</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.749485420179558</span> <span class="o">*</span> <span class="n">sh_8_12</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.192450089729875</span> <span class="o">*</span> <span class="n">sh_8_14</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.192450089729876</span> <span class="o">*</span> <span class="n">sh_8_2</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.831479419283099</span> <span class="o">*</span> <span class="n">sh_8_3</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.749485420179558</span> <span class="o">*</span> <span class="n">sh_8_4</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_5</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.693888666488711</span> <span class="o">*</span> <span class="n">sh_8_11</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.248451997499977</span> <span class="o">*</span> <span class="n">sh_8_13</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.248451997499976</span> <span class="o">*</span> <span class="n">sh_8_3</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.895806416477617</span> <span class="o">*</span> <span class="n">sh_8_4</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.69388866648871</span> <span class="o">*</span> <span class="n">sh_8_5</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_6</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.638284738504225</span> <span class="o">*</span> <span class="n">sh_8_10</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.304290309725092</span> <span class="o">*</span> <span class="n">sh_8_12</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.304290309725092</span> <span class="o">*</span> <span class="n">sh_8_4</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.942809041582063</span> <span class="o">*</span> <span class="n">sh_8_5</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.638284738504225</span> <span class="o">*</span> <span class="n">sh_8_6</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_7</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.360041149911548</span> <span class="o">*</span> <span class="n">sh_8_11</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.360041149911548</span> <span class="o">*</span> <span class="n">sh_8_5</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.974996043043569</span> <span class="o">*</span> <span class="n">sh_8_6</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.582671582316751</span> <span class="o">*</span> <span class="n">sh_8_7</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.582671582316751</span> <span class="o">*</span> <span class="n">sh_8_9</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_8</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.415739709641549</span> <span class="o">*</span> <span class="n">sh_8_10</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.415739709641549</span> <span class="o">*</span> <span class="n">sh_8_6</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.993807989999906</span> <span class="o">*</span> <span class="n">sh_8_7</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.74535599249993</span> <span class="o">*</span> <span class="n">sh_8_8</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_9</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.66666666666666666667</span> <span class="o">*</span> <span class="n">sh_8_7</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="n">sh_8_8</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.66666666666666666667</span> <span class="o">*</span> <span class="n">sh_8_9</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_10</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.415739709641549</span> <span class="o">*</span> <span class="n">sh_8_10</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.415739709641549</span> <span class="o">*</span> <span class="n">sh_8_6</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.74535599249993</span> <span class="o">*</span> <span class="n">sh_8_8</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.993807989999906</span> <span class="o">*</span> <span class="n">sh_8_9</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_11</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.974996043043568</span> <span class="o">*</span> <span class="n">sh_8_10</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.360041149911547</span> <span class="o">*</span> <span class="n">sh_8_11</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.360041149911548</span> <span class="o">*</span> <span class="n">sh_8_5</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.582671582316751</span> <span class="o">*</span> <span class="n">sh_8_7</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.582671582316751</span> <span class="o">*</span> <span class="n">sh_8_9</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_12</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.638284738504225</span> <span class="o">*</span> <span class="n">sh_8_10</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.942809041582063</span> <span class="o">*</span> <span class="n">sh_8_11</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.304290309725092</span> <span class="o">*</span> <span class="n">sh_8_12</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.304290309725092</span> <span class="o">*</span> <span class="n">sh_8_4</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.638284738504225</span> <span class="o">*</span> <span class="n">sh_8_6</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_13</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.693888666488711</span> <span class="o">*</span> <span class="n">sh_8_11</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.895806416477617</span> <span class="o">*</span> <span class="n">sh_8_12</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.248451997499977</span> <span class="o">*</span> <span class="n">sh_8_13</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.248451997499977</span> <span class="o">*</span> <span class="n">sh_8_3</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.693888666488711</span> <span class="o">*</span> <span class="n">sh_8_5</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_14</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.749485420179558</span> <span class="o">*</span> <span class="n">sh_8_12</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.831479419283098</span> <span class="o">*</span> <span class="n">sh_8_13</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.192450089729875</span> <span class="o">*</span> <span class="n">sh_8_14</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.192450089729875</span> <span class="o">*</span> <span class="n">sh_8_2</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.749485420179558</span> <span class="o">*</span> <span class="n">sh_8_4</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_15</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.136082763487954</span> <span class="o">*</span> <span class="n">sh_8_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.805076485899413</span> <span class="o">*</span> <span class="n">sh_8_13</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.745355992499929</span> <span class="o">*</span> <span class="n">sh_8_14</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.136082763487955</span> <span class="o">*</span> <span class="n">sh_8_15</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.805076485899413</span> <span class="o">*</span> <span class="n">sh_8_3</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_16</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.0785674201318389</span> <span class="o">*</span> <span class="n">sh_8_0</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.86066296582387</span> <span class="o">*</span> <span class="n">sh_8_14</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.628539361054709</span> <span class="o">*</span> <span class="n">sh_8_15</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.0785674201318387</span> <span class="o">*</span> <span class="n">sh_8_16</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.860662965823871</span> <span class="o">*</span> <span class="n">sh_8_2</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_17</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.9162456945817</span> <span class="o">*</span> <span class="n">sh_8_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.916245694581702</span> <span class="o">*</span> <span class="n">sh_8_15</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.458122847290851</span> <span class="o">*</span> <span class="n">sh_8_16</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="p">)</span>
+    <span class="n">sh_9_18</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.97182531580755</span> <span class="o">*</span> <span class="n">sh_8_0</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="mf">0.97182531580755</span> <span class="o">*</span> <span class="n">sh_8_16</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">sh_9_0</span><span class="p">,</span>
+                <span class="n">sh_9_1</span><span class="p">,</span>
+                <span class="n">sh_9_2</span><span class="p">,</span>
+                <span class="n">sh_9_3</span><span class="p">,</span>
+                <span class="n">sh_9_4</span><span class="p">,</span>
+                <span class="n">sh_9_5</span><span class="p">,</span>
+                <span class="n">sh_9_6</span><span class="p">,</span>
+                <span class="n">sh_9_7</span><span class="p">,</span>
+                <span class="n">sh_9_8</span><span class="p">,</span>
+                <span class="n">sh_9_9</span><span class="p">,</span>
+                <span class="n">sh_9_10</span><span class="p">,</span>
+                <span class="n">sh_9_11</span><span class="p">,</span>
+                <span class="n">sh_9_12</span><span class="p">,</span>
+                <span class="n">sh_9_13</span><span class="p">,</span>
+                <span class="n">sh_9_14</span><span class="p">,</span>
+                <span class="n">sh_9_15</span><span class="p">,</span>
+                <span class="n">sh_9_16</span><span class="p">,</span>
+                <span class="n">sh_9_17</span><span class="p">,</span>
+                <span class="n">sh_9_18</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">lmax</span> <span class="o">==</span> <span class="mi">9</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="n">sh_10_0</span> <span class="o">=</span> <span class="mf">0.974679434480897</span> <span class="o">*</span> <span class="n">sh_9_0</span> <span class="o">*</span> <span class="n">z</span> <span class="o">+</span> <span class="mf">0.974679434480897</span> <span class="o">*</span> <span class="n">sh_9_18</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="n">sh_10_1</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.435889894354067</span> <span class="o">*</span> <span class="n">sh_9_0</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.924662100445347</span> <span class="o">*</span> <span class="n">sh_9_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.924662100445347</span> <span class="o">*</span> <span class="n">sh_9_17</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_2</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.0707106781186546</span> <span class="o">*</span> <span class="n">sh_9_0</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.6</span> <span class="o">*</span> <span class="n">sh_9_1</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.874642784226796</span> <span class="o">*</span> <span class="n">sh_9_16</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.070710678118655</span> <span class="o">*</span> <span class="n">sh_9_18</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.874642784226795</span> <span class="o">*</span> <span class="n">sh_9_2</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_3</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.122474487139159</span> <span class="o">*</span> <span class="n">sh_9_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.824621125123533</span> <span class="o">*</span> <span class="n">sh_9_15</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.122474487139159</span> <span class="o">*</span> <span class="n">sh_9_17</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.714142842854285</span> <span class="o">*</span> <span class="n">sh_9_2</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.824621125123533</span> <span class="o">*</span> <span class="n">sh_9_3</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_4</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.774596669241484</span> <span class="o">*</span> <span class="n">sh_9_14</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.173205080756887</span> <span class="o">*</span> <span class="n">sh_9_16</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.173205080756888</span> <span class="o">*</span> <span class="n">sh_9_2</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.8</span> <span class="o">*</span> <span class="n">sh_9_3</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.774596669241483</span> <span class="o">*</span> <span class="n">sh_9_4</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_5</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.724568837309472</span> <span class="o">*</span> <span class="n">sh_9_13</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.223606797749979</span> <span class="o">*</span> <span class="n">sh_9_15</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.223606797749979</span> <span class="o">*</span> <span class="n">sh_9_3</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.866025403784438</span> <span class="o">*</span> <span class="n">sh_9_4</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.724568837309472</span> <span class="o">*</span> <span class="n">sh_9_5</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_6</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.674536878161602</span> <span class="o">*</span> <span class="n">sh_9_12</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.273861278752583</span> <span class="o">*</span> <span class="n">sh_9_14</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.273861278752583</span> <span class="o">*</span> <span class="n">sh_9_4</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.916515138991168</span> <span class="o">*</span> <span class="n">sh_9_5</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.674536878161602</span> <span class="o">*</span> <span class="n">sh_9_6</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_7</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.62449979983984</span> <span class="o">*</span> <span class="n">sh_9_11</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.324037034920393</span> <span class="o">*</span> <span class="n">sh_9_13</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.324037034920393</span> <span class="o">*</span> <span class="n">sh_9_5</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.953939201416946</span> <span class="o">*</span> <span class="n">sh_9_6</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.62449979983984</span> <span class="o">*</span> <span class="n">sh_9_7</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_8</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.574456264653803</span> <span class="o">*</span> <span class="n">sh_9_10</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.374165738677394</span> <span class="o">*</span> <span class="n">sh_9_12</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.374165738677394</span> <span class="o">*</span> <span class="n">sh_9_6</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.979795897113272</span> <span class="o">*</span> <span class="n">sh_9_7</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.574456264653803</span> <span class="o">*</span> <span class="n">sh_9_8</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_9</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.424264068711928</span> <span class="o">*</span> <span class="n">sh_9_11</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.424264068711929</span> <span class="o">*</span> <span class="n">sh_9_7</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.99498743710662</span> <span class="o">*</span> <span class="n">sh_9_8</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.741619848709567</span> <span class="o">*</span> <span class="n">sh_9_9</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_10</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.670820393249937</span> <span class="o">*</span> <span class="n">sh_9_10</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.670820393249937</span> <span class="o">*</span> <span class="n">sh_9_8</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="n">sh_9_9</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_11</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.99498743710662</span> <span class="o">*</span> <span class="n">sh_9_10</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.424264068711929</span> <span class="o">*</span> <span class="n">sh_9_11</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.424264068711929</span> <span class="o">*</span> <span class="n">sh_9_7</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.741619848709567</span> <span class="o">*</span> <span class="n">sh_9_9</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_12</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.574456264653803</span> <span class="o">*</span> <span class="n">sh_9_10</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.979795897113272</span> <span class="o">*</span> <span class="n">sh_9_11</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.374165738677395</span> <span class="o">*</span> <span class="n">sh_9_12</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.374165738677394</span> <span class="o">*</span> <span class="n">sh_9_6</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.574456264653803</span> <span class="o">*</span> <span class="n">sh_9_8</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_13</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.62449979983984</span> <span class="o">*</span> <span class="n">sh_9_11</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.953939201416946</span> <span class="o">*</span> <span class="n">sh_9_12</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.324037034920393</span> <span class="o">*</span> <span class="n">sh_9_13</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.324037034920393</span> <span class="o">*</span> <span class="n">sh_9_5</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.62449979983984</span> <span class="o">*</span> <span class="n">sh_9_7</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_14</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.674536878161602</span> <span class="o">*</span> <span class="n">sh_9_12</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.916515138991168</span> <span class="o">*</span> <span class="n">sh_9_13</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.273861278752583</span> <span class="o">*</span> <span class="n">sh_9_14</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.273861278752583</span> <span class="o">*</span> <span class="n">sh_9_4</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.674536878161603</span> <span class="o">*</span> <span class="n">sh_9_6</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_15</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.724568837309472</span> <span class="o">*</span> <span class="n">sh_9_13</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.866025403784439</span> <span class="o">*</span> <span class="n">sh_9_14</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.223606797749979</span> <span class="o">*</span> <span class="n">sh_9_15</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.223606797749979</span> <span class="o">*</span> <span class="n">sh_9_3</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.724568837309472</span> <span class="o">*</span> <span class="n">sh_9_5</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_16</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.774596669241484</span> <span class="o">*</span> <span class="n">sh_9_14</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.8</span> <span class="o">*</span> <span class="n">sh_9_15</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.173205080756888</span> <span class="o">*</span> <span class="n">sh_9_16</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.173205080756887</span> <span class="o">*</span> <span class="n">sh_9_2</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.774596669241484</span> <span class="o">*</span> <span class="n">sh_9_4</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_17</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.12247448713916</span> <span class="o">*</span> <span class="n">sh_9_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.824621125123532</span> <span class="o">*</span> <span class="n">sh_9_15</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.714142842854285</span> <span class="o">*</span> <span class="n">sh_9_16</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.122474487139158</span> <span class="o">*</span> <span class="n">sh_9_17</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.824621125123533</span> <span class="o">*</span> <span class="n">sh_9_3</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_18</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.0707106781186548</span> <span class="o">*</span> <span class="n">sh_9_0</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.874642784226796</span> <span class="o">*</span> <span class="n">sh_9_16</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.6</span> <span class="o">*</span> <span class="n">sh_9_17</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.0707106781186546</span> <span class="o">*</span> <span class="n">sh_9_18</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.874642784226796</span> <span class="o">*</span> <span class="n">sh_9_2</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_19</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.924662100445348</span> <span class="o">*</span> <span class="n">sh_9_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.924662100445347</span> <span class="o">*</span> <span class="n">sh_9_17</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.435889894354068</span> <span class="o">*</span> <span class="n">sh_9_18</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="p">)</span>
+    <span class="n">sh_10_20</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.974679434480898</span> <span class="o">*</span> <span class="n">sh_9_0</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="mf">0.974679434480896</span> <span class="o">*</span> <span class="n">sh_9_18</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">sh_10_0</span><span class="p">,</span>
+                <span class="n">sh_10_1</span><span class="p">,</span>
+                <span class="n">sh_10_2</span><span class="p">,</span>
+                <span class="n">sh_10_3</span><span class="p">,</span>
+                <span class="n">sh_10_4</span><span class="p">,</span>
+                <span class="n">sh_10_5</span><span class="p">,</span>
+                <span class="n">sh_10_6</span><span class="p">,</span>
+                <span class="n">sh_10_7</span><span class="p">,</span>
+                <span class="n">sh_10_8</span><span class="p">,</span>
+                <span class="n">sh_10_9</span><span class="p">,</span>
+                <span class="n">sh_10_10</span><span class="p">,</span>
+                <span class="n">sh_10_11</span><span class="p">,</span>
+                <span class="n">sh_10_12</span><span class="p">,</span>
+                <span class="n">sh_10_13</span><span class="p">,</span>
+                <span class="n">sh_10_14</span><span class="p">,</span>
+                <span class="n">sh_10_15</span><span class="p">,</span>
+                <span class="n">sh_10_16</span><span class="p">,</span>
+                <span class="n">sh_10_17</span><span class="p">,</span>
+                <span class="n">sh_10_18</span><span class="p">,</span>
+                <span class="n">sh_10_19</span><span class="p">,</span>
+                <span class="n">sh_10_20</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">lmax</span> <span class="o">==</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="n">sh_11_0</span> <span class="o">=</span> <span class="mf">0.977008420918394</span> <span class="o">*</span> <span class="n">sh_10_0</span> <span class="o">*</span> <span class="n">z</span> <span class="o">+</span> <span class="mf">0.977008420918394</span> <span class="o">*</span> <span class="n">sh_10_20</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="n">sh_11_1</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.416597790450531</span> <span class="o">*</span> <span class="n">sh_10_0</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.9315409787236</span> <span class="o">*</span> <span class="n">sh_10_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.931540978723599</span> <span class="o">*</span> <span class="n">sh_10_19</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_2</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.0642824346533223</span> <span class="o">*</span> <span class="n">sh_10_0</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.574959574576069</span> <span class="o">*</span> <span class="n">sh_10_1</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.88607221316445</span> <span class="o">*</span> <span class="n">sh_10_18</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.886072213164452</span> <span class="o">*</span> <span class="n">sh_10_2</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.0642824346533226</span> <span class="o">*</span> <span class="n">sh_10_20</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_3</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.111340442853781</span> <span class="o">*</span> <span class="n">sh_10_1</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.84060190949577</span> <span class="o">*</span> <span class="n">sh_10_17</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.111340442853781</span> <span class="o">*</span> <span class="n">sh_10_19</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.686348585024614</span> <span class="o">*</span> <span class="n">sh_10_2</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.840601909495769</span> <span class="o">*</span> <span class="n">sh_10_3</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_4</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.795129803842541</span> <span class="o">*</span> <span class="n">sh_10_16</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.157459164324444</span> <span class="o">*</span> <span class="n">sh_10_18</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.157459164324443</span> <span class="o">*</span> <span class="n">sh_10_2</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.771389215839871</span> <span class="o">*</span> <span class="n">sh_10_3</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.795129803842541</span> <span class="o">*</span> <span class="n">sh_10_4</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_5</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.74965556829412</span> <span class="o">*</span> <span class="n">sh_10_15</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.203278907045435</span> <span class="o">*</span> <span class="n">sh_10_17</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.203278907045436</span> <span class="o">*</span> <span class="n">sh_10_3</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.838140405208444</span> <span class="o">*</span> <span class="n">sh_10_4</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.74965556829412</span> <span class="o">*</span> <span class="n">sh_10_5</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_6</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.70417879021953</span> <span class="o">*</span> <span class="n">sh_10_14</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.248964798865985</span> <span class="o">*</span> <span class="n">sh_10_16</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.248964798865985</span> <span class="o">*</span> <span class="n">sh_10_4</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.890723542830247</span> <span class="o">*</span> <span class="n">sh_10_5</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.704178790219531</span> <span class="o">*</span> <span class="n">sh_10_6</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_7</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.658698943008611</span> <span class="o">*</span> <span class="n">sh_10_13</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.294579122654903</span> <span class="o">*</span> <span class="n">sh_10_15</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.294579122654903</span> <span class="o">*</span> <span class="n">sh_10_5</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.9315409787236</span> <span class="o">*</span> <span class="n">sh_10_6</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.658698943008611</span> <span class="o">*</span> <span class="n">sh_10_7</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_8</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.613215343783275</span> <span class="o">*</span> <span class="n">sh_10_12</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.340150671524904</span> <span class="o">*</span> <span class="n">sh_10_14</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.340150671524904</span> <span class="o">*</span> <span class="n">sh_10_6</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.962091385841669</span> <span class="o">*</span> <span class="n">sh_10_7</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.613215343783274</span> <span class="o">*</span> <span class="n">sh_10_8</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_9</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.567727090763491</span> <span class="o">*</span> <span class="n">sh_10_11</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.385694607919935</span> <span class="o">*</span> <span class="n">sh_10_13</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.385694607919935</span> <span class="o">*</span> <span class="n">sh_10_7</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.983332166035633</span> <span class="o">*</span> <span class="n">sh_10_8</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">+</span> <span class="mf">0.56772709076349</span> <span class="o">*</span> <span class="n">sh_10_9</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_10</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.738548945875997</span> <span class="o">*</span> <span class="n">sh_10_10</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.431219680932052</span> <span class="o">*</span> <span class="n">sh_10_12</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.431219680932052</span> <span class="o">*</span> <span class="n">sh_10_8</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.995859195463938</span> <span class="o">*</span> <span class="n">sh_10_9</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_11</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">sh_10_10</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.674199862463242</span> <span class="o">*</span> <span class="n">sh_10_11</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.674199862463243</span> <span class="o">*</span> <span class="n">sh_10_9</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_12</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.738548945875996</span> <span class="o">*</span> <span class="n">sh_10_10</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.995859195463939</span> <span class="o">*</span> <span class="n">sh_10_11</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.431219680932052</span> <span class="o">*</span> <span class="n">sh_10_12</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.431219680932053</span> <span class="o">*</span> <span class="n">sh_10_8</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_13</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.567727090763491</span> <span class="o">*</span> <span class="n">sh_10_11</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.983332166035634</span> <span class="o">*</span> <span class="n">sh_10_12</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.385694607919935</span> <span class="o">*</span> <span class="n">sh_10_13</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.385694607919935</span> <span class="o">*</span> <span class="n">sh_10_7</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.567727090763491</span> <span class="o">*</span> <span class="n">sh_10_9</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_14</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.613215343783275</span> <span class="o">*</span> <span class="n">sh_10_12</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.96209138584167</span> <span class="o">*</span> <span class="n">sh_10_13</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.340150671524904</span> <span class="o">*</span> <span class="n">sh_10_14</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.340150671524904</span> <span class="o">*</span> <span class="n">sh_10_6</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.613215343783274</span> <span class="o">*</span> <span class="n">sh_10_8</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_15</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.658698943008611</span> <span class="o">*</span> <span class="n">sh_10_13</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.9315409787236</span> <span class="o">*</span> <span class="n">sh_10_14</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.294579122654903</span> <span class="o">*</span> <span class="n">sh_10_15</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.294579122654903</span> <span class="o">*</span> <span class="n">sh_10_5</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.65869894300861</span> <span class="o">*</span> <span class="n">sh_10_7</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_16</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.70417879021953</span> <span class="o">*</span> <span class="n">sh_10_14</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.890723542830246</span> <span class="o">*</span> <span class="n">sh_10_15</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.248964798865985</span> <span class="o">*</span> <span class="n">sh_10_16</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.248964798865985</span> <span class="o">*</span> <span class="n">sh_10_4</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.70417879021953</span> <span class="o">*</span> <span class="n">sh_10_6</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_17</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.749655568294121</span> <span class="o">*</span> <span class="n">sh_10_15</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.838140405208444</span> <span class="o">*</span> <span class="n">sh_10_16</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.203278907045436</span> <span class="o">*</span> <span class="n">sh_10_17</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.203278907045435</span> <span class="o">*</span> <span class="n">sh_10_3</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.749655568294119</span> <span class="o">*</span> <span class="n">sh_10_5</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_18</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mf">0.79512980384254</span> <span class="o">*</span> <span class="n">sh_10_16</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.77138921583987</span> <span class="o">*</span> <span class="n">sh_10_17</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.157459164324443</span> <span class="o">*</span> <span class="n">sh_10_18</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.157459164324444</span> <span class="o">*</span> <span class="n">sh_10_2</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.795129803842541</span> <span class="o">*</span> <span class="n">sh_10_4</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_19</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.111340442853782</span> <span class="o">*</span> <span class="n">sh_10_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.84060190949577</span> <span class="o">*</span> <span class="n">sh_10_17</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.686348585024614</span> <span class="o">*</span> <span class="n">sh_10_18</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.111340442853781</span> <span class="o">*</span> <span class="n">sh_10_19</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">-</span> <span class="mf">0.840601909495769</span> <span class="o">*</span> <span class="n">sh_10_3</span> <span class="o">*</span> <span class="n">x</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_20</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.0642824346533226</span> <span class="o">*</span> <span class="n">sh_10_0</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.886072213164451</span> <span class="o">*</span> <span class="n">sh_10_18</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.57495957457607</span> <span class="o">*</span> <span class="n">sh_10_19</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="o">-</span> <span class="mf">0.886072213164451</span> <span class="o">*</span> <span class="n">sh_10_2</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">-</span> <span class="mf">0.0642824346533228</span> <span class="o">*</span> <span class="n">sh_10_20</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_21</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.9315409787236</span> <span class="o">*</span> <span class="n">sh_10_1</span> <span class="o">*</span> <span class="n">x</span>
+        <span class="o">+</span> <span class="mf">0.931540978723599</span> <span class="o">*</span> <span class="n">sh_10_19</span> <span class="o">*</span> <span class="n">z</span>
+        <span class="o">+</span> <span class="mf">0.416597790450531</span> <span class="o">*</span> <span class="n">sh_10_20</span> <span class="o">*</span> <span class="n">y</span>
+    <span class="p">)</span>
+    <span class="n">sh_11_22</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="o">-</span><span class="mf">0.977008420918393</span> <span class="o">*</span> <span class="n">sh_10_0</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="mf">0.977008420918393</span> <span class="o">*</span> <span class="n">sh_10_20</span> <span class="o">*</span> <span class="n">z</span>
+    <span class="p">)</span>
+
+    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">sh_11_0</span><span class="p">,</span>
+                <span class="n">sh_11_1</span><span class="p">,</span>
+                <span class="n">sh_11_2</span><span class="p">,</span>
+                <span class="n">sh_11_3</span><span class="p">,</span>
+                <span class="n">sh_11_4</span><span class="p">,</span>
+                <span class="n">sh_11_5</span><span class="p">,</span>
+                <span class="n">sh_11_6</span><span class="p">,</span>
+                <span class="n">sh_11_7</span><span class="p">,</span>
+                <span class="n">sh_11_8</span><span class="p">,</span>
+                <span class="n">sh_11_9</span><span class="p">,</span>
+                <span class="n">sh_11_10</span><span class="p">,</span>
+                <span class="n">sh_11_11</span><span class="p">,</span>
+                <span class="n">sh_11_12</span><span class="p">,</span>
+                <span class="n">sh_11_13</span><span class="p">,</span>
+                <span class="n">sh_11_14</span><span class="p">,</span>
+                <span class="n">sh_11_15</span><span class="p">,</span>
+                <span class="n">sh_11_16</span><span class="p">,</span>
+                <span class="n">sh_11_17</span><span class="p">,</span>
+                <span class="n">sh_11_18</span><span class="p">,</span>
+                <span class="n">sh_11_19</span><span class="p">,</span>
+                <span class="n">sh_11_20</span><span class="p">,</span>
+                <span class="n">sh_11_21</span><span class="p">,</span>
+                <span class="n">sh_11_22</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_generate_spherical_harmonics</span><span class="p">(</span><span class="n">lmax</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;code used to generate the code above</span>
+
+<span class="sd">    based on `wigner_3j`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">set_default_dtype</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;sh_0_0 = torch.ones(x.shape, dtype=x.dtype, device=x.device)&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;if lmax == 0:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;    return sh_0_0&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+
+    <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sympy</span><span class="o">.</span><span class="n">symbols</span><span class="p">(</span><span class="s2">&quot;y z x&quot;</span><span class="p">)</span>
+    <span class="n">polynomials</span> <span class="o">=</span> <span class="p">[</span><span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">]</span>
+    <span class="n">polynormz</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">lmax</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="n">sympy</span><span class="o">.</span><span class="n">symbols</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;sh_</span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">m</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">l</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)))</span>
+
+        <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">polynomials</span><span class="p">):</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">sympy</span><span class="o">.</span><span class="n">simplify</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">sympy</span><span class="o">.</span><span class="n">N</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">pycode</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;if lmax == </span><span class="si">{</span><span class="n">l</span><span class="si">}</span><span class="s2">:&quot;</span><span class="p">)</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="s2">&quot;,</span><span class="se">\n</span><span class="s2">        &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;sh_</span><span class="si">{</span><span class="n">j</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">m</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">l</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    return torch.stack([</span><span class="se">\n</span><span class="s2">        </span><span class="si">{</span><span class="n">u</span><span class="si">}</span><span class="se">\n</span><span class="s2">    ], dim=-1)&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">l</span> <span class="o">==</span> <span class="n">lmax</span><span class="p">:</span>
+            <span class="k">break</span>
+
+        <span class="n">polynomials</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="nb">sum</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">*</span> <span class="n">v</span> <span class="o">*</span> <span class="n">p</span>
+                <span class="k">for</span> <span class="n">cj</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">cij</span><span class="p">,</span> <span class="p">[</span><span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">])</span>
+                <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">cj</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">cij</span> <span class="ow">in</span> <span class="n">o3</span><span class="o">.</span><span class="n">wigner_3j</span><span class="p">(</span><span class="n">l</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">sub</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">polynormz</span><span class="p">):</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">subs</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">subs</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">subs</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">polynormz</span><span class="p">):</span>
+                <span class="n">p</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">subs</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">p</span>
+
+        <span class="n">polynormz</span> <span class="o">=</span> <span class="p">[</span><span class="n">sub</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">polynormz</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">polynomials</span><span class="p">]</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">p</span><span class="o">**</span><span class="mi">2</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">polynormz</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span>
+        <span class="n">polynomials</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="o">/</span> <span class="n">norm</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">polynomials</span><span class="p">]</span>
+        <span class="n">polynormz</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="o">/</span> <span class="n">norm</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">polynormz</span><span class="p">]</span>
+
+        <span class="n">polynomials</span> <span class="o">=</span> <span class="p">[</span><span class="n">sympy</span><span class="o">.</span><span class="n">nsimplify</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">polynomials</span><span class="p">]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Felix Musil &amp; Nick Charron.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
