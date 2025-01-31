@@ -46,7 +46,7 @@ The models defined in this library can be convinietly trained using the pytorch-
 Documentation
 -------------
 
-Documentation is available `here <https://clementigroup.github.io/mlcg-tools/>`_ and here are some references on how to work with it.
+Documentation is available `here <https://clementigroup.github.io/mlcg/>`_ and here are some references on how to work with it.
 
 Dependencies
 ~~~~~~~~~~~~
