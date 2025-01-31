@@ -267,8 +267,17 @@ class HarmonicBonds(Harmonic):
 
 
 class HarmonicAngles(Harmonic):
-    """Wrapper class for quickly computing angle priors
+    r"""Wrapper class for quickly computing angle priors
     (order 3 Harmonic priors)
+
+    To avoid numerical instabilities, we use a functional form of the following way:
+
+    .. math::
+
+        U_{\text{HarmonicAngles}}(\theta) = k\left( \cos{\theta} - \cos{\theta}_0 \right)^2
+
+    where :math:`\theta_0` is the value of the angle at equilibrium.
+
     """
 
     name: Final[str] = "angles"
@@ -629,6 +638,7 @@ class Dihedral(torch.nn.Module, _Prior):
     r"""
     Prior that constrains dihedral planar angles using
     the following energy ansatz:
+
     .. math::
 
         V(\theta) = v_0 + \sum_{n=1}^{n_{deg}} k1_n \sin{(n\theta)} + k2_n\cos{(n\theta)}
@@ -646,13 +656,16 @@ class Dihedral(torch.nn.Module, _Prior):
         Can be hand-designed or taken from the output of
         `mlcg.geometry.statistics.compute_statistics`, but must minimally
         contain the following information for each key:
+
         .. code-block:: python
+
             tuple(*specific_types) : {
                 "k1s" : torch.Tensor that contains all k1 coefficients
                 "k2s" : torch.Tensor that contains all k2 coefficients
                 "v_0" : torch.Tensor that contains the constant offset
                 ...
                 }
+
         The keys must be tuples of 4 atoms.
     """
 
