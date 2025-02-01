@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Priors &mdash; mlcg 1.0.0 documentation</title>
+  <title>Priors &mdash; mlcg 0.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=8d563738"></script>
+      <script src="_static/documentation_options.js?v=d45e8c67"></script>
       <script src="_static/doctools.js?v=9a2dae69"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
@@ -138,17 +138,19 @@ contain the following information for each key:</p>
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mlcg.nn.prior.</span></span><span class="sig-name descname"><span class="pre">HarmonicAngles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">statistics</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlcg/nn/prior.html#HarmonicAngles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlcg.nn.prior.HarmonicAngles" title="Link to this definition"></a></dt>
 <dd><p>Wrapper class for quickly computing angle priors
 (order 3 Harmonic priors)</p>
+<p>To avoid numerical instabilities, we use a functional form of the following way:</p>
+<div class="math notranslate nohighlight">
+\[U_{\text{HarmonicAngles}}(\theta) = k\left( \cos{\theta} - \cos{\theta}_0 \right)^2\]</div>
+<p>where <span class="math notranslate nohighlight">\(\theta_0\)</span> is the value of the angle at equilibrium.</p>
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="mlcg.nn.prior.Dihedral">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mlcg.nn.prior.</span></span><span class="sig-name descname"><span class="pre">Dihedral</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">statistics</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_degs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlcg/nn/prior.html#Dihedral"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlcg.nn.prior.Dihedral" title="Link to this definition"></a></dt>
 <dd><p>Prior that constrains dihedral planar angles using
-the following energy ansatz:
-.. math:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">V</span><span class="p">(</span>\<span class="n">theta</span><span class="p">)</span> <span class="o">=</span> <span class="n">v_0</span> <span class="o">+</span> \<span class="n">sum_</span><span class="p">{</span><span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">}</span><span class="o">^</span><span class="p">{</span><span class="n">n_</span><span class="p">{</span><span class="n">deg</span><span class="p">}}</span> <span class="n">k1_n</span> \<span class="n">sin</span><span class="p">{(</span><span class="n">n</span>\<span class="n">theta</span><span class="p">)}</span> <span class="o">+</span> <span class="n">k2_n</span>\<span class="n">cos</span><span class="p">{(</span><span class="n">n</span>\<span class="n">theta</span><span class="p">)}</span>
-</pre></div>
-</div>
+the following energy ansatz:</p>
+<div class="math notranslate nohighlight">
+\[V(\theta) = v_0 + \sum_{n=1}^{n_{deg}} k1_n \sin{(n\theta)} + k2_n\cos{(n\theta)}\]</div>
 <p>where <span class="math notranslate nohighlight">\(n_{deg}\)</span> is the maximum number of terms to take in the sinusoidal series,
 <span class="math notranslate nohighlight">\(v_0\)</span> is a constant offset, and <span class="math notranslate nohighlight">\(k1_n\)</span> and <span class="math notranslate nohighlight">\(k2_n\)</span> are coefficients
 for each term number <span class="math notranslate nohighlight">\(n\)</span>.</p>
@@ -159,18 +161,15 @@ where the keys are tuples of interacting bead types and the
 corresponding values define the interaction parameters. These
 Can be hand-designed or taken from the output of
 <cite>mlcg.geometry.statistics.compute_statistics</cite>, but must minimally
-contain the following information for each key:
-.. code-block:: python</p>
-<blockquote>
-<div><dl class="simple">
-<dt>tuple(<a href="#id1"><span class="problematic" id="id2">*</span></a>specific_types)<span class="classifier">{</span></dt><dd><p>”k1s” : torch.Tensor that contains all k1 coefficients
-“k2s” : torch.Tensor that contains all k2 coefficients
-“v_0” : torch.Tensor that contains the constant offset
-…
-}</p>
-</dd>
-</dl>
-</div></blockquote>
+contain the following information for each key:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">tuple</span><span class="p">(</span><span class="o">*</span><span class="n">specific_types</span><span class="p">)</span> <span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;k1s&quot;</span> <span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="n">that</span> <span class="n">contains</span> <span class="nb">all</span> <span class="n">k1</span> <span class="n">coefficients</span>
+    <span class="s2">&quot;k2s&quot;</span> <span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="n">that</span> <span class="n">contains</span> <span class="nb">all</span> <span class="n">k2</span> <span class="n">coefficients</span>
+    <span class="s2">&quot;v_0&quot;</span> <span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="n">that</span> <span class="n">contains</span> <span class="n">the</span> <span class="n">constant</span> <span class="n">offset</span>
+    <span class="o">...</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
 <p>The keys must be tuples of 4 atoms.</p>
 </p>
 </dd>

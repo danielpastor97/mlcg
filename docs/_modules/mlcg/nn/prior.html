@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mlcg.nn.prior &mdash; mlcg 1.0.0 documentation</title>
+  <title>mlcg.nn.prior &mdash; mlcg 0.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/documentation_options.js?v=d45e8c67"></script>
       <script src="../../../_static/doctools.js?v=9a2dae69"></script>
       <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -355,8 +355,17 @@
 <div class="viewcode-block" id="HarmonicAngles">
 <a class="viewcode-back" href="../../../priors.html#mlcg.nn.prior.HarmonicAngles">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">HarmonicAngles</span><span class="p">(</span><span class="n">Harmonic</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrapper class for quickly computing angle priors</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Wrapper class for quickly computing angle priors</span>
 <span class="sd">    (order 3 Harmonic priors)</span>
+
+<span class="sd">    To avoid numerical instabilities, we use a functional form of the following way:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        U_{\text{HarmonicAngles}}(\theta) = k\left( \cos{\theta} - \cos{\theta}_0 \right)^2</span>
+
+<span class="sd">    where :math:`\theta_0` is the value of the angle at equilibrium.</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">name</span><span class="p">:</span> <span class="n">Final</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;angles&quot;</span>
@@ -723,6 +732,7 @@
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Prior that constrains dihedral planar angles using</span>
 <span class="sd">    the following energy ansatz:</span>
+
 <span class="sd">    .. math::</span>
 
 <span class="sd">        V(\theta) = v_0 + \sum_{n=1}^{n_{deg}} k1_n \sin{(n\theta)} + k2_n\cos{(n\theta)}</span>
@@ -740,13 +750,16 @@
 <span class="sd">        Can be hand-designed or taken from the output of</span>
 <span class="sd">        `mlcg.geometry.statistics.compute_statistics`, but must minimally</span>
 <span class="sd">        contain the following information for each key:</span>
+
 <span class="sd">        .. code-block:: python</span>
+
 <span class="sd">            tuple(*specific_types) : {</span>
 <span class="sd">                &quot;k1s&quot; : torch.Tensor that contains all k1 coefficients</span>
 <span class="sd">                &quot;k2s&quot; : torch.Tensor that contains all k2 coefficients</span>
 <span class="sd">                &quot;v_0&quot; : torch.Tensor that contains the constant offset</span>
 <span class="sd">                ...</span>
 <span class="sd">                }</span>
+
 <span class="sd">        The keys must be tuples of 4 atoms.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
