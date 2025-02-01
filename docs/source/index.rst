@@ -6,6 +6,7 @@
 Welcome to mlcg's documentation!
 ======================================
 
+This is the base code to create models such as the ones described in [TransCGSchnet]_ and [CGSchnet]_.
 
 .. include:: ../../README.rst
    :start-after: start-intro
