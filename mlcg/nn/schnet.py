@@ -124,6 +124,7 @@ class SchNet(torch.nn.Module):
             # 1. mlcg_opt_radius is installed
             # 2. input data is on CUDA
             # 3. not using PBC (TODO)
+            use_custom_kernel = False
             if (radius_cuda is not None) and x.is_cuda:
                 use_custom_kernel = True
             if not use_custom_kernel:
