@@ -6,7 +6,7 @@ Testing edge_index against each other:
 
     Tests
         - empty graph
-        - full graph 
+        - full graph
         - MD dataset
         - loop vs no loop
         - distances
@@ -17,7 +17,7 @@ Testing edge_index against each other:
 Update by Yaoyi Chen on Jan 21, 2025:
     - Remove some test combinations since they take too long
     - TODO: wrap the shared context in a file, such that the tests
-      will be skipped when there is no GPU.
+    will be skipped when there is no GPU.
 """
 
 """
