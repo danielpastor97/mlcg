@@ -295,7 +295,7 @@ class CFConv(MessagePassing):
         self.cutoff = cutoff
         self.reset_parameters()
 
-    aef reset_parameters(self):
+    def reset_parameters(self):
         r"""Method for resetting the weights of the linear
         layers and filter network according the the
         Xavier uniform strategy. Biases

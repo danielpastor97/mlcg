@@ -8,6 +8,7 @@ setup(
             "mlcg_opt_radius",
             ["radius.cu"],
             py_limited_api=True,
+            extra_compile_args={"cxx": ["-O3"], "nvcc": ["-O3"]},
         ),
     ],
     cmdclass={
