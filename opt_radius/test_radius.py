@@ -24,23 +24,13 @@ INT_DTYPE = torch.long
 FLOATING_DTYPES = [torch.double]
 DEVICES = [torch.device("cuda:0")]
 
-X = [1, 10, 100]
+X = [0, 10, 100]
 DIM = [1, 2, 3]
 X_RANGE = [(-1.0, 1.0), (-10.0, -20.0)]
 R = [0.0, 1.0, 10.0]
 BATCH_SIZES = [(100,), (50, 100), (10, 20, 100)]
 MAX_NUM_NEIGHBORS = [100]
 LOOP = [True, False]
-
-'''
-X = [1]
-DIM = [3]
-X_RANGE = [(-1.0, 1.0)]
-R = [1.0]
-BATCH_SIZES = [(100,)]
-MAX_NUM_NEIGHBORS = [100]
-LOOP = [True, False]
-'''
 
 TOL = 1e-6
 
@@ -86,7 +76,7 @@ def test_radius(
     o_real_i = rgo(
         x, r, batch, loop, max_num_neighbors, flow="target_to_source"
     )
-    o_mine_i, o_mine_d = rgm(x, r, batch, loop, max_num_neighbors)
+    o_mine_d, o_mine_i = rgm(x, r, batch, loop, max_num_neighbors)
 
     # comparing index
     if torch.numel(o_real_i) == 0:
@@ -95,6 +85,7 @@ def test_radius(
         if not loop:
             o_real_i = remove_loop(o_real_i)
         o_real_i = enforce_mnn(o_real_i, max_num_neighbors)
+        print(o_mine_i)
         assert to_set(o_real_i) == to_set(o_mine_i)
 
         o_real_i = torch.tensor(sorted(list(to_set(o_real_i)))).t()
