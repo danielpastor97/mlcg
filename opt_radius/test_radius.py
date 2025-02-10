@@ -36,6 +36,7 @@ TOL = 1e-6
 
 ######################################################################
 
+
 @pytest.mark.parametrize(
     "x_c,\
      dim,\
@@ -98,6 +99,7 @@ def test_radius(
         )
         assert torch.all((o_real_d - o_mine_d) < TOL)
 
+
 ######################################################################
 @pytest.mark.parametrize(
     "x_c,\
@@ -117,9 +119,7 @@ def test_radius(
         DEVICES,
     ),
 )
-def test_with_gradcheck(
-    x_c, dim, x_range, r, batch_size, fdtype, device
-):
+def test_with_gradcheck(x_c, dim, x_range, r, batch_size, fdtype, device):
     (x_min, x_max) = x_range
     x = (x_max - x_min) * torch.rand(
         (x_c, dim), dtype=fdtype, device=device
@@ -131,7 +131,7 @@ def test_with_gradcheck(
         x,
         eps=1e-7,
         atol=1e-7,
-        nondet_tol=1e-7
+        nondet_tol=1e-7,
     )
     assert gradcheck_result
     gradgradcheck_result = gradgradcheck(
@@ -139,6 +139,6 @@ def test_with_gradcheck(
         x,
         eps=1e-7,
         atol=1e-7,
-        nondet_tol=1e-7
+        nondet_tol=1e-7,
     )
     assert gradgradcheck_result

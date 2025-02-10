@@ -17,6 +17,7 @@ mc = load(
     extra_cuda_cflags=["-O3"],
 )
 
+
 def radius_distance_fn(
     x: torch.Tensor,
     r: float,
@@ -25,7 +26,6 @@ def radius_distance_fn(
     max_num_neighbors: int = 32,
     batch_size: Optional[int] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-
     if x.numel() == 0:
         return torch.empty(2, 0, dtype=torch.long, device=x.device)
 
@@ -42,25 +42,25 @@ def radius_distance_fn(
         arange = torch.arange(batch_size + 1, device=x.device)
         ptr_x = torch.bucketize(arange, batch)
 
-    return mc.radius_cuda(x, ptr_x, r,
-                          max_num_neighbors,
-                          not loop)
+    return mc.radius_cuda(x, ptr_x, r, max_num_neighbors, not loop)
+
 
 class RadiusDistanceAGF(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x, r, batch, loop, max_num_neighbors, batch_size):
-        edge_index, distance = radius_distance_fn(x, r, batch, loop, 
-                                                  max_num_neighbors, 
-                                                  batch_size)
-        #distance.requires_grad_()
+        edge_index, distance = radius_distance_fn(
+            x, r, batch, loop, max_num_neighbors, batch_size
+        )
+        # distance.requires_grad_()
         ctx.save_for_backward(x, distance, edge_index)
         ctx.mark_non_differentiable(edge_index)
-        return distance, edge_index 
+        return distance, edge_index
 
     @staticmethod
     def backward(ctx, grad_d, grad_ei):
         x, distance, edge_index = ctx.saved_tensors
         return RadiusDistanceAGB.apply(x, distance, grad_d, edge_index)
+
 
 class RadiusDistanceAGB(torch.autograd.Function):
     @staticmethod
@@ -75,7 +75,9 @@ class RadiusDistanceAGB(torch.autograd.Function):
         grad_x.index_add_(0, edge_i, contrib_i)
         grad_x.index_add_(0, edge_j, contrib_j)
 
-        ctx.save_for_backward(edge_index, differences, scaling, grad_d, distance)
+        ctx.save_for_backward(
+            edge_index, differences, scaling, grad_d, distance
+        )
         return grad_x, None, None, None, None, None
 
     @staticmethod
@@ -91,13 +93,14 @@ class RadiusDistanceAGB(torch.autograd.Function):
         grad_x.index_add_(0, edge_i, term)
         grad_x.index_add_(0, edge_j, -term)
 
-        grad_distance = -grad_d * delta_grad_dot_diff / (distance ** 2)
+        grad_distance = -grad_d * delta_grad_dot_diff / (distance**2)
 
         grad_grad_d = delta_grad_dot_diff / distance
 
         return grad_x, grad_distance, grad_grad_d, None
-    #@staticmethod
-    #def forward(ctx, x, distance, grad_d, edge_index):
+
+    # @staticmethod
+    # def forward(ctx, x, distance, grad_d, edge_index):
     #    e_i, e_j = edge_index[0], edge_index[1]
     #    diff = x[e_i] - x[e_j]
     #    tmp  = (grad_d / distance).unsqueeze(-1)
@@ -108,8 +111,8 @@ class RadiusDistanceAGB(torch.autograd.Function):
     #    ctx.save_for_backward(edge_index, diff, tmp, grad_d, distance)
     #    return grad_x, None, None, None, None, None
 
-    #@staticmethod
-    #def backward(ctx, grad_out_x, *args):
+    # @staticmethod
+    # def backward(ctx, grad_out_x, *args):
     #    edge_index, diff, part, grad_d, distance = ctx.saved_tensors
     #    e_i, e_j = edge_index[0], edge_index[1]
     #    delta_grad = grad_out_x[e_i] - grad_out_x[e_j]
@@ -122,6 +125,7 @@ class RadiusDistanceAGB(torch.autograd.Function):
     #    grad_grad_d = delta_grad_dot_diff / distance
     #    return grad_x, grad_distance, grad_grad_d, None
 
+
 def radius_distance(
     x: torch.Tensor,
     r: float,
@@ -130,4 +134,6 @@ def radius_distance(
     max_num_neighbors: int = 32,
     batch_size: Optional[int] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    return RadiusDistanceAGF.apply(x, r, batch, loop, max_num_neighbors, batch_size)
+    return RadiusDistanceAGF.apply(
+        x, r, batch, loop, max_num_neighbors, batch_size
+    )
