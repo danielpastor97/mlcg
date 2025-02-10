@@ -9,13 +9,16 @@ from os import path
 # TODO: a proper setup script to install a compiled version
 # TODO: check whether the module has already been installed. If so, then skip
 from torch.utils.cpp_extension import load
-mc = load(name='radius_kernel', 
-        sources=[path.join(path.dirname(__file__), '..', 'cu', 'radius_sd.cu')],
-              extra_cflags=['-O3'], 
-          extra_cuda_cflags=['-O3'] 
-          #extra_cuda_cflags=['-arch=compute_89', 
-          #                   '-code=sm_89']
-         ) 
+
+mc = load(
+    name="radius_kernel",
+    sources=[path.join(path.dirname(__file__), "..", "cu", "radius_sd.cu")],
+    extra_cflags=["-O3"],
+    extra_cuda_cflags=["-O3"],
+    # extra_cuda_cflags=['-arch=compute_89',
+    #                   '-code=sm_89']
+)
+
 
 def radius_graph(
     x: torch.Tensor,
@@ -43,6 +46,4 @@ def radius_graph(
         arange = torch.arange(batch_size + 1, device=x.device)
         ptr_x = torch.bucketize(arange, batch)
 
-    return mc.radius_cuda(x, ptr_x, r,
-                          max_num_neighbors,
-                          not loop)
+    return mc.radius_cuda(x, ptr_x, r, max_num_neighbors, not loop)

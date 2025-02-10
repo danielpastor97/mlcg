@@ -2,11 +2,14 @@ from typing import Optional
 import torch
 
 from torch.utils.cpp_extension import load
-mc = load(name='radius_kernel', 
-          sources=['cu/radius.cu'],
-          #extra_cuda_cflags=['-arch=compute_89', 
-          #                   '-code=sm_89']
-         ) 
+
+mc = load(
+    name="radius_kernel",
+    sources=["cu/radius.cu"],
+    # extra_cuda_cflags=['-arch=compute_89',
+    #                   '-code=sm_89']
+)
+
 
 def radius(
     x: torch.Tensor,
@@ -17,7 +20,7 @@ def radius(
     max_num_neighbors: int = 32,
     num_workers: int = 1,
     batch_size: Optional[int] = None,
-    ignore_same_index: bool = True 
+    ignore_same_index: bool = True,
 ) -> torch.Tensor:
 
     if x.numel() == 0 or y.numel() == 0:
@@ -47,9 +50,10 @@ def radius(
         ptr_x = torch.bucketize(arange, batch_x)
         ptr_y = torch.bucketize(arange, batch_y)
 
-    return mc.radius_cuda(x, y, ptr_x, ptr_y, r,
-                          max_num_neighbors,
-                          ignore_same_index)
+    return mc.radius_cuda(
+        x, y, ptr_x, ptr_y, r, max_num_neighbors, ignore_same_index
+    )
+
 
 def radius_graph(
     x: torch.Tensor,
@@ -57,16 +61,24 @@ def radius_graph(
     batch: Optional[torch.Tensor] = None,
     max_num_neighbors: int = 32,
     loop: bool = False,
-    flow: str = 'source_to_target',
+    flow: str = "source_to_target",
     num_workers: int = 1,
     batch_size: Optional[int] = None,
 ) -> torch.Tensor:
 
-    assert flow in ['source_to_target', 'target_to_source']
-    edge_index = radius(x, x, r, batch, batch,
-                        max_num_neighbors,
-                        num_workers, batch_size, not loop)
-    if flow == 'source_to_target':
+    assert flow in ["source_to_target", "target_to_source"]
+    edge_index = radius(
+        x,
+        x,
+        r,
+        batch,
+        batch,
+        max_num_neighbors,
+        num_workers,
+        batch_size,
+        not loop,
+    )
+    if flow == "source_to_target":
         row, col = edge_index[1], edge_index[0]
     else:
         row, col = edge_index[0], edge_index[1]
