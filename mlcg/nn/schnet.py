@@ -7,6 +7,7 @@ from ..neighbor_list.neighbor_list import (
     atomic_data2neighbor_list,
     validate_neighborlist,
 )
+from ..neighbor_list import get_seq_neigh
 from ..data.atomic_data import AtomicData, ENERGY_KEY
 from ..geometry.internal_coordinates import compute_distances
 from .mlp import MLP
@@ -156,10 +157,21 @@ class SchNet(torch.nn.Module):
             )
 
         rbf_expansion = self.rbf_layer(distances)
+
+        # getting sequence information. Only works for CA case.
+        seq_neighs = get_seq_neigh(data)
+
         num_batch = data.batch[-1] + 1
         for block in self.interaction_blocks:
             x = x + block(
-                x, edge_index, distances, rbf_expansion, num_batch, data.batch
+                x,
+                edge_index,
+                distances,
+                rbf_expansion,
+                data.atom_types,
+                seq_neighs,
+                num_batch,
+                data.batch,
             )
 
         energy = self.output_network(x, data)
@@ -235,6 +247,8 @@ class InteractionBlock(torch.nn.Module):
         edge_index: torch.Tensor,
         edge_weight: torch.Tensor,
         edge_attr: torch.Tensor,
+        atom_types: torch.Tensor,
+        seq_neighs: torch.Tensor,
         *args,
     ) -> torch.Tensor:
         r"""Forward pass through the interaction block.
@@ -259,7 +273,9 @@ class InteractionBlock(torch.nn.Module):
             hidden_channels)
         """
 
-        x = self.conv(x, edge_index, edge_weight, edge_attr)
+        x = self.conv(
+            x, edge_index, edge_weight, edge_attr, atom_types, seq_neighs
+        )
         x = self.activation(x)
         x = self.lin(x)
         return x
@@ -297,6 +313,7 @@ class CFConv(MessagePassing):
         super(CFConv, self).__init__(aggr=aggr)
         self.lin1 = torch.nn.Linear(in_channels, num_filters, bias=False)
         self.lin2 = torch.nn.Linear(num_filters, out_channels)
+        self.seq = SeqConv(num_filters)
         self.filter_network = filter_network
         self.cutoff = cutoff
         self.reset_parameters()
@@ -318,6 +335,8 @@ class CFConv(MessagePassing):
         edge_index: torch.Tensor,
         edge_weight: torch.Tensor,
         edge_attr: torch.Tensor,
+        atom_types: torch.Tensor,
+        seq_neighs: torch.Tensor,
     ) -> torch.Tensor:
         r"""Forward pass through the continuous filter convolution.
 
@@ -346,7 +365,9 @@ class CFConv(MessagePassing):
         x = self.lin1(x)
         # propagate_type: (x: Tensor, W: Tensor)
         # Perform the continuous filter convolution
-        x = self.propagate(edge_index, x=x, W=W, size=None)
+        x = self.propagate(edge_index, x=x, W=W, size=None) + self.seq(
+            x, atom_types, seq_neighs
+        )
         x = self.lin2(x)
         return x
 
@@ -369,6 +390,53 @@ class CFConv(MessagePassing):
             Elementwise multiplication of the filters with embedded features.
         """
         return x_j * W
+
+
+class SeqConv(torch.nn.Module):
+    r"""Module for performing a sequence convolution.
+
+    Parameters are shared such that the previous, succesive and current elements
+    in the sequence always use the same weights. This ensures that we
+    learn the correct
+
+    """
+    def __init__(self, n_feats: int):
+        super(SeqConv, self).__init__()
+        # TODO: make weights dependent on the embedding index as well
+        # that way we could have a convolution where how to add the 
+        # neighboring interaction depends on embedding type
+        self.weight = torch.nn.Parameter(torch.randn((3, n_feats)))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        init_xavier_uniform(self)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        atom_types: torch.Tensor,
+        seq_neighs: torch.Tensor,
+    ):
+        r"""Forward pass of the  sequence convolution
+        
+        The weight matrix, self.weight, has shape (3,n_feats). For a given element in a sequence ith,
+        it perform an entry-wise multiplication between self.weight[1,:]*x[atom_types[i],:] and then 
+        adds this with self.weight[0,:]*x[atom_types[i-1],:] and self.weight[0,:]*x[atom_types[i+1],:].
+        """
+        seq_neighs_types = atom_types[seq_neighs]
+        seq_neighs_feats = x[seq_neighs_types]
+        # get the orientation of edges, needed to get the correct weight
+        weights_indexes = seq_neighs.diff(dim=0) + 1
+        neighs_interaction = (
+            self.weight[weights_indexes][0, :, :] * seq_neighs_feats[0, :, :]
+        )
+        # sum every neighbor interaction using torch scatter
+        neighs_interaction_scat = scatter(
+            src=neighs_interaction, index=seq_neighs[0, :], dim=0, reduce="sum"
+        )
+        # add the parts of the self interaction
+        self_interaction = self.weight[1, :] * x[atom_types]
+        return neighs_interaction_scat + self_interaction
 
 
 class StandardSchNet(SchNet):
