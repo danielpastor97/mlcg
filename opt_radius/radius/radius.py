@@ -22,7 +22,6 @@ def radius(
     batch_size: Optional[int] = None,
     ignore_same_index: bool = True,
 ) -> torch.Tensor:
-
     if x.numel() == 0 or y.numel() == 0:
         return torch.empty(2, 0, dtype=torch.long, device=x.device)
 
@@ -65,7 +64,6 @@ def radius_graph(
     num_workers: int = 1,
     batch_size: Optional[int] = None,
 ) -> torch.Tensor:
-
     assert flow in ["source_to_target", "target_to_source"]
     edge_index = radius(
         x,

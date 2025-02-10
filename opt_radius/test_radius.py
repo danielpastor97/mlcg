@@ -37,10 +37,14 @@ from typing import NamedTuple
 from utils import to_set, enforce_mnn, remove_loop, reference_index
 
 from torch_cluster import radius_graph as rgo
+
 try:
     from radius.radius_sd import radius_graph as rgm
 except RuntimeError:
-    pytest.skip("Cuda device is required for this test. Skipping ...", allow_module_level=True)
+    pytest.skip(
+        "Cuda device is required for this test. Skipping ...",
+        allow_module_level=True,
+    )
 
 
 ######################################################################
@@ -87,7 +91,6 @@ TOL = 1e-6
 def test_radius(
     x_c, dim, x_range, r, batch_size, max_num_neighbors, loop, fdtype, device
 ):
-
     (x_min, x_max) = x_range
     x = (x_max - x_min) * torch.rand(
         (x_c, dim), dtype=fdtype, device=device

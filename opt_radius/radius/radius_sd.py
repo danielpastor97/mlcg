@@ -29,7 +29,6 @@ def radius_graph(
     num_workers: int = 1,
     batch_size: Optional[int] = None,
 ) -> torch.Tensor:
-
     if x.numel() == 0:
         return torch.empty(2, 0, dtype=torch.long, device=x.device)
 
