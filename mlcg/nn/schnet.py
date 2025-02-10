@@ -134,18 +134,12 @@ class SchNet(torch.nn.Module):
                     self.max_num_neighbors,
                 )[self.name]
         if use_custom_kernel:
-            # TODO: add backward support to radius_cuda
-            edge_index, _ = radius_cuda(
+            edge_index, distances = radius_cuda(
                 data.pos,
                 data.ptr,
                 self.rbf_layer.cutoff.cutoff_upper,
                 self.max_num_neighbors,
                 True,  # ignore_same_index
-            )
-            # we are computing the dists again to enable backward
-            distances = compute_distances(
-                data.pos,
-                edge_index,
             )
         else:
             edge_index = neighbor_list["index_mapping"]
@@ -301,7 +295,7 @@ class CFConv(MessagePassing):
         self.cutoff = cutoff
         self.reset_parameters()
 
-    def reset_parameters(self):
+    aef reset_parameters(self):
         r"""Method for resetting the weights of the linear
         layers and filter network according the the
         Xavier uniform strategy. Biases

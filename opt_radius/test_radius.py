@@ -1,33 +1,3 @@
-"""
-Testing edge_index against each other:
-    - scipy
-    - torch_cluster
-    - mine
-
-    Tests
-        - empty graph
-        - full graph
-        - MD dataset
-        - loop vs no loop
-        - distances
-        - target to source or source to target
-
-    use pytest
-
-Update by Yaoyi Chen on Jan 21, 2025:
-    - Remove some test combinations since they take too long
-    - TODO: wrap the shared context in a file, such that the tests
-    will be skipped when there is no GPU.
-"""
-
-"""
-Benchmark edge_index against each other:
-    - scipy
-    - torch_cluster
-    - torch_cluster (jit)
-    - mine
-"""
-
 import pytest
 import math
 from itertools import product
@@ -35,11 +5,12 @@ import scipy.spatial
 import torch
 from typing import NamedTuple
 from utils import to_set, enforce_mnn, remove_loop, reference_index
+from torch.autograd import gradcheck, gradgradcheck
 
 from torch_cluster import radius_graph as rgo
 
 try:
-    from radius.radius_sd import radius_graph as rgm
+    from radius import radius_distance as rgm
 except RuntimeError:
     pytest.skip(
         "Cuda device is required for this test. Skipping ...",
@@ -50,10 +21,10 @@ except RuntimeError:
 ######################################################################
 
 INT_DTYPE = torch.long
-FLOATING_DTYPES = [torch.float]
+FLOATING_DTYPES = [torch.double]
 DEVICES = [torch.device("cuda:0")]
 
-X = [0, 10, 100]
+X = [1, 10, 100]
 DIM = [1, 2, 3]
 X_RANGE = [(-1.0, 1.0), (-10.0, -20.0)]
 R = [0.0, 1.0, 10.0]
@@ -61,21 +32,30 @@ BATCH_SIZES = [(100,), (50, 100), (10, 20, 100)]
 MAX_NUM_NEIGHBORS = [100]
 LOOP = [True, False]
 
+'''
+X = [1]
+DIM = [3]
+X_RANGE = [(-1.0, 1.0)]
+R = [1.0]
+BATCH_SIZES = [(100,)]
+MAX_NUM_NEIGHBORS = [100]
+LOOP = [True, False]
+'''
+
 TOL = 1e-6
 
 ######################################################################
 
-
 @pytest.mark.parametrize(
     "x_c,\
-                          dim,\
-                          x_range,\
-                          r,\
-                          batch_size,\
-                          max_num_neighbors,\
-                          loop,\
-                          fdtype,\
-                          device",
+     dim,\
+     x_range,\
+     r,\
+     batch_size,\
+     max_num_neighbors,\
+     loop,\
+     fdtype,\
+     device",
     product(
         X,
         DIM,
@@ -126,3 +106,48 @@ def test_radius(
             x[o_real_i[0, :], :] - x[o_real_i[1, :], :], axis=-1
         )
         assert torch.all((o_real_d - o_mine_d) < TOL)
+
+######################################################################
+@pytest.mark.parametrize(
+    "x_c,\
+     dim,\
+     x_range,\
+     r,\
+     batch_size,\
+     fdtype,\
+     device",
+    product(
+        X,
+        DIM,
+        X_RANGE,
+        R,
+        BATCH_SIZES,
+        FLOATING_DTYPES,
+        DEVICES,
+    ),
+)
+def test_with_gradcheck(
+    x_c, dim, x_range, r, batch_size, fdtype, device
+):
+    (x_min, x_max) = x_range
+    x = (x_max - x_min) * torch.rand(
+        (x_c, dim), dtype=fdtype, device=device
+    ) + x_min
+
+    x.requires_grad_(True)
+    gradcheck_result = gradcheck(
+        lambda x: rgm(x, r)[0],  # Check gradients for `distance`
+        x,
+        eps=1e-7,
+        atol=1e-7,
+        nondet_tol=1e-7
+    )
+    assert gradcheck_result
+    gradgradcheck_result = gradgradcheck(
+        lambda x: rgm(x, r)[0],  # Check gradients for `distance`
+        x,
+        eps=1e-7,
+        atol=1e-7,
+        nondet_tol=1e-7
+    )
+    assert gradgradcheck_result

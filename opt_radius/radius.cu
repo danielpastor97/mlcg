@@ -153,7 +153,7 @@ std::tuple<torch::Tensor, torch::Tensor>
     CHECK_CUDA(x);
     CHECK_CONTIGUOUS(x);
     CHECK_INPUT(x.dim() == 2);
-    c10::cuda::MaybeSetDevice(x.get_device());
+    //c10::cuda::MaybeSetDevice(x.get_device()); //enable again with higher version of CUDA!
 
     if (ptr_x.has_value()) {
         CHECK_CUDA(ptr_x.value());
@@ -239,6 +239,3 @@ std::tuple<torch::Tensor, torch::Tensor>
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m){
     m.def("radius_cuda", &radius_cuda);
 }
-
-static auto registry =
-    torch::RegisterOperators().op("mlcg::radius_cuda", &radius_cuda);

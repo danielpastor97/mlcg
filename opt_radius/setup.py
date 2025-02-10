@@ -6,7 +6,7 @@ setup(
     ext_modules=[
         cpp_extension.CUDAExtension(
             "mlcg_opt_radius",
-            ["cu/radius_sd.cu"],
+            ["radius.cu"],
             py_limited_api=True,
         ),
     ],
