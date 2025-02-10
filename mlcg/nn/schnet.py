@@ -400,10 +400,11 @@ class SeqConv(torch.nn.Module):
     learn the correct
 
     """
+
     def __init__(self, n_feats: int):
         super(SeqConv, self).__init__()
         # TODO: make weights dependent on the embedding index as well
-        # that way we could have a convolution where how to add the 
+        # that way we could have a convolution where how to add the
         # neighboring interaction depends on embedding type
         self.weight = torch.nn.Parameter(torch.randn((3, n_feats)))
         self.reset_parameters()
@@ -418,9 +419,9 @@ class SeqConv(torch.nn.Module):
         seq_neighs: torch.Tensor,
     ):
         r"""Forward pass of the  sequence convolution
-        
+
         The weight matrix, self.weight, has shape (3,n_feats). For a given element in a sequence ith,
-        it perform an entry-wise multiplication between self.weight[1,:]*x[atom_types[i],:] and then 
+        it perform an entry-wise multiplication between self.weight[1,:]*x[atom_types[i],:] and then
         adds this with self.weight[0,:]*x[atom_types[i-1],:] and self.weight[0,:]*x[atom_types[i+1],:].
         """
         seq_neighs_types = atom_types[seq_neighs]

@@ -25,7 +25,7 @@ def get_seq_neigh(data: AtomicData) -> torch.Tensor:
         This function returns neighbors in the order of the atom types
 
     """
-    indxs = torch.arange(data.atom_types.size()[0],device=data.pos.device)
+    indxs = torch.arange(data.atom_types.size()[0], device=data.pos.device)
     indxs_roll_front = indxs.roll(1)
     batch_roll_front = data.batch.roll(1)
     indxs_roll_back = indxs.roll(-1)
