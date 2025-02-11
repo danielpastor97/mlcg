@@ -17,7 +17,7 @@ try:
         extra_cflags=["-O3"],
         extra_cuda_cflags=["-O3"],
     )
-except Error as e:
+except Exception as e:
     # we save the error message instead of raising it immediately
     # but rather raise it when `radius_cuda` is actually called
     class DelayedError:
