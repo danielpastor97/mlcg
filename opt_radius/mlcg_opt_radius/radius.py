@@ -10,12 +10,28 @@ from os import path
 # TODO: check whether the module has already been installed. If so, then skip
 from torch.utils.cpp_extension import load
 
-mc = load(
-    name="radius_kernel",
-    sources=[path.join(path.dirname(__file__), "radius.cu")],
-    extra_cflags=["-O3"],
-    extra_cuda_cflags=["-O3"],
-)
+try:
+    mc = load(
+        name="radius_kernel",
+        sources=[path.join(path.dirname(__file__), "radius.cu")],
+        extra_cflags=["-O3"],
+        extra_cuda_cflags=["-O3"],
+    )
+except RuntimeError as e:
+    # we save the error message instead of raising it immediately
+    # but rather raise it when `radius_cuda` is actually called
+    class DelayedError:
+        def __init__(self, exception):
+            self.msg = str(exception)
+
+        def radius_cuda(self, *args, **kwargs):
+            raise RuntimeError(
+                "Delayed: "
+                + self.msg
+                + "\n`mlcg_opt_radius` was not properly installed."
+            )
+
+    mc = DelayedError(e)
 
 
 def radius_distance_fn(
