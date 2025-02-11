@@ -18,12 +18,12 @@ from .attention import (
 )
 
 try:
-    from mlcg_opt_radius import radius_cuda
+    from mlcg_opt_radius.radius import radius_distance
 except ImportError:
     print(
         "`mlcg_opt_radius` not installed. Please check the `opt_radius` folder and follow the instructions."
     )
-    radius_cuda = None
+    radius_distance = None
 
 
 class SchNet(torch.nn.Module):
@@ -125,7 +125,7 @@ class SchNet(torch.nn.Module):
             # 2. input data is on CUDA
             # 3. not using PBC (TODO)
             use_custom_kernel = False
-            if (radius_cuda is not None) and x.is_cuda:
+            if (radius_distance is not None) and x.is_cuda:
                 use_custom_kernel = True
             if not use_custom_kernel:
                 neighbor_list = self.neighbor_list(
@@ -134,12 +134,12 @@ class SchNet(torch.nn.Module):
                     self.max_num_neighbors,
                 )[self.name]
         if use_custom_kernel:
-            edge_index, distances = radius_cuda(
+            distances, edge_index = radius_distance(
                 data.pos,
-                data.ptr,
                 self.rbf_layer.cutoff.cutoff_upper,
+                data.batch,
+                True,  # not ignoring the loop edges for compatibility
                 self.max_num_neighbors,
-                True,  # ignore_same_index
             )
         else:
             edge_index = neighbor_list["index_mapping"]
