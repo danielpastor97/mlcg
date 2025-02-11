@@ -49,7 +49,10 @@ class SchNet(torch.nn.Module):
     upper_distance_cutoff:
         Upper distance cutoff used for making neighbor lists.
     self_interaction:
-        If True, self interactions/distancess are calculated.
+        If True, self interactions/distancess are calculated. But it never
+        had a function due to a bug in the implementation (see static method
+        `neighbor_list`). Should be kept False. This option shall not be
+        deleted for compatibility.
     max_num_neighbors:
         Maximum number of neighbors to return for a
         given node/atom when constructing the molecular graph during forward
@@ -75,6 +78,10 @@ class SchNet(torch.nn.Module):
         self.embedding_layer = embedding_layer
         self.rbf_layer = rbf_layer
         self.max_num_neighbors = max_num_neighbors
+        if self_interaction:
+            raise NotImplementedError(
+                "The option `self_interaction` did not have function due to a bug. It only exists for compatibility and should stay `False`."
+            )
         self.self_interaction = self_interaction
 
         if isinstance(interaction_blocks, List):
@@ -138,7 +145,7 @@ class SchNet(torch.nn.Module):
                 data.pos,
                 self.rbf_layer.cutoff.cutoff_upper,
                 data.batch,
-                True,  # not ignoring the loop edges for compatibility
+                False,  # no loop edges due to compatibility & backward breaks with zero distance
                 self.max_num_neighbors,
             )
         else:
