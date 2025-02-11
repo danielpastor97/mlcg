@@ -9,9 +9,13 @@ from torch.autograd import gradcheck, gradgradcheck
 
 from torch_cluster import radius_graph as rgo
 
+skip_test = False
 try:
     from .radius import radius_distance as rgm
 except RuntimeError:
+    skip_test = True
+
+if skip_test or not torch.cuda.is_available():
     pytest.skip(
         "Cuda device is required for this test. Skipping ...",
         allow_module_level=True,
