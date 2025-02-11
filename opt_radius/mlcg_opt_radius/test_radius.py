@@ -10,7 +10,7 @@ from torch.autograd import gradcheck, gradgradcheck
 from torch_cluster import radius_graph as rgo
 
 try:
-    from radius import radius_distance as rgm
+    from mlcg_opt_radius.radius import radius_distance as rgm
 except RuntimeError:
     pytest.skip(
         "Cuda device is required for this test. Skipping ...",
