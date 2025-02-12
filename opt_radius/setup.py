@@ -1,13 +1,15 @@
-from setuptools import setup, Extension
+from setuptools import find_packages, setup, Extension
 from torch.utils import cpp_extension
 
 setup(
     name="mlcg_opt_radius",
+    packages=find_packages(),
     ext_modules=[
         cpp_extension.CUDAExtension(
-            "mlcg_opt_radius",
-            ["cu/radius_sd.cu"],
+            "mlcg_opt_radius.radius_cu",
+            ["mlcg_opt_radius/radius.cu"],
             py_limited_api=True,
+            extra_compile_args={"cxx": ["-O3"], "nvcc": ["-O3"]},
         ),
     ],
     cmdclass={
