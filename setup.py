@@ -2,7 +2,9 @@ from setuptools import setup, find_packages
 import re
 
 NAME = "mlcg"
-
+EXCLUDE_FOLDERS = [
+    "opt_radius",
+]
 # read the version number from the library
 pattern = r"[0-9]\.[0-9]\.[0-9]"
 VERSION = None
@@ -22,7 +24,7 @@ with open("requirements.txt") as f:
 setup(
     name=NAME,
     version=VERSION,
-    packages=find_packages(),
+    packages=find_packages(exclude=EXCLUDE_FOLDERS),
     zip_safe=True,
     python_requires=">=3.8",
     license="MIT",

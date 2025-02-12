@@ -18,4 +18,6 @@ torch_optimizer<=1.5.1
 pytest
 coverage[toml]
 black[jupyter]
+# by mlcg_opt_radius
+ninja
 
