@@ -17,6 +17,14 @@ from .attention import (
     Nonlocalinteractionblock,
 )
 
+try:
+    from mlcg_opt_radius.radius import radius_distance
+except ImportError:
+    print(
+        "`mlcg_opt_radius` not installed. Please check the `opt_radius` folder and follow the instructions."
+    )
+    radius_distance = None
+
 
 class SchNet(torch.nn.Module):
     r"""PyTorch Geometric implementation of SchNet
@@ -41,7 +49,10 @@ class SchNet(torch.nn.Module):
     upper_distance_cutoff:
         Upper distance cutoff used for making neighbor lists.
     self_interaction:
-        If True, self interactions/distancess are calculated.
+        If True, self interactions/distancess are calculated. But it never
+        had a function due to a bug in the implementation (see static method
+        `neighbor_list`). Should be kept False. This option shall not be
+        deleted for compatibility.
     max_num_neighbors:
         Maximum number of neighbors to return for a
         given node/atom when constructing the molecular graph during forward
@@ -67,6 +78,10 @@ class SchNet(torch.nn.Module):
         self.embedding_layer = embedding_layer
         self.rbf_layer = rbf_layer
         self.max_num_neighbors = max_num_neighbors
+        if self_interaction:
+            raise NotImplementedError(
+                "The option `self_interaction` did not have function due to a bug. It only exists for compatibility and should stay `False`."
+            )
         self.self_interaction = self_interaction
 
         if isinstance(interaction_blocks, List):
@@ -111,15 +126,35 @@ class SchNet(torch.nn.Module):
         neighbor_list = data.neighbor_list.get(self.name)
 
         if not self.is_nl_compatible(neighbor_list):
-            neighbor_list = self.neighbor_list(
-                data, self.rbf_layer.cutoff.cutoff_upper, self.max_num_neighbors
-            )[self.name]
-        edge_index = neighbor_list["index_mapping"]
-        distances = compute_distances(
-            data.pos,
-            edge_index,
-            neighbor_list["cell_shifts"],
-        )
+            # we need to generate the neighbor list
+            # check whether we are using the custom kernel
+            # 1. mlcg_opt_radius is installed
+            # 2. input data is on CUDA
+            # 3. not using PBC (TODO)
+            use_custom_kernel = False
+            if (radius_distance is not None) and x.is_cuda:
+                use_custom_kernel = True
+            if not use_custom_kernel:
+                neighbor_list = self.neighbor_list(
+                    data,
+                    self.rbf_layer.cutoff.cutoff_upper,
+                    self.max_num_neighbors,
+                )[self.name]
+        if use_custom_kernel:
+            distances, edge_index = radius_distance(
+                data.pos,
+                self.rbf_layer.cutoff.cutoff_upper,
+                data.batch,
+                False,  # no loop edges due to compatibility & backward breaks with zero distance
+                self.max_num_neighbors,
+            )
+        else:
+            edge_index = neighbor_list["index_mapping"]
+            distances = compute_distances(
+                data.pos,
+                edge_index,
+                neighbor_list["cell_shifts"],
+            )
 
         rbf_expansion = self.rbf_layer(distances)
         num_batch = data.batch[-1] + 1
