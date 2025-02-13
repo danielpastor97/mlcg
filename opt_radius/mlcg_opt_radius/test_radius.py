@@ -66,7 +66,6 @@ TOL = 1e-6
 def test_radius(
     x_c, dim, x_range, r, batch_size, max_num_neighbors, loop, fdtype, device
 ):
-    return
     (x_min, x_max) = x_range
     x = (x_max - x_min) * torch.rand(
         (x_c, dim), dtype=fdtype, device=device
