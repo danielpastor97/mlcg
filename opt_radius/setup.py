@@ -7,6 +7,7 @@ VERSION = "0.0.1"
 setup(
     name="mlcg_opt_radius",
     packages=find_packages(),
+    include_package_data=True,
     ext_modules=[
         cpp_extension.CUDAExtension(
             "mlcg_opt_radius.radius_opt",
@@ -16,6 +17,7 @@ setup(
             ],
             py_limited_api=True,
             extra_compile_args={"cxx": ["-O3"], "nvcc": ["-O3"]},
+            optional=True,
         ),
     ],
     python_requires=">=3.9",
