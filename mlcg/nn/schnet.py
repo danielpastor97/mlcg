@@ -323,6 +323,7 @@ class CFConv(MessagePassing):
         """
 
         self.filter_network.reset_parameters()
+        self.seq.reset_parameters()
         init_xavier_uniform(self.lin1)
         init_xavier_uniform(self.lin2)
 
@@ -406,7 +407,7 @@ class SeqConv(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        init_xavier_uniform(self)
+        torch.nn.init.xavier_uniform_(self.weight)
 
     def forward(
         self,
