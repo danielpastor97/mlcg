@@ -121,4 +121,4 @@ data:
       coords: cg_coords
       forces: cg_delta_forces
       exclusion_pairs: attrs:cg_exc_pairs
-  exclude_bonded_pairs: true
+  exclude_listed_pairs: true

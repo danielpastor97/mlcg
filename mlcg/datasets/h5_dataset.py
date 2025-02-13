@@ -115,7 +115,7 @@ class MetaSet:
         self._mol_map = {}
         self._n_mol_samples = []
         self._cumulate_indices = [0]
-        self._exclude_bonded_pairs = False
+        self._exclude_listed_pairs = False
 
     @staticmethod
     def retrieve_hdf(hdf_grp, hdf_key):
@@ -157,7 +157,7 @@ class MetaSet:
             "world_size": 1,
         },
         subsample_using_weights=False,
-        exclude_bonded_pairs=False,
+        exclude_listed_pairs=False,
     ):
         r"""initiate a Metaset by loading data from given HDF-group.
         mol_list, detailed_indices, hdf_key_mapping, stride and parallel can control which subset is loaded to the Metaset (details see the description of "H5Dataset")
@@ -201,7 +201,7 @@ class MetaSet:
                     % (mol_name, hdf5_group.name)
                 )
             embeds = MetaSet.retrieve_hdf(hdf5_group[mol_name], keys["embeds"])
-            if exclude_bonded_pairs:
+            if exclude_listed_pairs:
                 if "exclusion_pairs" not in keys:
                     raise ValueError(
                         f"Missing `exclusion_pairs` from hdf5 key mapping."
@@ -264,7 +264,7 @@ class MetaSet:
                     exclusion_pairs=exclusion_pairs,
                 )
             )
-        output._exclude_bonded_pairs = exclude_bonded_pairs
+        output._exclude_listed_pairs = exclude_listed_pairs
         return output
 
     def insert_mol(self, mol_data):
@@ -366,7 +366,7 @@ class MetaSet:
             forces=self._mol_dataset[dataset_id].forces[data_id],
             atom_types=self._mol_dataset[dataset_id].embeds,
         )
-        if self._exclude_bonded_pairs:
+        if self._exclude_listed_pairs:
             atd.exc_pair_index = torch.tensor(
                 self._mol_dataset[dataset_id].exclusion_pairs
             )
@@ -528,7 +528,7 @@ class H5Dataset:
         partition_options: Dict,
         loading_options: Dict,
         subsample_using_weights: bool = False,
-        exclude_bonded_pairs: bool = False,
+        exclude_listed_pairs: bool = False,
     ):
         self._h5_path = h5_file_path
         self._h5_root = h5py.File(h5_file_path, "r")
@@ -538,7 +538,7 @@ class H5Dataset:
         self._partition_sample_info = {}
         self._detailed_indices = {}
         self._subsample_using_weights = subsample_using_weights
-        self._exclude_bonded_pairs = exclude_bonded_pairs
+        self._exclude_listed_pairs = exclude_listed_pairs
 
         # processing the hdf5 file
         for metaset_name in self._h5_root:
@@ -609,7 +609,7 @@ class H5Dataset:
                         hdf_key_mapping=hdf_key_mapping,
                         parallel=parallel,
                         subsample_using_weights=self._subsample_using_weights,
-                        exclude_bonded_pairs=self._exclude_bonded_pairs,
+                        exclude_listed_pairs=self._exclude_listed_pairs,
                     ),
                 )
             ## trim the metasets to fit the need of sampling
@@ -767,7 +767,7 @@ class H5SimpleDataset(H5Dataset):
         },
         parallel={"rank": 0, "world_size": 1},
         subsample_using_weights: Optional[bool] = False,
-        exclude_bonded_pairs: bool = False,
+        exclude_listed_pairs: bool = False,
     ):
         # input checking
         if not isinstance(stride, int) and stride > 0:
@@ -813,7 +813,7 @@ class H5SimpleDataset(H5Dataset):
             hdf_key_mapping=hdf_key_mapping,
             parallel=parallel,
             subsample_using_weights=subsample_using_weights,
-            exclude_bonded_pairs=exclude_bonded_pairs,
+            exclude_listed_pairs=exclude_listed_pairs,
         )
 
     def get_dataloader(
