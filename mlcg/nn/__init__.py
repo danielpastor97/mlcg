@@ -13,6 +13,7 @@ from .pyg_forward_compatibility import (
     fixed_pyg_inspector,
 )
 from .painn import PaiNN, StandardPaiNN
+from .lr_scheduler import CustomStepLR
 
 try:
     from .mace_interface import MACEInterface
@@ -52,4 +53,5 @@ __all__ = [
     "fixed_pyg_inspector",
     "PaiNN",
     "StandardPaiNN",
+    "CustomStepLR",
 ]
