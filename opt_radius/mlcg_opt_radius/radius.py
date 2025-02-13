@@ -8,30 +8,45 @@ from os import path
 # ref: https://github.com/pytorch/extension-cpp/, Issue #71
 # TODO: a proper setup script to install a compiled version
 # TODO: check whether the module has already been installed. If so, then skip
+
+loaded_from_installation = False
 try:
-    from torch.utils.cpp_extension import load
+    from . import radius_opt as mc
 
-    mc = load(
-        name="radius_kernel",
-        sources=[path.join(path.dirname(__file__), "radius.cu")],
-        extra_cflags=["-O3"],
-        extra_cuda_cflags=["-O3"],
+    loaded_from_installation = True
+except ImportError:
+    print(
+        "Package `mlcg_opt_radius` was not installed. Running with JIT compilation."
     )
-except Exception as e:
-    # we save the error message instead of raising it immediately
-    # but rather raise it when `radius_cuda` is actually called
-    class DelayedError:
-        def __init__(self, exception):
-            self.type = type(exception)
-            self.msg = str(exception)
 
-        def radius_cuda(self, *args, **kwargs):
-            raise RuntimeError(
-                f"Delayed {self.type}(self.msg)\n"
-                "`mlcg_opt_radius` was not properly installed?"
-            )
+if not loaded_from_installation:
+    try:
+        from torch.utils.cpp_extension import load
 
-    mc = DelayedError(e)
+        mc = load(
+            name="radius_kernel",
+            sources=[
+                path.join(path.dirname(__file__), src)
+                for src in ["binding.cpp", "radius.cu", "exclusion_pairs.cpp"]
+            ],
+            extra_cflags=["-O3"],
+            extra_cuda_cflags=["-O3"],
+        )
+    except Exception as e:
+        # we save the error message instead of raising it immediately
+        # but rather raise it when `radius_cuda` is actually called
+        class DelayedError:
+            def __init__(self, exception):
+                self.type = type(exception)
+                self.msg = str(exception)
+
+            def radius_cuda(self, *args, **kwargs):
+                raise RuntimeError(
+                    f"Delayed {self.type}(self.msg)\n"
+                    "`mlcg_opt_radius` was not properly installed?"
+                )
+
+        mc = DelayedError(e)
 
 
 def radius_distance_fn(
@@ -41,6 +56,7 @@ def radius_distance_fn(
     loop: bool = False,
     max_num_neighbors: int = 32,
     batch_size: Optional[int] = None,
+    exclude_pair_indices: Optional[torch.LongTensor] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     if x.numel() == 0:
         return torch.empty(2, 0, dtype=torch.long, device=x.device)
@@ -58,14 +74,40 @@ def radius_distance_fn(
         arange = torch.arange(batch_size + 1, device=x.device)
         ptr_x = torch.bucketize(arange, batch)
 
-    return mc.radius_cuda(x, ptr_x, r, max_num_neighbors, not loop)
+    # prepare the input for exclude given pairs from the radius graph
+    if exclude_pair_indices is not None:
+        num_nodes = x.size(0)
+        exc_pair_xs, y_level_ptr = mc.exclusion_pair_to_ptr(
+            exclude_pair_indices, num_nodes
+        )
+    else:
+        exc_pair_xs, y_level_ptr = None, None
+
+    return mc.radius_cuda(
+        x, ptr_x, r, max_num_neighbors, not loop, exc_pair_xs, y_level_ptr
+    )
 
 
 class RadiusDistanceAGF(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, x, r, batch, loop, max_num_neighbors, batch_size):
+    def forward(
+        ctx,
+        x,
+        r,
+        batch,
+        loop,
+        max_num_neighbors,
+        batch_size,
+        exclude_pair_indices,
+    ):
         edge_index, distance = radius_distance_fn(
-            x, r, batch, loop, max_num_neighbors, batch_size
+            x,
+            r,
+            batch,
+            loop,
+            max_num_neighbors,
+            batch_size,
+            exclude_pair_indices,
         )
         # distance.requires_grad_()
         ctx.save_for_backward(x, distance, edge_index)
@@ -94,7 +136,7 @@ class RadiusDistanceAGB(torch.autograd.Function):
         ctx.save_for_backward(
             edge_index, differences, scaling, grad_d, distance
         )
-        return grad_x, None, None, None, None, None
+        return grad_x, None, None, None, None, None, None
 
     @staticmethod
     def backward(ctx, grad_out_x, *args):
@@ -149,7 +191,8 @@ def radius_distance(
     loop: bool = False,
     max_num_neighbors: int = 32,
     batch_size: Optional[int] = None,
+    exclude_pair_indices: Optional[torch.LongTensor] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     return RadiusDistanceAGF.apply(
-        x, r, batch, loop, max_num_neighbors, batch_size
+        x, r, batch, loop, max_num_neighbors, batch_size, exclude_pair_indices
     )

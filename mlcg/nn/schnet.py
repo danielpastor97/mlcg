@@ -136,6 +136,11 @@ class SchNet(torch.nn.Module):
             if (radius_distance is not None) and x.is_cuda:
                 use_custom_kernel = True
             if not use_custom_kernel:
+                if hasattr(data, "exc_pair_index"):
+                    raise NotImplementedError(
+                        "Excluding pairs requires `mlcg_opt_radius` "
+                        "to be available and model running with CUDA."
+                    )
                 neighbor_list = self.neighbor_list(
                     data,
                     self.rbf_layer.cutoff.cutoff_upper,
@@ -148,6 +153,7 @@ class SchNet(torch.nn.Module):
                 data.batch,
                 False,  # no loop edges due to compatibility & backward breaks with zero distance
                 self.max_num_neighbors,
+                exclude_pair_indices=data.get("exc_pair_index"),
             )
         else:
             edge_index = neighbor_list["index_mapping"]
