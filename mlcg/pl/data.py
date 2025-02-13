@@ -49,6 +49,7 @@ class DataModule(pl.LightningDataModule):
         num_workers: int = 1,
         loading_stride: int = 1,
         save_local_copy: bool = False,
+        pin_memory: bool = True,
     ) -> None:
         super(DataModule, self).__init__()
         # self.save_hyperparameters()
@@ -76,6 +77,7 @@ class DataModule(pl.LightningDataModule):
         self.splits = splits
         self.loading_stride = loading_stride
         self.splits_fn = os.path.join(self.log_dir, "splits.npz")
+        self.pin_memory = pin_memory
 
     def load_dataset(self):
         if self.save_local_copy:
@@ -125,5 +127,5 @@ class DataModule(pl.LightningDataModule):
             batch_size=batch_size,
             shuffle=shuffle,
             num_workers=self.num_workers,
-            pin_memory=True,
+            pin_memory=self.pin_memory,
         )
