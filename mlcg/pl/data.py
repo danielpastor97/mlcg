@@ -98,7 +98,8 @@ class DataModule(pl.LightningDataModule):
             len(dataset),
             self.val_ratio,
             self.test_ratio,
-            splits=self.splits_fn,
+            filename=self.splits_fn,
+            splits=self.splits,
         )
 
         self.train_dataset = dataset[self.idx_train]
