@@ -82,9 +82,8 @@ class DataModule(pl.LightningDataModule):
             dataset = torch.load(self.dataset_root)
         else:
             dataset = self.dataset_cls(**self.dataset_init_kwargs)
-        return [
-            dataset[ii] for ii in range(0, len(dataset), self.loading_stride)
-        ]
+        indeces = torch.arange(0,len(dataset), self.loading_stride)
+        return(dataset[indeces])
 
     def prepare_data(self):
         """Download, preprocess dataset, etc."""
@@ -100,9 +99,9 @@ class DataModule(pl.LightningDataModule):
             splits=self.splits_fn,
         )
 
-        self.train_dataset = [dataset[ii] for ii in self.idx_train]
-        self.val_dataset = [dataset[ii] for ii in self.idx_val]
-        self.test_dataset = [dataset[ii] for ii in self.idx_test]
+        self.train_dataset = dataset[self.idx_train]
+        self.val_dataset = dataset[self.idx_val]
+        self.test_dataset = dataset[self.idx_test]
 
     def train_dataloader(self):
         return self._get_dataloader(self.train_dataset, "train")
