@@ -97,6 +97,14 @@
     <span class="n">Nonlocalinteractionblock</span><span class="p">,</span>
 <span class="p">)</span>
 
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">mlcg_opt_radius.radius</span><span class="w"> </span><span class="kn">import</span> <span class="n">radius_distance</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="s2">&quot;`mlcg_opt_radius` not installed. Please check the `opt_radius` folder and follow the instructions.&quot;</span>
+    <span class="p">)</span>
+    <span class="n">radius_distance</span> <span class="o">=</span> <span class="kc">None</span>
+
 
 <div class="viewcode-block" id="SchNet">
 <a class="viewcode-back" href="../../../models.html#mlcg.nn.schnet.SchNet">[docs]</a>
@@ -123,7 +131,10 @@
 <span class="sd">    upper_distance_cutoff:</span>
 <span class="sd">        Upper distance cutoff used for making neighbor lists.</span>
 <span class="sd">    self_interaction:</span>
-<span class="sd">        If True, self interactions/distancess are calculated.</span>
+<span class="sd">        If True, self interactions/distancess are calculated. But it never</span>
+<span class="sd">        had a function due to a bug in the implementation (see static method</span>
+<span class="sd">        `neighbor_list`). Should be kept False. This option shall not be</span>
+<span class="sd">        deleted for compatibility.</span>
 <span class="sd">    max_num_neighbors:</span>
 <span class="sd">        Maximum number of neighbors to return for a</span>
 <span class="sd">        given node/atom when constructing the molecular graph during forward</span>
@@ -149,6 +160,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">embedding_layer</span> <span class="o">=</span> <span class="n">embedding_layer</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rbf_layer</span> <span class="o">=</span> <span class="n">rbf_layer</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">max_num_neighbors</span> <span class="o">=</span> <span class="n">max_num_neighbors</span>
+        <span class="k">if</span> <span class="n">self_interaction</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="s2">&quot;The option `self_interaction` did not have function due to a bug. It only exists for compatibility and should stay `False`.&quot;</span>
+            <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">self_interaction</span> <span class="o">=</span> <span class="n">self_interaction</span>
 
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">interaction_blocks</span><span class="p">,</span> <span class="n">List</span><span class="p">):</span>
@@ -198,15 +213,35 @@
         <span class="n">neighbor_list</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">neighbor_list</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_nl_compatible</span><span class="p">(</span><span class="n">neighbor_list</span><span class="p">):</span>
-            <span class="n">neighbor_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">neighbor_list</span><span class="p">(</span>
-                <span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rbf_layer</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_upper</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_num_neighbors</span>
-            <span class="p">)[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
-        <span class="n">edge_index</span> <span class="o">=</span> <span class="n">neighbor_list</span><span class="p">[</span><span class="s2">&quot;index_mapping&quot;</span><span class="p">]</span>
-        <span class="n">distances</span> <span class="o">=</span> <span class="n">compute_distances</span><span class="p">(</span>
-            <span class="n">data</span><span class="o">.</span><span class="n">pos</span><span class="p">,</span>
-            <span class="n">edge_index</span><span class="p">,</span>
-            <span class="n">neighbor_list</span><span class="p">[</span><span class="s2">&quot;cell_shifts&quot;</span><span class="p">],</span>
-        <span class="p">)</span>
+            <span class="c1"># we need to generate the neighbor list</span>
+            <span class="c1"># check whether we are using the custom kernel</span>
+            <span class="c1"># 1. mlcg_opt_radius is installed</span>
+            <span class="c1"># 2. input data is on CUDA</span>
+            <span class="c1"># 3. not using PBC (TODO)</span>
+            <span class="n">use_custom_kernel</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">radius_distance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="n">is_cuda</span><span class="p">:</span>
+                <span class="n">use_custom_kernel</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">use_custom_kernel</span><span class="p">:</span>
+                <span class="n">neighbor_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">neighbor_list</span><span class="p">(</span>
+                    <span class="n">data</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">rbf_layer</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_upper</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">max_num_neighbors</span><span class="p">,</span>
+                <span class="p">)[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">use_custom_kernel</span><span class="p">:</span>
+            <span class="n">distances</span><span class="p">,</span> <span class="n">edge_index</span> <span class="o">=</span> <span class="n">radius_distance</span><span class="p">(</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">pos</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">rbf_layer</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_upper</span><span class="p">,</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span>
+                <span class="kc">False</span><span class="p">,</span>  <span class="c1"># no loop edges due to compatibility &amp; backward breaks with zero distance</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">max_num_neighbors</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">edge_index</span> <span class="o">=</span> <span class="n">neighbor_list</span><span class="p">[</span><span class="s2">&quot;index_mapping&quot;</span><span class="p">]</span>
+            <span class="n">distances</span> <span class="o">=</span> <span class="n">compute_distances</span><span class="p">(</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">pos</span><span class="p">,</span>
+                <span class="n">edge_index</span><span class="p">,</span>
+                <span class="n">neighbor_list</span><span class="p">[</span><span class="s2">&quot;cell_shifts&quot;</span><span class="p">],</span>
+            <span class="p">)</span>
 
         <span class="n">rbf_expansion</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rbf_layer</span><span class="p">(</span><span class="n">distances</span><span class="p">)</span>
         <span class="n">num_batch</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">batch</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>

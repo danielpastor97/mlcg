@@ -665,7 +665,10 @@ between atoms/CG beads.</p></li>
 features. This network should transform (num_examples * num_atoms,
 hidden_channels) to (num_examples * num atoms, 1).</p></li>
 <li><p><strong>upper_distance_cutoff</strong> – Upper distance cutoff used for making neighbor lists.</p></li>
-<li><p><strong>self_interaction</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>) – If True, self interactions/distancess are calculated.</p></li>
+<li><p><strong>self_interaction</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>) – If True, self interactions/distancess are calculated. But it never
+had a function due to a bug in the implementation (see static method
+<cite>neighbor_list</cite>). Should be kept False. This option shall not be
+deleted for compatibility.</p></li>
 <li><p><strong>max_num_neighbors</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Maximum number of neighbors to return for a
 given node/atom when constructing the molecular graph during forward
 passes. This attribute is passed to the torch_cluster radius_graph
