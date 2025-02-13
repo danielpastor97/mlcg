@@ -1,5 +1,8 @@
 from .chignolin import ChignolinDataset
 from .h5_dataset import (
+    MolData,
+    MetaSet,
+    Partition,
     H5PartitionDataLoader,
     H5MetasetDataLoader,
     H5Dataset,
