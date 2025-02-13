@@ -169,7 +169,6 @@ class SchNet(torch.nn.Module):
                 edge_index,
                 distances,
                 rbf_expansion,
-                data.atom_types,
                 seq_neighs,
                 num_batch,
                 data.batch,
@@ -248,7 +247,6 @@ class InteractionBlock(torch.nn.Module):
         edge_index: torch.Tensor,
         edge_weight: torch.Tensor,
         edge_attr: torch.Tensor,
-        atom_types: torch.Tensor,
         seq_neighs: torch.Tensor,
         *args,
     ) -> torch.Tensor:
@@ -274,9 +272,7 @@ class InteractionBlock(torch.nn.Module):
             hidden_channels)
         """
 
-        x = self.conv(
-            x, edge_index, edge_weight, edge_attr, atom_types, seq_neighs
-        )
+        x = self.conv(x, edge_index, edge_weight, edge_attr, seq_neighs)
         x = self.activation(x)
         x = self.lin(x)
         return x
@@ -336,7 +332,6 @@ class CFConv(MessagePassing):
         edge_index: torch.Tensor,
         edge_weight: torch.Tensor,
         edge_attr: torch.Tensor,
-        atom_types: torch.Tensor,
         seq_neighs: torch.Tensor,
     ) -> torch.Tensor:
         r"""Forward pass through the continuous filter convolution.
@@ -367,7 +362,7 @@ class CFConv(MessagePassing):
         # propagate_type: (x: Tensor, W: Tensor)
         # Perform the continuous filter convolution
         x = self.propagate(edge_index, x=x, W=W, size=None) + self.seq(
-            x, atom_types, seq_neighs
+            x, seq_neighs
         )
         x = self.lin2(x)
         return x
@@ -416,7 +411,6 @@ class SeqConv(torch.nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        atom_types: torch.Tensor,
         seq_neighs: torch.Tensor,
     ):
         r"""Forward pass of the  sequence convolution
@@ -425,10 +419,11 @@ class SeqConv(torch.nn.Module):
         it perform an entry-wise multiplication between self.weight[1,:]*x[atom_types[i],:] and then
         adds this with self.weight[0,:]*x[atom_types[i-1],:] and self.weight[0,:]*x[atom_types[i+1],:].
         """
-        seq_neighs_types = atom_types[seq_neighs]
-        seq_neighs_feats = x[seq_neighs_types]
+        seq_neighs_feats = x[seq_neighs]
         # get the orientation of edges, needed to get the correct weight
         weights_indexes = seq_neighs.diff(dim=0) + 1
+        # 0 index in `self.weight` because its returns an un-squeezed shape
+        # 0 index in `seq_neighs_feats` because the diffs are with respect to the first index
         neighs_interaction = (
             self.weight[weights_indexes][0, :, :] * seq_neighs_feats[0, :, :]
         )
@@ -437,7 +432,7 @@ class SeqConv(torch.nn.Module):
             src=neighs_interaction, index=seq_neighs[0, :], dim=0, reduce="sum"
         )
         # add the parts of the self interaction
-        self_interaction = self.weight[1, :] * x[atom_types]
+        self_interaction = self.weight[1, :] * x
         return neighs_interaction_scat + self_interaction
 
 
