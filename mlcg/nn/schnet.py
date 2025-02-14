@@ -165,8 +165,7 @@ class SchNet(torch.nn.Module):
 
         rbf_expansion = self.rbf_layer(distances)
 
-        # getting sequence information. Only works for CA case.
-        seq_neighs = get_seq_neigh(data)
+        disc_edge_index = self.get_discrete_edges(data)
 
         num_batch = data.batch[-1] + 1
         for block in self.interaction_blocks:
@@ -175,9 +174,7 @@ class SchNet(torch.nn.Module):
                 edge_index,
                 distances,
                 rbf_expansion,
-                seq_neighs,
-                num_batch,
-                data.batch,
+                disc_edge_index,
             )
 
         energy = self.output_network(x, data)
@@ -211,6 +208,11 @@ class SchNet(torch.nn.Module):
                 max_num_neighbors=max_num_neighbors,
             )
         }
+
+    @staticmethod
+    def get_discrete_edges(data):
+        """By default not using discrete edge convolution."""
+        return None
 
 
 class InteractionBlock(torch.nn.Module):
@@ -253,8 +255,7 @@ class InteractionBlock(torch.nn.Module):
         edge_index: torch.Tensor,
         edge_weight: torch.Tensor,
         edge_attr: torch.Tensor,
-        seq_neighs: torch.Tensor,
-        *args,
+        disc_edge_index: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         r"""Forward pass through the interaction block.
 
@@ -270,6 +271,10 @@ class InteractionBlock(torch.nn.Module):
         edge_attr:
             Graph edge attributes (eg, expanded distances), of shape
             (total_num_edges, num_rbf)
+        disc_edge_index:
+            Optional graph edge index tensor of shape (2, total_num_disc_edges)
+            For the edges on which a discrete sequential convolution
+            should acts, when the init arg `discrete_kernel_size` > 0
 
         Returns
         -------
@@ -278,7 +283,7 @@ class InteractionBlock(torch.nn.Module):
             hidden_channels)
         """
 
-        x = self.conv(x, edge_index, edge_weight, edge_attr, seq_neighs)
+        x = self.conv(x, edge_index, edge_weight, edge_attr, disc_edge_index)
         x = self.activation(x)
         x = self.lin(x)
         return x
@@ -302,6 +307,10 @@ class CFConv(MessagePassing):
     aggr:
         Aggregation scheme for continuous filter output. For all options,
         see `here <https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class>`.
+    discrete_kernel_size:
+        Size for the discrete sequential convolution kernel. By default it's 0
+        (disabled; traditional cfconv).
+        Set it 3 if desired to use sequence neighbor convolution.
     """
 
     def __init__(
@@ -312,11 +321,13 @@ class CFConv(MessagePassing):
         out_channels: int = 128,
         num_filters: int = 128,
         aggr: str = "add",
+        discrete_kernel_size: int = 0.0,
     ):
         super(CFConv, self).__init__(aggr=aggr)
         self.lin1 = torch.nn.Linear(in_channels, num_filters, bias=False)
         self.lin2 = torch.nn.Linear(num_filters, out_channels)
-        self.seq = SeqConv(num_filters)
+        if discrete_kernel_size > 0:
+            self.disc = DiscConv(num_filters, discrete_kernel_size)
         self.filter_network = filter_network
         self.cutoff = cutoff
         self.reset_parameters()
@@ -329,7 +340,8 @@ class CFConv(MessagePassing):
         """
 
         self.filter_network.reset_parameters()
-        self.seq.reset_parameters()
+        if hasattr(self, "disc"):
+            self.disc.reset_parameters()
         init_xavier_uniform(self.lin1)
         init_xavier_uniform(self.lin2)
 
@@ -339,7 +351,7 @@ class CFConv(MessagePassing):
         edge_index: torch.Tensor,
         edge_weight: torch.Tensor,
         edge_attr: torch.Tensor,
-        seq_neighs: torch.Tensor,
+        disc_edge_index: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         r"""Forward pass through the continuous filter convolution.
 
@@ -355,6 +367,10 @@ class CFConv(MessagePassing):
         edge_attr:
             Graph edge attributes (eg, expanded distances), of shape
             (total_num_edges, num_rbf)
+        disc_edge_index:
+            Optional graph edge index tensor of shape (2, total_num_disc_edges)
+            For the edges on which a discrete sequential convolution
+            should acts, when the init arg `discrete_kernel_size` > 0
 
         Returns
         -------
@@ -368,9 +384,12 @@ class CFConv(MessagePassing):
         x = self.lin1(x)
         # propagate_type: (x: Tensor, W: Tensor)
         # Perform the continuous filter convolution
-        x = self.propagate(edge_index, x=x, W=W, size=None) + self.seq(
-            x, seq_neighs
-        )
+        if hasattr(self, "disc"):
+            x = self.propagate(edge_index, x=x, W=W, size=None) + self.disc(
+                x, disc_edge_index
+            )
+        else:
+            x = self.propagate(edge_index, x=x, W=W, size=None)
         x = self.lin2(x)
         return x
 
@@ -395,21 +414,27 @@ class CFConv(MessagePassing):
         return x_j * W
 
 
-class SeqConv(torch.nn.Module):
-    r"""Module for performing a sequence convolution.
+class DiscConv(torch.nn.Module):
+    r"""Module for performing a discrete filter convolution. This is similar
+    to conventional convolutions along a sequence of features, but we keep it
+    with a single channel (comparable to the message passing), and only consider
+    the input edges for the sake of possibly ragged number of nodes in each
+    graph.
 
-    Parameters are shared such that the previous, succesive and current elements
-    in the sequence always use the same weights. This ensures that we
-    learn the correct
-
+    The weight matrix, self.weight, has shape (kernel_size, n_feats).
+    Parameters are shared such that the elements in the sequence always share
+    the same convolution filter weights according to the relative position in
+    the sequence from the source to the target node. This ensures that the
+    message passing itself does not generate gradients on the pairwise
+    distances, which could be useful for e.g., directly bonded pairs.
     """
 
-    def __init__(self, n_feats: int):
-        super(SeqConv, self).__init__()
+    def __init__(self, n_feats: int, kernel_size: int = 3):
+        super(DiscConv, self).__init__()
         # TODO: make weights dependent on the embedding index as well
         # that way we could have a convolution where how to add the
         # neighboring interaction depends on embedding type
-        self.weight = torch.nn.Parameter(torch.randn((3, n_feats)))
+        self.weight = torch.nn.Parameter(torch.randn((kernel_size, n_feats)))
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -418,29 +443,33 @@ class SeqConv(torch.nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        seq_neighs: torch.Tensor,
+        disc_edges: torch.Tensor,
     ):
-        r"""Forward pass of the  sequence convolution
+        r"""Forward pass of the sequence convolution.
 
-        The weight matrix, self.weight, has shape (3,n_feats). For a given element in a sequence ith,
-        it perform an entry-wise multiplication between self.weight[1,:]*x[atom_types[i],:] and then
-        adds this with self.weight[0,:]*x[atom_types[i-1],:] and self.weight[0,:]*x[atom_types[i+1],:].
+        The i-th output element is
+        self.weight[0,:] * x[i] + \sum_{edge_(j,i)}(self.weight[j-1,:] * x[j])
+        The self-interaction is on by default, i.e., the output always comprises
+        the input scaled by self.weight[0, :] even when the input edges has 0-size.
+
+        An example can be found at `mlcg.neighbor_list.get_seq_neigh`, which
+        generates discrete edges for sequential neighbors -1 and +1. With
+        kernel_size = 3 (default), for the i-th element in a sequence,
+        it perform an entry-wise multiplication between self.weight[0,:]*x[atom_types[i],:] and then
+        sums it with self.weight[-1,:]*x[atom_types[i-1],:] and self.weight[1,:]*x[atom_types[i+1],:].
+        The padding mode is "valid" (i.e., no padding when reaches the boundary).
         """
-        seq_neighs_feats = x[seq_neighs]
+        disc_feats = x[disc_edges[0]]
         # get the orientation of edges, needed to get the correct weight
-        weights_indexes = seq_neighs.diff(dim=0) + 1
-        # 0 index in `self.weight` because its returns an un-squeezed shape
-        # 0 index in `seq_neighs_feats` because the diffs are with respect to the first index
-        neighs_interaction = (
-            self.weight[weights_indexes][0, :, :] * seq_neighs_feats[0, :, :]
-        )
-        # sum every neighbor interaction using torch scatter
-        neighs_interaction_scat = scatter(
-            src=neighs_interaction, index=seq_neighs[0, :], dim=0, reduce="sum"
+        weights_indexes = disc_edges[0] - disc_edges[1]
+        disc_message = self.weight[weights_indexes] * disc_feats
+        # sum every discrete message using torch scatter
+        disc_message_scat = scatter(
+            src=disc_message, index=disc_edges[1], dim=0, reduce="sum"
         )
         # add the parts of the self interaction
-        self_interaction = self.weight[1, :] * x
-        return neighs_interaction_scat + self_interaction
+        self_interaction = self.weight[0, :] * x
+        return disc_message_scat + self_interaction
 
 
 class StandardSchNet(SchNet):
@@ -542,6 +571,90 @@ class StandardSchNet(SchNet):
             output_network,
             max_num_neighbors=max_num_neighbors,
         )
+
+
+class SchNetWithSeqNeighbors(SchNet):
+    """Wrapper class similar to `StandardSchNet`. The only difference is that
+    this subclass enables discrete filter convolution over the sequential
+    neighbors. For now the neighbor finding strategy is tailored only for
+    CA-resolution, i.e., taking the node before and after on the sequence.
+
+    Parameters
+    ----------
+    Identical as `StandardSchNet`, please check it out there.
+
+    """
+
+    def __init__(
+        self,
+        rbf_layer: torch.nn.Module,
+        cutoff: torch.nn.Module,
+        output_hidden_layer_widths: List[int],
+        hidden_channels: int = 128,
+        embedding_size: int = 100,
+        num_filters: int = 128,
+        num_interactions: int = 3,
+        activation: torch.nn.Module = torch.nn.Tanh(),
+        max_num_neighbors: int = 1000,
+        aggr: str = "add",
+    ):
+        if num_interactions < 1:
+            raise ValueError("At least one interaction block must be specified")
+
+        if cutoff.cutoff_lower != rbf_layer.cutoff.cutoff_lower:
+            warnings.warn(
+                "Cutoff function lower cutoff, {}, and radial basis function "
+                " lower cutoff, {}, do not match.".format(
+                    cutoff.cutoff_lower, rbf_layer.cutoff.cutoff_lower
+                )
+            )
+        if cutoff.cutoff_upper != rbf_layer.cutoff.cutoff_upper:
+            warnings.warn(
+                "Cutoff function upper cutoff, {}, and radial basis function "
+                " upper cutoff, {}, do not match.".format(
+                    cutoff.cutoff_upper, rbf_layer.cutoff.cutoff_upper
+                )
+            )
+
+        embedding_layer = torch.nn.Embedding(embedding_size, hidden_channels)
+
+        interaction_blocks = []
+        for _ in range(num_interactions):
+            filter_network = MLP(
+                layer_widths=[rbf_layer.num_rbf, num_filters, num_filters],
+                activation_func=activation,
+                last_bias=False,
+            )
+
+            cfconv = CFConv(
+                filter_network,
+                cutoff=cutoff,
+                num_filters=num_filters,
+                in_channels=hidden_channels,
+                out_channels=hidden_channels,
+                aggr=aggr,
+                discrete_kernel_size=3,
+            )
+            block = InteractionBlock(cfconv, hidden_channels, activation)
+            interaction_blocks.append(block)
+        output_layer_widths = (
+            [hidden_channels] + output_hidden_layer_widths + [1]
+        )
+        output_network = MLP(
+            output_layer_widths, activation_func=activation, last_bias=False
+        )
+        super(SchNetWithSeqNeighbors, self).__init__(
+            embedding_layer,
+            interaction_blocks,
+            rbf_layer,
+            output_network,
+            max_num_neighbors=max_num_neighbors,
+        )
+
+    @staticmethod
+    def get_discrete_edges(data):
+        """Include edges from the node before and after to each node in a graph."""
+        return get_seq_neigh(data)
 
 
 class AttentiveSchNet(SchNet):
