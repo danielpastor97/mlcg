@@ -26,16 +26,15 @@ def get_seq_neigh(data: AtomicData) -> torch.Tensor:
 
     """
     indxs = torch.arange(data.atom_types.size()[0], device=data.pos.device)
-    indxs_roll_front = indxs.roll(1)
-    batch_roll_front = data.batch.roll(1)
-    indxs_roll_back = indxs.roll(-1)
-    batch_roll_back = data.batch.roll(-1)
+    indxs_shift_front = indxs[1:]
+    batch_shift_front = data.batch[1:]
+    indxs_shift_back = indxs[:-1]
+    batch_shift_back = data.batch[:-1]
+    mask = (
+        batch_shift_front == batch_shift_back
+    )  # mask pairs not from the same frame
     # we get separetely the neighbors to one side and then to the other side
-    front_neighs = torch.vstack((indxs, indxs_roll_front))[
-        :, batch_roll_front == data.batch
-    ]
-    back_neighs = torch.vstack((indxs, indxs_roll_back))[
-        :, batch_roll_back == data.batch
-    ]
+    front_neighs = torch.vstack((indxs_shift_front, indxs_shift_back))[:, mask]
+    back_neighs = torch.vstack((indxs_shift_back, indxs_shift_front))[:, mask]
     total_neighs = torch.hstack((front_neighs, back_neighs))
     return total_neighs
