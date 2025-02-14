@@ -122,6 +122,7 @@ class SumOut(torch.nn.Module):
             nl.update(**model.neighbor_list(**kwargs))
         return nl
 
+
 class EnergyOut(torch.nn.Module):
     r"""Extractor for energy computed via SchNet
 
@@ -143,7 +144,7 @@ class EnergyOut(torch.nn.Module):
     ):
         super().__init__()
         if targets is None:
-            targets = ['enegy']
+            targets = ["enegy"]
         self.targets = targets
         self.model = model
         self.name = self.model.name
@@ -153,7 +154,8 @@ class EnergyOut(torch.nn.Module):
         for target in self.targets:
             data.out[target] = data.out[self.name][target]
         return data
-    
+
+
 class GradientsOut(torch.nn.Module):
     r"""Gradient wrapper for models.
 

@@ -82,6 +82,7 @@ def merge_priors_and_checkpoint(
     model = SumOut(models=merged_model)
     return model
 
+
 class LossScheduler(pl.Callback):
     def __init__(self, epoch_to_update, new_weights):
         """
@@ -91,15 +92,20 @@ class LossScheduler(pl.Callback):
         self.epoch_to_update = epoch_to_update
         self.new_weights = torch.tensor(new_weights)
 
-    def on_train_epoch_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    def on_train_epoch_start(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
         if trainer.current_epoch == self.epoch_to_update:
             pl_module.loss.weights.copy_(self.new_weights)
-            print(f"Updated loss weights to {self.new_weights.tolist()} at epoch {self.epoch_to_update}")
+            print(
+                f"Updated loss weights to {self.new_weights.tolist()} at epoch {self.epoch_to_update}"
+            )
+
 
 class OffsetCheckpoint(ModelCheckpoint):
     """Customized checkpoint class used to save checkpoints
     starting from specified epoch."""
+
     def __init__(self, start_epoch: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.start_epoch = start_epoch

@@ -84,8 +84,8 @@ class DataModule(pl.LightningDataModule):
             dataset = torch.load(self.dataset_root)
         else:
             dataset = self.dataset_cls(**self.dataset_init_kwargs)
-        indeces = torch.arange(0,len(dataset), self.loading_stride)
-        return(dataset[indeces])
+        indeces = torch.arange(0, len(dataset), self.loading_stride)
+        return dataset[indeces]
 
     def prepare_data(self):
         """Download, preprocess dataset, etc."""

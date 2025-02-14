@@ -3,9 +3,10 @@ import warnings
 
 
 class CustomStepLR(_LRScheduler):
-    """Custom Learning rate that allows to apply different 
-    gamma and step size to different parameter groups defined in 
+    """Custom Learning rate that allows to apply different
+    gamma and step size to different parameter groups defined in
     the optimizer."""
+
     def __init__(
         self, optimizer, step_sizes=[], gammas=[], last_epoch=-1, verbose=False
     ):
@@ -40,6 +41,8 @@ class CustomStepLR(_LRScheduler):
                 new_lrs.append(self.optimizer.param_groups[i]["lr"])
             else:
                 # Step epoch for this param group
-                new_lrs.append(base_lr * gamma ** (self.last_epoch // step_size))
+                new_lrs.append(
+                    base_lr * gamma ** (self.last_epoch // step_size)
+                )
 
         return new_lrs
