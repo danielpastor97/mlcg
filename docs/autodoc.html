@@ -1483,132 +1483,9 @@ be present in order to skip downloading.</p>
 
 </dd></dl>
 
-<p id="module-mlcg.datasets.h5_dataset">Python classes for processing data stored in HDF5 format.</p>
-<p>HDF5 format benefits the dataset management for mlcg when training/validation involves multiple molecules of vastly different lengths and when parallelization is used.
-The main features are:
-1. The internal structure mimics the hierarchy of the dataset itself, such that we don’t have to replicate it on filesystem.
-2. we don’t have to actively open all files in the process
-3. we can transparently load only the necessary part of the dataset to the memory</p>
-<p>This file contains the python data structures for handling the HDF5 file and its content, i.e., the coordinates, forces and embedding vectors for multiple CG molecules.
-An example HDF5 file structure and correponding class types after loading:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>/ (HDF-group, =&gt; `H5Dataset._h5_root`)
-├── OPEP (HDF-group =(part, according to &quot;partition_options&quot;)=&gt; `Metaset` in a `Partition`)
-│   ├── opep_0000 (HDF-group, =&gt; `MolData`)
-│   │   ├── attrs (HDF-attributes of the molecule &quot;/OPEP/opep_0000&quot;)
-│   │   │   ├── cg_embeds (a 1-d numpy.int array)
-│   │   │   ├── N_frames (int, number of frames = size of cg_coords on axis 0)
-│   │   │   ... (optional, e.g., cg_top, cg_pdb, etc that corrsponds to the molecule)
-│   │   ├── cg_coords (HDF-dataset of the molecule &quot;/OPEP/opep_0000&quot;, 3-d numpy.float32 array)
-│   │   └── cg(_delta)_forces (HDF-dataset of the molecule &quot;/OPEP/opep_0000&quot;, 3-d numpy.float32 array)
-│   ... (other molecules in &quot;/OPEP&quot;)
-├── CATH (HDF-group =&quot;partition_options&quot;=&gt; `Metaset` in a `Partition`)
-...
-</pre></div>
-</div>
-<p>&gt; Data structure <cite>MolData</cite> is the basic brick of the dataset.
-It holds embeds, coords and forces of certain number of frames for a single molecule.
-.sub_sample: method for performing indexing on the frames.</p>
-<p>&gt; Data strcuture <cite>Metaset</cite> holds multiple molecules and joins their frame indices together.
-One can access frames of underlying MolData objects with a continuous index.
-The idea is that the molecules in a <cite>Metaset</cite> have similar numbers of CG beads, such that the sample requires similar processing time when passing through a neural network.
-When this rule is enforced, it will allow automatic balancing of batch composition during training and validation.
-- .create_from_hdf5_group: initiate a Metaset by loading data from given HDF-group.
-mol_list, detailed_indices, hdf_key_mapping, stride and parallel can control which subset is loaded to the Metaset (details see the description of “H5Dataset”)
-- .trim_down_to: drop frames of underlying for obtaining a subset with desired number of frames.
-The indices of frames to be dropped are controlled by a random number generator. When the parameter “random_seed” and the MolData order and number of frames are the same, the frames to be dropped will be reproducible.
-- len() (__len__): return total number of samples
-- [] (__get_item__): infer the molecule and get the corresponding frame according to the given unified index. Return value is grouped by an <cite>AtomicData</cite> object.</p>
-<p>&gt; Data structure <cite>Partition</cite> can hold multiple Metaset for training and validation purposes.
-Its main function is to automatic adjust (subsample) the Metaset(s) and the underlying MolData to form a balanced data source, from which a certain number of batches can be drawn. Each batch will contain a pre-given number of samples from each Metaset.
-One or several <cite>Partition`s can be created to load part of the same HDF5 file into the memory.
-The exact content inside a `Partition</cite> object is controlled by the <cite>partition_options</cite> as a parameter for initializing a <cite>H5Dataset</cite>.</p>
-<p>&gt; Data strcuture <cite>H5Dataset</cite> opens a HDF5 file and establish the partitions.
-<cite>partition_options</cite> describe what partitions to create and what content to load into them. (Detailed description and examples are as followed.)
-<cite>loading_options</cite> mainly deal with the HDF key mapping (which datasets/attributes corresponds to the coordinates, forces and embeddings) as well as (optionally) the information for correctly split the dataset in a parallel training/validation.</p>
-<p>An example “partition_options” (as a Python Mappable (e.g., dict)):</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-        <span class="s2">&quot;train&quot;</span><span class="p">:</span> <span class="p">{</span>
-                <span class="s2">&quot;metasets&quot;</span><span class="p">:</span> <span class="p">{</span>
-                        <span class="s2">&quot;OPEP&quot;</span><span class="p">:</span> <span class="p">{</span>
-                                <span class="s2">&quot;molecules&quot;</span><span class="p">:</span> <span class="p">[</span>
-                                        <span class="s2">&quot;opep_0000&quot;</span><span class="p">,</span>
-                                        <span class="s2">&quot;opep_0001&quot;</span><span class="p">,</span>
-                                        <span class="o">...</span>
-                                <span class="p">],</span>
-                                <span class="s2">&quot;stride&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="c1"># optional, default 1</span>
-                                <span class="s2">&quot;detailed_indices&quot;</span><span class="p">:</span> <span class="p">{</span>
-                <span class="c1"># optional, providing the indices of frames to work with (before striding and splitting for parallel processes).</span>
-                                        <span class="c1"># optional,</span>
-                    <span class="s2">&quot;opep_0000&quot;</span><span class="p">:</span>
-                        <span class="n">val_ratio</span><span class="p">:</span> <span class="mf">0.1</span>
-                        <span class="n">test_ratio</span><span class="p">:</span> <span class="mf">0.1</span>
-                        <span class="n">seed</span><span class="p">:</span> <span class="mi">12345</span>
-                    <span class="s2">&quot;opep_0001&quot;</span><span class="p">:</span>
-                        <span class="n">val_ratio</span><span class="p">:</span> <span class="mf">0.1</span>
-                        <span class="n">test_ratio</span><span class="p">:</span> <span class="mf">0.1</span>
-                        <span class="n">seed</span><span class="p">:</span> <span class="mi">12345</span>
-                    <span class="s2">&quot;filename&quot;</span><span class="p">:</span> <span class="o">./</span><span class="n">splits</span>
-
-                <span class="c1"># If detailed_indices are not provided for a given molecule, then it is equivalent to np.arange(N_frames)</span>
-                                            <span class="s2">&quot;opep_0000&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
-
-
-                                <span class="p">},</span>
-                        <span class="p">},</span>
-                        <span class="s2">&quot;CATH&quot;</span><span class="p">:</span> <span class="p">{</span>
-                                <span class="s2">&quot;molecules&quot;</span><span class="p">:</span> <span class="p">[</span>
-                                        <span class="s2">&quot;cath_1b43A02&quot;</span><span class="p">,</span>
-                                        <span class="o">...</span>
-                                <span class="p">],</span>
-                                <span class="s2">&quot;stride&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="c1"># optional</span>
-                                <span class="s2">&quot;detailed_indices&quot;</span><span class="p">:</span> <span class="p">{},</span> <span class="c1"># optional</span>
-                        <span class="p">}</span>
-                <span class="p">},</span>
-                <span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="p">{</span>
-                        <span class="c1"># each batch will contain 24 samples from</span>
-                        <span class="c1"># The two metasets will be trimmed down according to this ratio</span>
-                        <span class="c1"># so optimally it should be proportional to the ratio of numbers of frames in the metasets.</span>
-                        <span class="s2">&quot;OPEP&quot;</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span>
-                        <span class="s2">&quot;CATH&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
-                <span class="p">},</span>
-                <span class="s2">&quot;subsample_random_seed&quot;</span><span class="p">:</span> <span class="mi">42</span><span class="p">,</span> <span class="c1"># optional, default 42. Random seed for trimming down the frames.</span>
-                <span class="s2">&quot;max_epoch_samples&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="c1"># optional, default None. For setting a desired dataset size.</span>
-                <span class="c1"># Works by subsampling the dataset after it is loaded with the given stride.</span>
-        <span class="p">},</span>
-        <span class="s2">&quot;val&quot;</span><span class="p">:</span> <span class="p">{</span> <span class="c1"># similar</span>
-        <span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-<p>An example “loading_options” (as a Python Mappable (e.g., dict)):</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-        <span class="s2">&quot;hdf_key_mapping&quot;</span><span class="p">:</span> <span class="p">{</span>
-                <span class="c1"># keys for reading CG data from HDF5 groups</span>
-                <span class="s2">&quot;embeds&quot;</span><span class="p">:</span> <span class="s2">&quot;attrs:cg_embeds&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;coords&quot;</span><span class="p">:</span> <span class="s2">&quot;cg_coords&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;forces&quot;</span><span class="p">:</span> <span class="s2">&quot;cg_delta_forces&quot;</span><span class="p">,</span>
-        <span class="p">},</span>
-        <span class="s2">&quot;parallel&quot;</span><span class="p">:</span> <span class="p">{</span> <span class="c1"># optional, default rank=0 and world_size=1 (single process).</span>
-                <span class="c1"># For split the dataset evenly and load only the necessary parts to each process in a parallelized train/val setup</span>
-                <span class="s2">&quot;rank&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="c1"># which process is this</span>
-                <span class="s2">&quot;world_size&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="c1"># how many processes are there</span>
-        <span class="p">}</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-<p>&gt; Class <cite>H5PartitionDataLoader</cite> mimics the pytorch data loader and can generate training/validation batches with fixed proportion of samples from several Metasets in a Partition.
-The proportion and batch size is defined when the partition is initialized.
-When the molecules in each Metaset have similar embedding vector lengths, the processing of output batches will require a more or less fixed size of VRAM on GPU, which can benefit the</p>
-<p>Note:
-1. Usually in a train-val split, each molecule goes to either the train or the test partition.</p>
-<blockquote>
-<div><p>In some special cases (e.g., non-transferable training) one molecule can be part of both partitions.
-In this situation, “detailed_indices” can be set to assign the corresponding frames to the desired partitions.
-In addition one can pass in detailed_indices as a dictionary to split frames based on training/test (see partition_options example above)</p>
-</div></blockquote>
-<dl class="py class">
+<dl class="py class" id="module-mlcg.datasets.h5_dataset">
 <dt class="sig sig-object py" id="mlcg.datasets.h5_dataset.H5Dataset">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mlcg.datasets.h5_dataset.</span></span><span class="sig-name descname"><span class="pre">H5Dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5_file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">partition_options</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loading_options</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subsample_using_weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlcg/datasets/h5_dataset.html#H5Dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlcg.datasets.h5_dataset.H5Dataset" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mlcg.datasets.h5_dataset.</span></span><span class="sig-name descname"><span class="pre">H5Dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5_file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">partition_options</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loading_options</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subsample_using_weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_listed_pairs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlcg/datasets/h5_dataset.html#H5Dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlcg.datasets.h5_dataset.H5Dataset" title="Link to this definition"></a></dt>
 <dd><p>The top-level class for handling multiple datasets contained in a HDF5 file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -1677,7 +1554,7 @@ alphabetically ascending with respect to the Metaset names.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="mlcg.datasets.h5_dataset.H5SimpleDataset">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mlcg.datasets.h5_dataset.</span></span><span class="sig-name descname"><span class="pre">H5SimpleDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5_file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stride</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detailed_indices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metaset_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hdf_key_mapping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{'coords':</span> <span class="pre">'cg_coords',</span> <span class="pre">'embeds':</span> <span class="pre">'attrs:cg_embeds',</span> <span class="pre">'forces':</span> <span class="pre">'cg_delta_forces'}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parallel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{'rank':</span> <span class="pre">0,</span> <span class="pre">'world_size':</span> <span class="pre">1}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subsample_using_weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlcg/datasets/h5_dataset.html#H5SimpleDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlcg.datasets.h5_dataset.H5SimpleDataset" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mlcg.datasets.h5_dataset.</span></span><span class="sig-name descname"><span class="pre">H5SimpleDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5_file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stride</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detailed_indices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metaset_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hdf_key_mapping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{'coords':</span> <span class="pre">'cg_coords',</span> <span class="pre">'embeds':</span> <span class="pre">'attrs:cg_embeds',</span> <span class="pre">'forces':</span> <span class="pre">'cg_delta_forces'}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parallel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{'rank':</span> <span class="pre">0,</span> <span class="pre">'world_size':</span> <span class="pre">1}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subsample_using_weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_listed_pairs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlcg/datasets/h5_dataset.html#H5SimpleDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlcg.datasets.h5_dataset.H5SimpleDataset" title="Link to this definition"></a></dt>
 <dd><p>The top-level class for handling a single dataset contained in a HDF5 file.
 Will only load from one single type of molecules (i.e., one Metaset), and do
 not support partition splits.
@@ -1722,6 +1599,13 @@ See PyTorch documentations for dataloader options.</p>
 </dd>
 </dl>
 <dl class="py method">
+<dt class="sig sig-object py" id="mlcg.datasets.h5_dataset.MetaSet.create_from_hdf5_group">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">create_from_hdf5_group</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hdf5_group</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detailed_indices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stride</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hdf_key_mapping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{'coords':</span> <span class="pre">'cg_coords',</span> <span class="pre">'embeds':</span> <span class="pre">'attrs:cg_embeds',</span> <span class="pre">'forces':</span> <span class="pre">'cg_delta_forces',</span> <span class="pre">'weights':</span> <span class="pre">'subsampling_weights'}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parallel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{'rank':</span> <span class="pre">0,</span> <span class="pre">'world_size':</span> <span class="pre">1}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subsample_using_weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_listed_pairs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlcg/datasets/h5_dataset.html#MetaSet.create_from_hdf5_group"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlcg.datasets.h5_dataset.MetaSet.create_from_hdf5_group" title="Link to this definition"></a></dt>
+<dd><p>initiate a Metaset by loading data from given HDF-group.
+mol_list, detailed_indices, hdf_key_mapping, stride and parallel can control which subset is loaded to the Metaset (details see the description of “H5Dataset”)</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="mlcg.datasets.h5_dataset.MetaSet.grab_n_frames">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">grab_n_frames</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hdf5_group</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlcg/datasets/h5_dataset.html#MetaSet.grab_n_frames"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlcg.datasets.h5_dataset.MetaSet.grab_n_frames" title="Link to this definition"></a></dt>
 <dd><p>Returns number of frames for each mol name</p>
@@ -1745,7 +1629,7 @@ method.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="mlcg.datasets.h5_dataset.MolData">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mlcg.datasets.h5_dataset.</span></span><span class="sig-name descname"><span class="pre">MolData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embeds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forces</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlcg/datasets/h5_dataset.html#MolData"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlcg.datasets.h5_dataset.MolData" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mlcg.datasets.h5_dataset.</span></span><span class="sig-name descname"><span class="pre">MolData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embeds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forces</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclusion_pairs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mlcg/datasets/h5_dataset.html#MolData"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mlcg.datasets.h5_dataset.MolData" title="Link to this definition"></a></dt>
 <dd><p>Data-holder for coordinates, forces and embedding vector of a molecule, e.g., opep_0000.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
