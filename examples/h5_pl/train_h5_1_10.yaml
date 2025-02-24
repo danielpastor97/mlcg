@@ -113,7 +113,7 @@ lr_scheduler:
     patience: 3
     min_lr: 0.000001
 data:
-  h5_file_path: /import/a12/users/nickc/mlcg_delta_datasets/dihedral_1_6_res_exclusion/combined_dihedral_1_6_res_exclusion.h5 # point to your actual dataset location
+  h5_file_path: /path/to/dataset.h5 # point to your actual dataset location
   partition_options: ./partition_settings.yaml
   loading_options:
     hdf_key_mapping:

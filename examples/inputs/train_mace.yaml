@@ -58,7 +58,7 @@ data:
   dataset:
     class_path: mlcg.datasets.ChignolinDataset
     init_args:
-      root: /import/a12/users/nickc/mlcg_cln
+      root: /path/to/save/dataset/
   log_dir: default_root_dir
   val_ratio: 0.1
   test_ratio: 0.
