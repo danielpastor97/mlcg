@@ -33,7 +33,6 @@ def parse_cli():
         "-rd",
         "--rootdir",
         metavar="FN",
-        default="/import/a12/users/nickc/mlcg_delta_datasets/dihedral_1_6_res_exclusion/",
         type=str,
         help="path to the raw data including the OPEP and CATH datasets",
     )
@@ -69,7 +68,7 @@ def parse_cli():
 def load_CATH(
     serial,
     outname,
-    data_dir="/import/a12/users/nickc/mlcg_base_cg_data_dir_cath_opep_omega_fix_no_double_term_om_force_aggregated_percentile_0.1_correct_hybrid_repul_only_ca_o/",
+    data_dir,
     prior_tag=None,
 ):
     output = {}
@@ -99,7 +98,7 @@ def load_CATH(
 def load_OPEP(
     serial,
     outname,
-    data_dir="/import/a12/users/nickc/mlcg_base_cg_data_dir_cath_opep_omega_fix_no_double_term_om_force_aggregated_percentile_0.1_correct_hybrid_repul_only_ca_o/",
+    data_dir,
     prior_tag=None,
 ):
     output = {}

@@ -33,7 +33,6 @@ def parse_cli():
     parser.add_argument(
         "--h5path",
         type=str,
-        default="/import/a12/users/nickc/mlcg_delta_datasets/dihedral_1_6_res_exclusion/combined_dihedral_1_6_res_exclusion.h5",
         help="path to the h5 dataset",
     )
     parser.add_argument(
