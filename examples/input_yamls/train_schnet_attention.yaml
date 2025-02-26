@@ -15,7 +15,7 @@ trainer:
       init_args:
         refresh_rate: 20
   checkpoint_callback: null
-  default_root_dir: /data/scratch/gused98/train_output/softmax_exact_favor_cln/2_blocks_128_rbfs_30_opt_eq_priors_proper_nonbond_seed_16384_exact_att_cln
+  default_root_dir: .
   detect_anomaly: false
   deterministic: false
   enable_checkpointing: true
@@ -34,7 +34,6 @@ trainer:
   move_metrics_to_cpu: false
   multiple_trainloader_mode: max_size_cycle
   plugins: null
-  precision: 32
   prepare_data_per_node: null
   reload_dataloaders_every_n_epochs: 0
   replace_sampler_ddp: false
@@ -42,13 +41,18 @@ trainer:
   stochastic_weight_avg: false
   terminate_on_nan: null
 data:
-  h5_file_path: /data/scratch/gused98/experiments/softmax_exact_favor_cln/processed_data_opt/cln_delta_dataset.h5
-  loading_options:
-    hdf_key_mapping:
-      coords: cg_coords
-      embeds: attrs:cg_embeds
-      forces: cg_delta_forces
-  partition_options: /data/scratch/gused98/experiments/softmax_exact_favor_cln/processed_data_opt/partition.yaml
+  dataset:
+    class_path: mlcg.datasets.ChignolinDataset
+    init_args:
+      root: /path/to/save/dataset/
+  log_dir: default_root_dir
+  val_ratio: 0.1
+  test_ratio: 0.
+  batch_size: 256
+  inference_batch_size: 256
+  num_workers: 0
+  loading_stride: 1
+  save_local_copy: false
 model:
   loss:
     class_path: mlcg.nn.Loss

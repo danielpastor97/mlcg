@@ -9,8 +9,6 @@
 #SBATCH --output=job.out           # File to which standard out will be written
 #SBATCH --error=job.err
 #SBATCH --job-name=etnet
-#SBATCH -x bgn[1001-1002]
-#SBATCH --signal=SIGUSR1@60   # SIGUSR1
 
 export SLURM_CPU_BIND=none
 
@@ -26,5 +24,5 @@ module load gcc/11.3.0
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-srun python /home/bepmusil/git/mlcg/scripts/mlcg-train_h5.py fit --config train.yaml --config model.yaml
+srun python /path/to/mlcg/scripts/mlcg-train_h5.py fit --config train.yaml --config model.yaml
 

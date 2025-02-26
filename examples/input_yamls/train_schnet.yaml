@@ -3,7 +3,7 @@ ckpt_path: last
 # define the training
 trainer:
   # Work directory for the session
-  default_root_dir: /local_scratch/musil/tests/t1
+  default_root_dir: .
   # set a limit to the training (#epochs and/or time limit)
   max_epochs: 6
   max_time: null
