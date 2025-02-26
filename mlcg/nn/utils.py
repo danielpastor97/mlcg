@@ -20,6 +20,7 @@ def sparsify_prior_module(module: _Prior) -> torch.nn.Module:
         )
     return module
 
+
 def desparsify_prior_module(module: _Prior) -> torch.nn.Module:
     r"""
     Converts parameter tensors inplace to dense tensors in Harmonic and Dihedral objects
