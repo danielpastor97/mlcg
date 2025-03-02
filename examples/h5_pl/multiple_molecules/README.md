@@ -46,7 +46,7 @@ CLN structures that we will simulate.
 To run the simulation we can just use:
 
 ```bash
-mlcg-nvt_langevin.py --config ./1cln_sim_demo.yaml
+mlcg-nvt_langevin.py --config ./cln_sim_demo.yaml
 ```
 
 A progress bar will appear detailing the status of our simulation.
