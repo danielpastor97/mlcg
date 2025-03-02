@@ -8,7 +8,7 @@ We will train a model with the `combined_demo_dataset.h5` dataset. To train this
 
 To go ahead to the trainng, the file `train_demo_cuda.yaml` is a Pytorch Lightning yaml defines the architecture of the model to use (`model` field), the optimizer (`optimizer`), the trainer specifications (`trainer`) and the dataset (`dataset`). Note that `data.h5_file_path` and `data.partition_options` point to the `combined_demo_dataset.h5` and `partition_demo.yaml` files, respectively, that will be used as training data and 
 
-To train, we can run from a terminal (that)
+To train, we can run from a terminal:
 
 ```bash
 mlcg-train_h5.py fit --config ./train_demo_cuda.yaml

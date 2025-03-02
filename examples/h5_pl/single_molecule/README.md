@@ -10,7 +10,7 @@ We will train a model with the `1L2Y_prior_tag.h5` dataset that was previously g
 
 To go ahead to the trainng, the file `training.yaml` is a Pytorch lightning yaml defines the architecture of the model to use (`model` field), the optimizer (`optimizer`), the trainer specifications (`trainer`) and the dataset (`dataset`). Note that `data.h5_file_path` and `data.partition_options` point to the `1L2Y_prior_tag.h5` and `partition_1L2Y_prior_tag.yaml` files, respectively, that will be used as training data and 
 
-To train, we can run from a terminal (that)
+To train, we can run from a terminal:
 
 ```bash
 mlcg-train_h5.py fit --config ./training.yaml
