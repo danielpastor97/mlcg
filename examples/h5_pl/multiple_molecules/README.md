@@ -28,7 +28,7 @@ a path for saving the merged object:
 mlcg-combine_model.py --ckpt ./ckpt/last.ckpt --prior ./prior.pt --out model_with_prior.pt
 ```
 
-This command might throw some warnings related to a rank problem but this are safe to ignore. 
+This command might throw some warnings related to a rank problem but these are safe to ignore. 
 
 ## Step 3: Simulating the model 
 
