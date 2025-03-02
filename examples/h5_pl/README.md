@@ -4,7 +4,7 @@ This example shows how to train an MLCG model by using an H5 dataset and Pytorch
 
 - Bundled datasets in single (or several) HDF5 files.
 - Parallelized training on multiple GPUs with distributed data parallel (DDP) and low memory footprint.
-- External description of dataset partition that enables. 
+- External description of dataset partition that allows a simple way of defining the training and validation splits. 
 - Balanced batch sized with accurate data loading proportions.
 
 ## H5 dataset construction: the `mlcg-tk` package
