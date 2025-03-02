@@ -59,7 +59,7 @@ A progress bar will appear detailing the status of our simulation.
 
 In the 1L2Y example, it is possible that the simulation exits before finishing after trowing an error related to "Simulation blewup at timestep #..."
 
-This problem is related to the fact that the prior was fitted with very little data and is not a good enough prior to avoid unphysical configurations in our system. 
+This problem is related to the fact that the prior was fitted with very little data and is not a good enough prior to avoid unphysical configurations in our system. For real production models, we recommend running prior-only simulations before starting a training to see if your prior is suitably accurate/stable. 
 
 ## Step 4: Analyzing a simulation. 
 
