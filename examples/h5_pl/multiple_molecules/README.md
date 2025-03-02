@@ -6,7 +6,7 @@ This readme contains the instructions to train a model in a dataset with several
 
 We will train a model with the `combined_demo_dataset.h5` dataset. To train this model, we need the partition file that specifies how to split the dataset into a training and validation region: file `partition_demo.yaml`. These two files define the dataset, its partition and its batch size that will be used to train a model
 
-To go ahead to the trainng, the file `train_demo_cuda.yaml` is a Pytorch lightning yaml defines the architecture of the model to use (`model` field), the optimizer (`optimizer`), the trainer specifications (`trainer`) and the dataset (`dataset`). Note that `data.h5_file_path` and `data.partition_options` point to the `combined_demo_dataset.h5` and `partition_demo.yaml` files, respectively, that will be used as training data and 
+To go ahead to the trainng, the file `train_demo_cuda.yaml` is a Pytorch Lightning yaml defines the architecture of the model to use (`model` field), the optimizer (`optimizer`), the trainer specifications (`trainer`) and the dataset (`dataset`). Note that `data.h5_file_path` and `data.partition_options` point to the `combined_demo_dataset.h5` and `partition_demo.yaml` files, respectively, that will be used as training data and 
 
 To train, we can run from a terminal (that)
 
