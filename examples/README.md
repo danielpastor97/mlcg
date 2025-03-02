@@ -7,7 +7,7 @@ This folder contains different examples on how to use this package for traning a
 
 **These examples are intented to just be illustrative on how to use this code but they are not supposed to produce any meaningful, useful or "MD-production-ready" MLCG model**
 
-We only provide this examples to show the user how to use the codebase. Training an MLCG model usually requires a significant amount of data which could not be saved on web-hosted repository.  
+We only provide these examples to show the user how to use the codebase. Training an MLCG model typically requires large datasets which are not suitable for hosting on github.  
 
 ## Contents
 
