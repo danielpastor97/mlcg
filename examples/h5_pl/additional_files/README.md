@@ -6,9 +6,9 @@ This folder contains files that can be useful when working with H5 datasets for 
 
 | File name | Description | Usage and script | Example |
 | :---------: | :---------: | :-------------: | :-------------: |
-|`train_h5_1_10.yaml`| Pytorch Lightning Yaml for the training of a traditional CGSchNet model using an H5 dataset | Training with `./scripts/mlcg-train_h5.py`|`mlcg-train_h5.py fit --config train_h5_1_10.yaml`|
-|`train_h5_1_10_exclusion.yaml`| Pytorch Lightning Yaml for the training of a CGSchNet model with bond-exclusion using an H5 dataset | Training with `./scripts/mlcg-train_h5.py`|`mlcg-train_h5.py fit --config train_h5_1_10_exclusion.yaml`|
-|`partition_settings.yaml`| Yaml describing how to partition an H5 dataset into training and testing part | Specifying the partition in a training yaml that will be passed to `./scripts/mlcg-train_h5.py` |`mlcg-train_h5.py fit --config train_h5_1_10_exclusion.yaml --data.partition_options partition_options.yaml`|
+|`train_h5_1_10.yaml`| Pytorch Lightning yaml for the training of a traditional CGSchNet model using an H5 dataset | Training with `./scripts/mlcg-train_h5.py`|`mlcg-train_h5.py fit --config train_h5_1_10.yaml`|
+|`train_h5_1_10_exclusion.yaml`| Pytorch Lightning yaml for the training of a CGSchNet model with bond-exclusion using an H5 dataset | Training with `./scripts/mlcg-train_h5.py`|`mlcg-train_h5.py fit --config train_h5_1_10_exclusion.yaml`|
+|`partition_settings.yaml`| yaml describing how to partition an H5 dataset into training and testing part | Specifying the partition in a training yaml that will be passed to `./scripts/mlcg-train_h5.py` |`mlcg-train_h5.py fit --config train_h5_1_10_exclusion.yaml --data.partition_options partition_options.yaml`|
 
 ## Python scripts and notebooks
 
