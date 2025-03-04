@@ -36,7 +36,10 @@ ang_prior = HarmonicAngles(angle_dict)
 dih_prior = Dihedral(dihedral_dict, n_degs=3)
 
 
-torch_assert_equal = functools.partial(torch.testing.assert_close, rtol=0, atol=0)
+torch_assert_equal = functools.partial(
+    torch.testing.assert_close, rtol=0, atol=0
+)
+
 
 @pytest.mark.parametrize("prior_module", [ang_prior, dih_prior])
 def test_prior_sparsification(prior_module: torch.nn.Module) -> None:
