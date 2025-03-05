@@ -59,4 +59,6 @@ In the `sims` folder, we will see some files:
 - `cln_specialized_model_and_config.pt` which has the network model and the starting configurations
 - `cln_coords_????.npy`, numpy arrays detailing the coordinates of the simulation.
 
+The `cln_coords_????.npy` contain the chunks of simulations as defined by `export_interval` in the simulation yaml. Each numpy file contains an array
+of shape `(n_trajectories, n_frames_per_chunk, n_cg_beads, 3)`, where `n_frames_per_chunk = export_interval//save_interval` and `n_trajectories` corresponds to the number of configurations in your initial simulation input `cln_configurations_demo.pt`.
 To see how to load the `sims/cln_coords_????.npy` numpy coordinates and convert them into an mdtraj.Trajectory using the `cln_5beads.pdb` file, please check the `load_trajectories.ipynb` notebook in the `../single_molecule` folder.
