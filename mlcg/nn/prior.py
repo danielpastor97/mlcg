@@ -1078,9 +1078,10 @@ class Quartic(torch.nn.Module, _Prior):
         V(x) = a*(x-xa)**2 + b*(x-xb)**3 + c*(x-xc)**4 + d
 
     N.B. the linear term is missing
-    Especially useful for CA angles, to restrain them 
+    Especially useful for CA angles, to restrain them
     avoiding exploration toward pi
     """
+
     _order_map = {
         "bonds": 2,
         "angles": 3,
@@ -1094,20 +1095,21 @@ class Quartic(torch.nn.Module, _Prior):
     _neighbor_list_map = {
         "bonds": "bonds",
         "angles": "angles",
-        "dihedrals" : "dihedrals",
+        "dihedrals": "dihedrals",
     }
 
-
-    def __init__(self, statistics, name, order : Optional[int] = None, n_degs:int = 4) -> None:
+    def __init__(
+        self, statistics, name, order: Optional[int] = None, n_degs: int = 4
+    ) -> None:
         super(Quartic, self).__init__()
         keys = torch.tensor(list(statistics.keys()), dtype=torch.long)
         self.allowed_interaction_keys = list(statistics.keys())
         self.name = name
         if order is not None:
             self.order = order
-        elif name in Quartic._order_map.keys():    
+        elif name in Quartic._order_map.keys():
             self.order = Quartic._order_map[self.name]
-        else: 
+        else:
             raise ValueError(f"Uncompatible order {order}")
         self.neighbor_list_type = Quartic._neighbor_list_map[self.name]
 
@@ -1117,15 +1119,15 @@ class Quartic(torch.nn.Module, _Prior):
         sizes = tuple([max_type + 1 for _ in range(self.order)])
 
         self.n_degs = n_degs
-        self.k_names = ["k_" + str(ii) for ii in range(2, self.n_degs+1)]
-        self.x0_names = ["x0_" + str(ii) for ii in range(2, self.n_degs+1)]
+        self.k_names = ["k_" + str(ii) for ii in range(2, self.n_degs + 1)]
+        self.x0_names = ["x0_" + str(ii) for ii in range(2, self.n_degs + 1)]
 
-        k = torch.zeros(self.n_degs-1, *sizes)
-        x0 = torch.zeros(self.n_degs-1, *sizes)
+        k = torch.zeros(self.n_degs - 1, *sizes)
+        x0 = torch.zeros(self.n_degs - 1, *sizes)
         v_0 = torch.zeros(*sizes)
 
         for key in statistics.keys():
-            for ii in range(self.n_degs-1):
+            for ii in range(self.n_degs - 1):
                 k_name = self.k_names[ii]
                 x0_name = self.x0_names[ii]
                 k[ii][key] = statistics[key]["ks"][k_name]
@@ -1135,35 +1137,31 @@ class Quartic(torch.nn.Module, _Prior):
         self.register_buffer("v_0", v_0)
         self.register_buffer("x0s", x0)
 
-
     @staticmethod
     def compute_features(pos, mapping, target):
         compute_map_type = Quartic._neighbor_list_map[target]
         return Quartic._compute_map[compute_map_type](pos, mapping)
 
-
     def data2features(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
         return Quartic.compute_features(data.pos, mapping, self.name)
-
 
     def data2parameters(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
         interaction_types = [
             data.atom_types[mapping[ii]] for ii in range(self.order)
         ]
-        # the parameters have shape n_features x n_degs-1 since 
+        # the parameters have shape n_features x n_degs-1 since
         # linear term is missing
         ks = torch.vstack(
-            [self.ks[ii][interaction_types] for ii in range(self.n_degs-1)]
+            [self.ks[ii][interaction_types] for ii in range(self.n_degs - 1)]
         ).t()
 
         x0s = torch.vstack(
-            [self.x0s[ii][interaction_types] for ii in range(self.n_degs-1)]
+            [self.x0s[ii][interaction_types] for ii in range(self.n_degs - 1)]
         ).t()
         v_0s = self.v_0[interaction_types].t()
-        return {"ks": ks, "x0s" : x0s, "v_0s": v_0s}
-
+        return {"ks": ks, "x0s": x0s, "v_0s": v_0s}
 
     def forward(self, data):
         mapping_batch = data.neighbor_list[self.name]["mapping_batch"]
@@ -1182,11 +1180,11 @@ class Quartic(torch.nn.Module, _Prior):
         data.out[self.name] = {"energy": y}
         return data
 
-
     @staticmethod
-    def compute(x: torch.Tensor, ks: torch.Tensor, 
-                V0 : torch.Tensor, x0s: torch.Tensor):
-        """Quartic potential interaction with missing linear term. 
+    def compute(
+        x: torch.Tensor, ks: torch.Tensor, V0: torch.Tensor, x0s: torch.Tensor
+    ):
+        """Quartic potential interaction with missing linear term.
 
         .. math:
 
@@ -1195,49 +1193,41 @@ class Quartic(torch.nn.Module, _Prior):
         """
         V = 0
         for i in range(3):
-            V+=ks[i]*(x-x0s[i])**(i+2)
+            V += ks[i] * (x - x0s[i]) ** (i + 2)
 
         V += V0
         return V
 
-
     @staticmethod
     def _quartic_model(x, a, b, c, d, xa, xb, xc):
-            return a*(x-xa)**2 + b*(x-xb)**3 + c*(x-xc)**4 + d
-
+        return a * (x - xa) ** 2 + b * (x - xb) ** 3 + c * (x - xc) ** 4 + d
 
     @staticmethod
     def _init_quartic_parameters(n_degs):
-        """ 
+        """
         Helper method for guessing initial parameter values
         Not used for now
         """
-        ks = [1.0 for _ in range(n_degs-1)]
-        x0s = [0.0 for _ in range(n_degs-1)]
+        ks = [1.0 for _ in range(n_degs - 1)]
+        x0s = [0.0 for _ in range(n_degs - 1)]
         V0 = -1.0
         p0 = [V0]
         p0.extend(ks)
         p0.extend(x0s)
         return p0
 
-
     @staticmethod
     def _init_quartic_parameter_dict(n_degs):
         """Helper method for initializing the parameter dictionary"""
-        stat = {
-            "ks": {},
-            "x0s": {},
-            "v_0" : 0.0
-        }
-        k_names = ["k_" + str(ii) for ii in range(2,n_degs+1)]
-        x0_names = ["x0_" + str(ii) for ii in range(2,n_degs+1)]
-        for ii in range(n_degs-1):
+        stat = {"ks": {}, "x0s": {}, "v_0": 0.0}
+        k_names = ["k_" + str(ii) for ii in range(2, n_degs + 1)]
+        x0_names = ["x0_" + str(ii) for ii in range(2, n_degs + 1)]
+        for ii in range(n_degs - 1):
             k_name = k_names[ii]
             x0_name = x0_names[ii]
             stat["ks"][k_name] = {}
             stat["x0s"][x0_name] = {}
         return stat
-
 
     @staticmethod
     def _make_quartic_dict(stat, popt, n_degs):
@@ -1245,20 +1235,19 @@ class Quartic(torch.nn.Module, _Prior):
         stat["v_0"] = popt[0]
         k_names = sorted(list(stat["ks"].keys()))
         x0_names = sorted(list(stat["x0s"].keys()))
-        for ii in range(n_degs-1):
+        for ii in range(n_degs - 1):
             k_name = k_names[ii]
             x0_name = x0_names[ii]
             stat["ks"][k_name] = popt[ii]
-            stat["x0s"][x0_name] = popt[ii+n_degs]
-    
-        return stat
+            stat["x0s"][x0_name] = popt[ii + n_degs]
 
+        return stat
 
     @staticmethod
     def fit_quartic_from_potential_estimates(
-    bin_centers_nz: torch.Tensor,
-    dG_nz: torch.Tensor,
-    **kwargs,
+        bin_centers_nz: torch.Tensor,
+        dG_nz: torch.Tensor,
+        **kwargs,
     ):
         """
 
@@ -1283,22 +1272,23 @@ class Quartic(torch.nn.Module, _Prior):
         try:
             stat = Quartic._init_quartic_parameter_dict(n_degs)
             popt, _ = curve_fit(
-                        Quartic._quartic_model,
-                        bin_centers_nz.cpu().numpy()[mask],
-                        dG_nz.cpu().numpy()[mask],
-                        p0=[1, 0, 0, torch.argmin(dG_nz[mask]), 
-                            0, 0, 0],
-                        bounds=((0, 0, 0, -np.inf, -np.pi, -np.pi, -np.pi),
-                                (np.inf, np.inf, np.inf, np.inf, np.pi, np.pi, np.pi)),
-                        maxfev=5000
-                )
+                Quartic._quartic_model,
+                bin_centers_nz.cpu().numpy()[mask],
+                dG_nz.cpu().numpy()[mask],
+                p0=[1, 0, 0, torch.argmin(dG_nz[mask]), 0, 0, 0],
+                bounds=(
+                    (0, 0, 0, -np.inf, -np.pi, -np.pi, -np.pi),
+                    (np.inf, np.inf, np.inf, np.inf, np.pi, np.pi, np.pi),
+                ),
+                maxfev=5000,
+            )
             stat = Quartic._make_quartic_dict(stat, popt, n_degs)
         except:
             print(f"failed to fit potential estimate for the prior Quartic")
             stat = Quartic._init_quartic_parameter_dict(n_degs)
             k_names = sorted(list(stat["ks"].keys()))
             x_0_names = sorted(list(stat["x0s"].keys()))
-            for ii in range(n_degs-1):
+            for ii in range(n_degs - 1):
                 k1_name = k_names[ii]
                 k2_name = x_0_names[ii]
                 stat["ks"][k1_name] = torch.tensor(float("nan"))
