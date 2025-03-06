@@ -1071,15 +1071,15 @@ class Quartic(torch.nn.Module, _Prior):
     r"""
     Prior that helps in fitting tighter bimodal distributions
     using the following energy ansatz.
-    N.B. the linear term is missing
+
 
     .. math:
 
         V(x) = a*(x-xa)**2 + b*(x-xb)**3 + c*(x-xc)**4 + d
 
-        
-    Especially useful for CA angles, to avoid exploration
-    toward pi
+    N.B. the linear term is missing
+    Especially useful for CA angles, to restrain them 
+    avoiding exploration toward pi
     """
     _order_map = {
         "bonds": 2,
@@ -1186,8 +1186,7 @@ class Quartic(torch.nn.Module, _Prior):
     @staticmethod
     def compute(x: torch.Tensor, ks: torch.Tensor, 
                 V0 : torch.Tensor, x0s: torch.Tensor):
-        """Harmonic interaction in the form of a series. The shape of the tensors
-            should match between each other.
+        """Quartic potential interaction with missing linear term. 
 
         .. math:
 
@@ -1211,7 +1210,7 @@ class Quartic(torch.nn.Module, _Prior):
     def _init_quartic_parameters(n_degs):
         """ 
         Helper method for guessing initial parameter values
-        Not used
+        Not used for now
         """
         ks = [1.0 for _ in range(n_degs-1)]
         x0s = [0.0 for _ in range(n_degs-1)]
@@ -1268,11 +1267,11 @@ class Quartic(torch.nn.Module, _Prior):
         bin_centers_nz:
             Bin centers over which the fit is carried out
         dG_nz:
-            The emperical free energy correspinding to the bin centers
+            The free energy values correspinding to the bin centers
 
         Returns
         -------
-            Statistics dictionary with fitted interaction parameters
+            Statistics dictionary with fitted quartic parameters
         """
         n_degs = 4
 
@@ -1295,7 +1294,7 @@ class Quartic(torch.nn.Module, _Prior):
                 )
             stat = Quartic._make_quartic_dict(stat, popt, n_degs)
         except:
-            print(f"failed to fit potential estimate for QuarticPrior")
+            print(f"failed to fit potential estimate for the prior Quartic")
             stat = Quartic._init_quartic_parameter_dict(n_degs)
             k_names = sorted(list(stat["ks"].keys()))
             x_0_names = sorted(list(stat["x0s"].keys()))
