@@ -1123,7 +1123,7 @@ class Quartic(torch.nn.Module, _Prior):
         k = torch.zeros(self.n_degs-1, *sizes)
         x0 = torch.zeros(self.n_degs-1, *sizes)
         v_0 = torch.zeros(*sizes)
-        print(k.shape)
+
         for key in statistics.keys():
             for ii in range(self.n_degs-1):
                 k_name = self.k_names[ii]
