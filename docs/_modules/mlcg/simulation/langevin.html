@@ -296,7 +296,9 @@
         <span class="n">v_new</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">VELOCITY_KEY</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_dims</span><span class="p">)</span>
         <span class="n">masses</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">masses</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_sims</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">)</span>
 
-        <span class="n">save_ind</span> <span class="o">=</span> <span class="n">t</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_interval</span>
+        <span class="n">save_ind</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">t</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_interval</span>
+        <span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_npy_file_index</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_save_size</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_energies</span><span class="p">:</span>
             <span class="n">kes</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
@@ -304,13 +306,11 @@
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">simulated_kinetic_energies</span><span class="p">[</span><span class="n">save_ind</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">kes</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iter_</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility to save numpy arrays&quot;&quot;&quot;</span>
         <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_numpy_count</span><span class="p">()</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_energies</span><span class="p">:</span>
-            <span class="n">kinetic_energies_to_export</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">simulated_kinetic_energies</span><span class="p">[</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_npy_starting_index</span> <span class="p">:</span> <span class="n">iter_</span>
-            <span class="p">]</span>
+            <span class="n">kinetic_energies_to_export</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">simulated_kinetic_energies</span>
             <span class="n">kinetic_energies_to_export</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_swap_and_export</span><span class="p">(</span>
                 <span class="n">kinetic_energies_to_export</span>
             <span class="p">)</span>
@@ -319,7 +319,12 @@
                 <span class="n">kinetic_energies_to_export</span><span class="p">,</span>
             <span class="p">)</span>
 
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">iter_</span><span class="p">)</span>
+            <span class="c1"># Reset simulate_kinetic_energies</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">simulated_kinetic_energies</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_save_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_sims</span>
+            <span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">reshape_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">reshape_output</span><span class="p">()</span>

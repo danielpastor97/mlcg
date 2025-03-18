@@ -146,14 +146,16 @@ a factor of the simulation length</p></li>
 identical for the same random seed</p></li>
 <li><p><strong>device</strong> (<em>str</em><em>, </em><em>default='cpu'</em>) – Device upon which simulation compuation will be carried out</p></li>
 <li><p><strong>dtype</strong> (<em>str</em><em>, </em><em>default='single'</em>) – precision to run the simulation with (single or double)</p></li>
-<li><p><strong>export_interval</strong> (<em>int</em><em>, </em><em>default=None</em>) – If not None, .npy files will be saved. If an int is given, then
+<li><p><strong>export_interval</strong> (<em>int</em><em>, </em><em>default=None</em>) – Interval at which .npy files will be saved. If an int is given, then
 the int specifies at what intervals numpy files will be saved per
 observable. This number must be an integer multiple of save_interval.
 All output files should be the same shape. Forces and potentials will
 also be saved according to the save_forces and save_potential
 arguments, respectively. If friction is not None, kinetic energies
 will also be saved. This method is only implemented for a maximum of
-1000 files per observable due to file naming conventions.</p></li>
+1000 files per observable due to file naming conventions.
+If None, export_interval will be set to n_timesteps to output one file
+for the entire simulation</p></li>
 <li><p><strong>log_interval</strong> (<em>int</em><em>, </em><em>default=None</em>) – If not None, a log will be generated indicating simulation start and
 end times as well as completion updates at regular intervals. If an
 int is given, then the int specifies how many log statements will be
@@ -214,14 +216,16 @@ a factor of the simulation length</p></li>
 identical for the same random seed</p></li>
 <li><p><strong>device</strong> (<em>str</em><em>, </em><em>default='cpu'</em>) – Device upon which simulation compuation will be carried out</p></li>
 <li><p><strong>dtype</strong> (<em>str</em><em>, </em><em>default='single'</em>) – precision to run the simulation with (single or double)</p></li>
-<li><p><strong>export_interval</strong> (<em>int</em><em>, </em><em>default=None</em>) – If not None, .npy files will be saved. If an int is given, then
+<li><p><strong>export_interval</strong> (<em>int</em><em>, </em><em>default=None</em>) – Interval at which .npy files will be saved. If an int is given, then
 the int specifies at what intervals numpy files will be saved per
 observable. This number must be an integer multiple of save_interval.
 All output files should be the same shape. Forces and potentials will
 also be saved according to the save_forces and save_potential
 arguments, respectively. If friction is not None, kinetic energies
 will also be saved. This method is only implemented for a maximum of
-1000 files per observable due to file naming conventions.</p></li>
+1000 files per observable due to file naming conventions.
+If None, export_interval will be set to n_timesteps to output one file
+for the entire simulation</p></li>
 <li><p><strong>log_interval</strong> (<em>int</em><em>, </em><em>default=None</em>) – If not None, a log will be generated indicating simulation start and
 end times as well as completion updates at regular intervals. If an
 int is given, then the int specifies how many log statements will be
@@ -306,14 +310,16 @@ a factor of the simulation length</p></li>
 identical for the same random seed</p></li>
 <li><p><strong>device</strong> (<em>str</em><em>, </em><em>default='cpu'</em>) – Device upon which simulation compuation will be carried out</p></li>
 <li><p><strong>dtype</strong> (<em>str</em><em>, </em><em>default='single'</em>) – precision to run the simulation with (single or double)</p></li>
-<li><p><strong>export_interval</strong> (<em>int</em><em>, </em><em>default=None</em>) – If not None, .npy files will be saved. If an int is given, then
+<li><p><strong>export_interval</strong> (<em>int</em><em>, </em><em>default=None</em>) – Interval at which .npy files will be saved. If an int is given, then
 the int specifies at what intervals numpy files will be saved per
 observable. This number must be an integer multiple of save_interval.
 All output files should be the same shape. Forces and potentials will
 also be saved according to the save_forces and save_potential
 arguments, respectively. If friction is not None, kinetic energies
 will also be saved. This method is only implemented for a maximum of
-1000 files per observable due to file naming conventions.</p></li>
+1000 files per observable due to file naming conventions.
+If None, export_interval will be set to n_timesteps to output one file
+for the entire simulation</p></li>
 <li><p><strong>log_interval</strong> (<em>int</em><em>, </em><em>default=None</em>) – If not None, a log will be generated indicating simulation start and
 end times as well as completion updates at regular intervals. If an
 int is given, then the int specifies how many log statements will be
