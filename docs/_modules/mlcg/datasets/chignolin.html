@@ -88,6 +88,14 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">shutil</span><span class="w"> </span><span class="kn">import</span> <span class="n">copy</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">mdtraj</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">aggforce</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">LinearMap</span><span class="p">,</span>
+    <span class="n">guess_pairwise_constraints</span><span class="p">,</span>
+    <span class="n">project_forces</span><span class="p">,</span>
+    <span class="n">constraint_aware_uni_map</span><span class="p">,</span>
+    <span class="n">qp_linear_map</span><span class="p">,</span>
+<span class="p">)</span>
+
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">..utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span><span class="p">,</span> <span class="n">download_url</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..geometry.topology</span><span class="w"> </span><span class="kn">import</span> <span class="n">Topology</span>
@@ -120,12 +128,23 @@
     <span class="n">_priors_cls</span> <span class="o">=</span> <span class="p">[</span><span class="n">HarmonicBonds</span><span class="p">,</span> <span class="n">HarmonicAngles</span><span class="p">,</span> <span class="n">Repulsion</span><span class="p">]</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pre_transform</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pre_filter</span><span class="o">=</span><span class="kc">None</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">root</span><span class="p">,</span>
+        <span class="n">transform</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">pre_transform</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">pre_filter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">mapping</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;slice_aggregate&quot;</span><span class="p">,</span>
+        <span class="n">terminal_embeds</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">max_num_files</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">terminal_embeds</span> <span class="o">=</span> <span class="n">terminal_embeds</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">priors_cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_priors_cls</span>
-
+        <span class="bp">self</span><span class="o">.</span><span class="n">mapping</span> <span class="o">=</span> <span class="n">mapping</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">kB</span><span class="p">)</span>
-
+        <span class="k">if</span> <span class="n">max_num_files</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_num_files</span> <span class="o">=</span> <span class="mi">100000</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_num_files</span> <span class="o">=</span> <span class="n">max_num_files</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">ChignolinDataset</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
             <span class="n">root</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">pre_transform</span><span class="p">,</span> <span class="n">pre_filter</span>
         <span class="p">)</span>
@@ -191,9 +210,11 @@
         <span class="n">topo</span> <span class="o">=</span> <span class="n">mdtraj</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">topology_fn</span><span class="p">)</span><span class="o">.</span><span class="n">remove_solvent</span><span class="p">()</span><span class="o">.</span><span class="n">topology</span>
         <span class="n">topology</span> <span class="o">=</span> <span class="n">Topology</span><span class="o">.</span><span class="n">from_mdtraj</span><span class="p">(</span><span class="n">topo</span><span class="p">)</span>
         <span class="n">embeddings</span><span class="p">,</span> <span class="n">masses</span><span class="p">,</span> <span class="n">cg_matrix</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">build_cg_matrix</span><span class="p">(</span>
-            <span class="n">topology</span><span class="p">,</span> <span class="n">cg_mapping</span><span class="o">=</span><span class="n">CA_MAP</span>
+            <span class="n">topology</span><span class="p">,</span> <span class="n">cg_mapping</span><span class="o">=</span><span class="n">CA_MAP</span><span class="p">,</span> <span class="n">special_terminal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">terminal_embeds</span>
         <span class="p">)</span>
-        <span class="n">cg_topo</span> <span class="o">=</span> <span class="n">build_cg_topology</span><span class="p">(</span><span class="n">topology</span><span class="p">,</span> <span class="n">cg_mapping</span><span class="o">=</span><span class="n">CA_MAP</span><span class="p">)</span>
+        <span class="n">cg_topo</span> <span class="o">=</span> <span class="n">build_cg_topology</span><span class="p">(</span>
+            <span class="n">topology</span><span class="p">,</span> <span class="n">cg_mapping</span><span class="o">=</span><span class="n">CA_MAP</span><span class="p">,</span> <span class="n">special_terminal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">terminal_embeds</span>
+        <span class="p">)</span>
         <span class="n">copy</span><span class="p">(</span><span class="n">topology_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">processed_paths</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
         <span class="n">prior_nls</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">priors_cls</span><span class="p">:</span>
@@ -204,25 +225,56 @@
 
         <span class="n">coord_fns</span><span class="p">,</span> <span class="n">forces_fns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_filenames</span><span class="p">(</span><span class="n">coord_dir</span><span class="p">,</span> <span class="n">force_dir</span><span class="p">)</span>
 
-        <span class="n">f_proj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span>
-            <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">cg_matrix</span><span class="p">,</span> <span class="n">cg_matrix</span><span class="o">.</span><span class="n">T</span><span class="p">)),</span> <span class="n">cg_matrix</span>
-        <span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">coord_fns</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
+        <span class="n">forces</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">forces_fns</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
+
+        <span class="n">config_map</span> <span class="o">=</span> <span class="n">LinearMap</span><span class="p">(</span><span class="n">cg_matrix</span><span class="p">)</span>
+        <span class="n">cg_matrix</span> <span class="o">=</span> <span class="n">config_map</span><span class="o">.</span><span class="n">standard_matrix</span>
+        <span class="c1"># taking only first 100 frames gives same results in ~1/15th of time</span>
+        <span class="n">constraints</span> <span class="o">=</span> <span class="n">guess_pairwise_constraints</span><span class="p">(</span><span class="n">coords</span><span class="p">[:],</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">5e-3</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapping</span> <span class="o">==</span> <span class="s2">&quot;slice_aggregate&quot;</span><span class="p">:</span>
+            <span class="n">method</span> <span class="o">=</span> <span class="n">constraint_aware_uni_map</span>
+            <span class="n">force_agg_results</span> <span class="o">=</span> <span class="n">project_forces</span><span class="p">(</span>
+                <span class="n">coords</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span>
+                <span class="n">forces</span><span class="o">=</span><span class="n">forces</span><span class="p">,</span>
+                <span class="n">coord_map</span><span class="o">=</span><span class="n">config_map</span><span class="p">,</span>
+                <span class="n">constrained_inds</span><span class="o">=</span><span class="n">constraints</span><span class="p">,</span>
+                <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapping</span> <span class="o">==</span> <span class="s2">&quot;slice_optimize&quot;</span><span class="p">:</span>
+            <span class="n">method</span> <span class="o">=</span> <span class="n">qp_linear_map</span>
+            <span class="n">l2</span> <span class="o">=</span> <span class="mf">1e3</span>
+            <span class="n">force_agg_results</span> <span class="o">=</span> <span class="n">project_forces</span><span class="p">(</span>
+                <span class="n">coords</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span>
+                <span class="n">forces</span><span class="o">=</span><span class="n">forces</span><span class="p">,</span>
+                <span class="n">coord_map</span><span class="o">=</span><span class="n">config_map</span><span class="p">,</span>
+                <span class="n">constrained_inds</span><span class="o">=</span><span class="n">constraints</span><span class="p">,</span>
+                <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span>
+                <span class="n">l2_regularization</span><span class="o">=</span><span class="n">l2</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Force mapping </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mapping</span><span class="si">}</span><span class="s2"> is neither &#39;slice_aggregate&#39; nor &#39;slice_optimize&#39;.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">f_proj</span> <span class="o">=</span> <span class="n">force_agg_results</span><span class="p">[</span><span class="s2">&quot;tmap&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">force_map</span><span class="o">.</span><span class="n">standard_matrix</span>
 
         <span class="n">data_list</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">ii_frame</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">file_counter</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">for</span> <span class="n">i_traj</span><span class="p">,</span> <span class="n">tag</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span><span class="n">coord_fns</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Load Dataset&quot;</span><span class="p">)):</span>
             <span class="n">forces</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">forces_fns</span><span class="p">[</span><span class="n">tag</span><span class="p">])</span>
             <span class="n">cg_forces</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
                 <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">&quot;mn, ind-&gt; imd&quot;</span><span class="p">,</span> <span class="n">f_proj</span><span class="p">,</span> <span class="n">forces</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span>
             <span class="p">)</span>
-
             <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">coord_fns</span><span class="p">[</span><span class="n">tag</span><span class="p">])</span>
             <span class="n">cg_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
                 <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">&quot;mn, ind-&gt; imd&quot;</span><span class="p">,</span> <span class="n">cg_matrix</span><span class="p">,</span> <span class="n">coords</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span>
             <span class="p">)</span>
 
             <span class="n">n_frames</span> <span class="o">=</span> <span class="n">cg_coords</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-
+            <span class="n">file_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">file_counter</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_num_files</span><span class="p">:</span>
+                <span class="k">break</span>
             <span class="k">for</span> <span class="n">i_frame</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_frames</span><span class="p">):</span>
                 <span class="n">pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">cg_coords</span><span class="p">[</span><span class="n">i_frame</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_beads</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
                 <span class="n">z</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">embeddings</span><span class="p">)</span>
