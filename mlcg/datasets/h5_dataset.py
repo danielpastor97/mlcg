@@ -24,6 +24,10 @@ class MolData:
         Cartesian coordinates of the molecule, of shape `(n_frames, n_atoms, 3)`
     forces:
         Cartesian forces of the molecule, of shape `(n_frames, n_atoms, 3)`
+    cell: 
+        Unit cell of the atomic structure, of shape `(n_frames, 3, 3)`
+    pbc:
+        Periodic boundary conditions, of shape `(n_frames, 3)`
     """
 
     def __init__(
@@ -34,11 +38,15 @@ class MolData:
         forces: np.ndarray,
         weights: np.ndarray = None,
         exclusion_pairs: np.ndarray = None,
+        cell: np.ndarray = None,
+        pbc: np.ndarray = None,
     ):
         self._name = name
         self._embeds = embeds
         self._coords = coords
         self._forces = forces
+        self._cell = cell
+        self._pbc = pbc
 
         assert (
             len(self._embeds) == self._coords.shape[1] == self._forces.shape[1]
@@ -87,6 +95,14 @@ class MolData:
     @property
     def n_beads(self):
         return self.coords.shape[1]
+    
+    @property
+    def cell(self):
+        return self._cell
+
+    @property
+    def pbc(self):
+        return self._pbc
 
     def __repr__(self):
         return f"""MolData(name={self.name}", N_beads={self.n_beads}, N_frames={self.n_frames})"""
@@ -151,6 +167,8 @@ class MetaSet:
             "coords": "cg_coords",
             "forces": "cg_delta_forces",
             "weights": "subsampling_weights",
+            "cell": "cell",
+            "pbc": "pbc",
         },
         parallel={
             "rank": 0,
@@ -228,6 +246,8 @@ class MetaSet:
                 )
                 split_per_index = False
             selection = select_for_rank(par_range)
+            cell = None # cell is none by default
+            pbc = None # pbc is none by default
             if not split_per_index:
                 coords = MetaSet.retrieve_hdf(
                     hdf5_group[mol_name], keys["coords"]
@@ -239,6 +259,14 @@ class MetaSet:
                 if subsample_using_weights is True:
                     weights = MetaSet.retrieve_hdf(
                         hdf5_group[mol_name], keys["weights"]
+                    )[selection]
+                if "cell" in hdf_key_mapping:
+                    cell = MetaSet.retrieve_hdf(
+                        hdf5_group[mol_name], keys["cell"]
+                    )[selection]
+                if "pbc" in hdf_key_mapping:
+                    pbc = MetaSet.retrieve_hdf(
+                        hdf5_group[mol_name], keys["pbc"]
                     )[selection]
             else:
                 # For large dataset it is usually quicker to first load everything
@@ -254,6 +282,14 @@ class MetaSet:
                     weights = MetaSet.retrieve_hdf(
                         hdf5_group[mol_name], keys["weights"]
                     )[:][selection]
+                if "cell" in hdf_key_mapping:
+                    cell = MetaSet.retrieve_hdf(
+                        hdf5_group[mol_name], keys["cell"]
+                    )[:][selection]
+                if "pbc" in hdf_key_mapping:
+                    pbc = MetaSet.retrieve_hdf(
+                        hdf5_group[mol_name], keys["pbc"]
+                    )[:][selection]
             output.insert_mol(
                 MolData(
                     mol_name,
@@ -262,6 +298,8 @@ class MetaSet:
                     forces,
                     weights=weights,
                     exclusion_pairs=exclusion_pairs,
+                    cell=cell,
+                    pbc=pbc,
                 )
             )
         output._exclude_listed_pairs = exclude_listed_pairs
@@ -365,6 +403,8 @@ class MetaSet:
             pos=self._mol_dataset[dataset_id].coords[data_id],
             forces=self._mol_dataset[dataset_id].forces[data_id],
             atom_types=self._mol_dataset[dataset_id].embeds,
+            cell=self._mol_dataset[dataset_id].cell[data_id],
+            pbc=self._mol_dataset[dataset_id].pbc[data_id],
         )
         if self._exclude_listed_pairs:
             atd.exc_pair_index = torch.tensor(

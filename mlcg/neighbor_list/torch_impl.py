@@ -92,13 +92,15 @@ def compute_images(
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """TODO: add doc"""
 
-    cell = cell.view((-1, 3, 3))
+    cell = cell.view((-1, 3, 3)).to(torch.float64)
     pbc = pbc.view((-1, 3))
-
     reciprocal_cell = torch.linalg.inv(cell).transpose(2, 1)
+    # print('reciprocal_cell: ', reciprocal_cell.device)
     inv_distances = reciprocal_cell.norm(2, dim=-1)
+    # print('inv_distances: ', inv_distances.device)
     num_repeats = torch.ceil(cutoff * inv_distances).to(torch.long)
     num_repeats_ = torch.where(pbc, num_repeats, torch.zeros_like(num_repeats))
+    # print('num_repeats_: ', num_repeats_.device)
     images, batch_images, shifts_expanded, shifts_idx_ = [], [], [], []
     for i_structure in range(num_repeats_.shape[0]):
         num_repeats = num_repeats_[i_structure]
@@ -311,7 +313,7 @@ def torch_neighbor_list_pbc(
     return idx_i, idx_j, cell_shifts, self_interaction_mask
 
 
-def wrap_positions(data: Data, eps: float = 1e-7) -> None:
+def wrap_positions(data: AtomicData, device:str, eps: float = 1e-7) -> None:
     """Wrap positions to unit cell.
 
     Returns positions changed by a multiple of the unit cell vectors to
@@ -325,11 +327,12 @@ def wrap_positions(data: Data, eps: float = 1e-7) -> None:
         Small number to prevent slightly negative coordinates from being
         wrapped.
     """
+    pos = data.pos
+    cell = data.cell.to(pos.dtype)
+    pbc = data.pbc
+    batch_ids = data.batch
 
-    center = torch.tensor((0.5, 0.5, 0.5)).view(1, 3)
-    assert (
-        data.n_atoms.shape[0] == 1
-    ), f"There should be only one structure, found: {data.n_atoms.shape[0]}"
+    center = torch.tensor((0.5, 0.5, 0.5)).view(1, 3).to(pos.dtype).to(device)
 
     pbc = data.pbc.view(1, 3)
     shift = center - 0.5 - eps
@@ -337,14 +340,12 @@ def wrap_positions(data: Data, eps: float = 1e-7) -> None:
     # Don't change coordinates when pbc is False
     shift[torch.logical_not(pbc)] = 0.0
 
-    cell = data.cell
-    positions = data.pos
+    fractional = torch.linalg.solve(cell[batch_ids], pos) - shift
 
-    fractional = torch.linalg.solve(cell.t(), positions.t()).t() - shift
+    for i, periodic in enumerate(pbc.detach()[batch_ids].T):
+        if torch.any(periodic):
+            fractional[periodic, i] %= 1.0
+            fractional[periodic, i] += shift[batch_ids][:, i]
+    data.pos = torch.einsum("bi,bii->bi", fractional, cell[batch_ids])
 
-    for i, periodic in enumerate(pbc.view(-1)):
-        if periodic:
-            fractional[:, i] = torch.remainder(fractional[:, i], 1.0)
-            fractional[:, i] += shift[0, i]
-
-    data.pos = torch.matmul(fractional, cell)
+    return data
