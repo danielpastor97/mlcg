@@ -279,9 +279,11 @@ def torch_neighbor_list_pbc(
     images, batch_images, shifts_expanded, shifts_idx = compute_images(
         data.pos, data.cell, data.pbc, rcut, batch_y, data.n_atoms
     )
+    print(type(data.pos))
+    print(type(images))
     edge_index = radius(
-        x=images,
-        y=data.pos,
+        x=images.double(),
+        y=data.pos.double(),
         r=rcut,
         batch_x=batch_images,
         batch_y=batch_y,
