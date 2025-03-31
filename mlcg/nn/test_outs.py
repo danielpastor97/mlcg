@@ -30,34 +30,6 @@ class DummyGradientModel(object):
         self.name = model_name
 
 
-HAS_MACE = True
-try:
-    import mace
-    from mlcg.nn.mace_interface import MACEInterface
-
-    mace_config = {
-        "r_max": 10,
-        "num_bessel": 10,
-        "num_polynomial_cutoff": 5,
-        "max_ell": 1,
-        "interaction_cls": "RealAgnosticResidualInteractionBlock",
-        "interaction_cls_first": "RealAgnosticInteractionBlock",
-        "num_interactions": 1,
-        "num_elements": len(unique_test_types),
-        "hidden_irreps": "32x0e",
-        "MLP_irreps": "16x0e",
-        "avg_num_neighbors": 9,
-        "correlation": 3,
-        "atomic_numbers": unique_test_types,
-    }
-    mace_model = MACEInterface(config=mace_config, gate=torch.nn.Tanh())
-    mace_force_model = GradientsOut(mace_model, targets=[FORCE_KEY]).float()
-except ImportError as e:
-    print(e)
-    mace_force_model = DummyGradientModel("mace")
-    print("MACE installation not found")
-    HAS_MACE = False
-
 standard_cutoff = CosineCutoff(cutoff_lower=0, cutoff_upper=5)
 standard_basis = GaussianBasis(cutoff=standard_cutoff)
 
@@ -234,14 +206,11 @@ def test_outs(ASE_prior_model, out_targets):
     "ASE_prior_model, network_model, out_targets",
     [
         (ASE_prior_model, schnet_force_model, [ENERGY_KEY, FORCE_KEY]),
-        (ASE_prior_model, mace_force_model, [ENERGY_KEY, FORCE_KEY]),
     ],
     indirect=["ASE_prior_model"],
 )
 def test_sum_outs(ASE_prior_model, network_model, out_targets):
     """Tests property aggregating with SumOut"""
-    if network_model.name == "mace" and HAS_MACE == False:
-        pytest.skip("Skipping test, MACE installation not found...")
     data_dictionary = ASE_prior_model(sum_out=False)
 
     prior_model = data_dictionary["model"]

@@ -14,13 +14,6 @@ may find the class `StandardSchNet` to be helpful in getting started quickly.
 .. autoclass:: mlcg.nn.schnet.InteractionBlock
 .. autoclass:: mlcg.nn.schnet.CFConv
 
-MACE Utilities
---------------
-
-`mlcg` provides wrapper utitilies for [MACE]_ models, the base implementation of which is available `here <https://github.com/felixmusil/mace.git>`_ in the `develop` branch.
-
-.. autoclass:: mlcg.nn.mace_interface.MACEInterface
-
 Radial Basis Functions
 ----------------------
 
