@@ -44,6 +44,9 @@ class _Simulation(object):
     save_energies : bool, default=False
         Whether to save potential at the same saved interval as the simulation
         coordinates
+    save_velocities : bool, default=False
+        Whether to save velocities at the same saved interval as the simulation
+        coordinates
     create_checkpoints: bool, default=False
         Save the atomic data object so it can be reloaded in. Overwrites previous object.
     read_checkpoint_file: [str,bool], default=None
@@ -64,8 +67,8 @@ class _Simulation(object):
         Interval at which .npy files will be saved. If an int is given, then
         the int specifies at what intervals numpy files will be saved per
         observable. This number must be an integer multiple of save_interval.
-        All output files should be the same shape. Forces and potentials will
-        also be saved according to the save_forces and save_energies
+        All output files should be the same shape. Forces, potential and velocities
+        will also be saved according to the save_forces, save_energies and save_velocities
         arguments, respectively. If friction is not None, kinetic energies
         will also be saved. This method is only implemented for a maximum of
         1000 files per observable due to file naming conventions.
@@ -108,6 +111,7 @@ class _Simulation(object):
         dt: float = 5e-4,
         save_forces: bool = False,
         save_energies: bool = False,
+        save_velocities: bool = False,
         n_timesteps: int = 100,
         save_interval: int = 10,
         create_checkpoints: bool = False,
@@ -130,6 +134,7 @@ class _Simulation(object):
         self.specialize_priors = specialize_priors
         self.save_forces = save_forces
         self.save_energies = save_energies
+        self.save_velocities = save_velocities
         self.n_timesteps = n_timesteps
         self.save_interval = save_interval
         self.dt = dt
@@ -670,6 +675,13 @@ class _Simulation(object):
             self.simulated_potential = torch.zeros(self._save_size, self.n_sims)
         else:
             self.simulated_potential = None
+        
+        if self.save_velocities:
+            self.simulated_velocities = torch.zeros(
+            (self._save_size, self.n_sims, self.n_atoms, self.n_dims)
+        )
+        else:
+            self.simulated_velocities = None
 
         if self.log_interval is not None:
             printstring = "Generating {} simulations of n_timesteps {} saved at {}-step intervals ({})".format(
@@ -698,8 +710,8 @@ class _Simulation(object):
         also forces, potential, and/or kinetic energy
         Parameters
         ----------
-        x_new :
-            current coordinates
+        data :
+            atomic data object containing current coordinates
         forces:
             current forces
         potential :
@@ -707,7 +719,8 @@ class _Simulation(object):
         t :
             current timestep
         """
-        x_new = data.pos.view(-1, self.n_atoms, self.n_dims)
+        x_new = data[POSITIONS_KEY].view(-1, self.n_atoms, self.n_dims)
+        v_new = data[VELOCITY_KEY].view(-1, self.n_atoms, self.n_dims)
         forces = forces.view(-1, self.n_atoms, self.n_dims)
 
         pos_spread = x_new.std(dim=(1, 2)).detach().max().cpu()
@@ -735,6 +748,9 @@ class _Simulation(object):
                 self.simulated_potential = torch.zeros((potential_dims))
 
             self.simulated_potential[save_ind] = potential
+        
+        if self.save_velocities:
+            self.simulated_velocities[save_ind, :, :] = v_new
 
         if self.create_checkpoints:
             self.checkpoint = {}
@@ -767,6 +783,14 @@ class _Simulation(object):
                 "{}_potential_{}.npy".format(self.filename, key),
                 potentials_to_export,
             )
+        
+        if self.save_velocities:
+            velocities_to_export = self.simulated_velocities
+            velocities_to_export = self._swap_and_export(velocities_to_export)
+            np.save(
+                "{}_velocities_{}.npy".format(self.filename, key),
+                velocities_to_export,
+            )
 
         if self.create_checkpoints:
             self.checkpoint["current_timestep"] = self._npy_file_index + 1
@@ -794,6 +818,13 @@ class _Simulation(object):
         else:
             self.simulated_potential = None
 
+        if self.save_velocities:
+            self.simulated_velocities = torch.zeros(
+                (self._save_size, self.n_sims, self.n_atoms, self.n_dims)
+            )
+        else:
+            self.simulated_velocities = None
+
         self._npy_file_index += 1
 
     def reshape_output(self):
@@ -806,6 +837,11 @@ class _Simulation(object):
         if self.save_energies:
             self.simulated_potential = self._swap_and_export(
                 self.simulated_potential
+            )
+        
+        if self.save_velocities:
+            self.simulated_velocities = self._swap_and_export(
+                self.simulated_velocities
             )
 
     def attach_model(self, model: torch.nn.Module):
