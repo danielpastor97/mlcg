@@ -720,7 +720,6 @@ class _Simulation(object):
             current timestep
         """
         x_new = data[POSITIONS_KEY].view(-1, self.n_atoms, self.n_dims)
-        v_new = data[VELOCITY_KEY].view(-1, self.n_atoms, self.n_dims)
         forces = forces.view(-1, self.n_atoms, self.n_dims)
 
         pos_spread = x_new.std(dim=(1, 2)).detach().max().cpu()
@@ -750,6 +749,7 @@ class _Simulation(object):
             self.simulated_potential[save_ind] = potential
 
         if self.save_velocities:
+            v_new = data[VELOCITY_KEY].view(-1, self.n_atoms, self.n_dims)
             self.simulated_velocities[save_ind, :, :] = v_new
 
         if self.create_checkpoints:
