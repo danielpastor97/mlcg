@@ -675,11 +675,11 @@ class _Simulation(object):
             self.simulated_potential = torch.zeros(self._save_size, self.n_sims)
         else:
             self.simulated_potential = None
-        
+
         if self.save_velocities:
             self.simulated_velocities = torch.zeros(
-            (self._save_size, self.n_sims, self.n_atoms, self.n_dims)
-        )
+                (self._save_size, self.n_sims, self.n_atoms, self.n_dims)
+            )
         else:
             self.simulated_velocities = None
 
@@ -748,7 +748,7 @@ class _Simulation(object):
                 self.simulated_potential = torch.zeros((potential_dims))
 
             self.simulated_potential[save_ind] = potential
-        
+
         if self.save_velocities:
             self.simulated_velocities[save_ind, :, :] = v_new
 
@@ -783,7 +783,7 @@ class _Simulation(object):
                 "{}_potential_{}.npy".format(self.filename, key),
                 potentials_to_export,
             )
-        
+
         if self.save_velocities:
             velocities_to_export = self.simulated_velocities
             velocities_to_export = self._swap_and_export(velocities_to_export)
@@ -838,7 +838,7 @@ class _Simulation(object):
             self.simulated_potential = self._swap_and_export(
                 self.simulated_potential
             )
-        
+
         if self.save_velocities:
             self.simulated_velocities = self._swap_and_export(
                 self.simulated_velocities
