@@ -9,7 +9,8 @@ from .prior import (
     HarmonicBonds,
     Repulsion,
     Dihedral,
-    Quartic,
+    Polynomial,
+    QuarticAngles,
 )
 from .mlp import MLP, TypesMLP
 from .attention import ExactAttention, FavorAttention, Nonlocalinteractionblock
