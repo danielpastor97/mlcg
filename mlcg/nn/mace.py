@@ -23,9 +23,9 @@ except ImportError as e:
           "To install you can either run 'pip install git+https://github.com/ACEsuit/mace.git', " +
           "or clone the repository and add it to your PYTHONPATH.""")
 
-from mlcg.pl.model import get_class_from_str
-from mlcg.data.atomic_data import AtomicData, ENERGY_KEY
-from mlcg.neighbor_list.neighbor_list import (
+from ..pl.model import get_class_from_str
+from ..data.atomic_data import AtomicData, ENERGY_KEY
+from ..neighbor_list.neighbor_list import (
     atomic_data2neighbor_list,
     validate_neighborlist,
 )
