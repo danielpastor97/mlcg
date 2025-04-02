@@ -3,19 +3,25 @@ from typing import Any, Callable, Dict, List, Optional, Union, Final
 import torch
 from e3nn import o3
 
-from mace.modules.radial import ZBLBasis
-from mace.tools.scatter import scatter_sum
-from mace.tools import to_one_hot
+try:
+    from mace.modules.radial import ZBLBasis
+    from mace.tools.scatter import scatter_sum
+    from mace.tools import to_one_hot
 
-from mace.modules.blocks import (
-    EquivariantProductBasisBlock,
-    LinearNodeEmbeddingBlock,
-    LinearReadoutBlock,
-    NonLinearReadoutBlock,
-    RadialEmbeddingBlock,
-    ScaleShiftBlock,
-)
-from mace.modules.utils import get_edge_vectors_and_lengths
+    from mace.modules.blocks import (
+        EquivariantProductBasisBlock,
+        LinearNodeEmbeddingBlock,
+        LinearReadoutBlock,
+        NonLinearReadoutBlock,
+        RadialEmbeddingBlock,
+    )
+    from mace.modules.utils import get_edge_vectors_and_lengths
+
+except ImportError as e:
+    print(e)
+    print("Please install or set mace to your path before using this interface. " +
+          "To install you can either run 'pip install git+https://github.com/ACEsuit/mace.git', " +
+          "or clone the repository and add it to your PYTHONPATH.""")
 
 from mlcg.pl.model import get_class_from_str
 from mlcg.data.atomic_data import AtomicData, ENERGY_KEY
@@ -24,7 +30,10 @@ from mlcg.neighbor_list.neighbor_list import (
     validate_neighborlist,
 )
 
+from e3nn.util.jit import compile_mode
 
+
+@compile_mode("script")
 class MACE(torch.nn.Module):
     name: Final[str] = "MACE"
 
@@ -37,7 +46,6 @@ class MACE(torch.nn.Module):
         interactions: List[torch.nn.Module],
         products: List[torch.nn.Module],
         readouts: List[torch.nn.Module],
-        scale_shift: torch.nn.Module,
         r_max: float,
         max_num_neighbors: int,
         pair_repulsion_fn: torch.nn.Module = None,
@@ -47,13 +55,12 @@ class MACE(torch.nn.Module):
         self.register_buffer(
                 "atomic_numbers", atomic_numbers
             )
-        self.node_embedding = node_embedding,
-        self.radial_embedding = radial_embedding,
-        self.spherical_harmonics = spherical_harmonics,
-        self.interactions = torch.nn.ModuleList(interactions),
-        self.products = torch.nn.ModuleList(products),
-        self.readouts = torch.nn.ModuleList(readouts),
-        self.scale_shift = scale_shift,
+        self.node_embedding = node_embedding
+        self.radial_embedding = radial_embedding
+        self.spherical_harmonics = spherical_harmonics
+        self.interactions = torch.nn.ModuleList(interactions)
+        self.products = torch.nn.ModuleList(products)
+        self.readouts = torch.nn.ModuleList(readouts)
         self.r_max = r_max
         self.max_num_neighbors = max_num_neighbors
         self.pair_repulsion_fn = pair_repulsion_fn
@@ -66,8 +73,8 @@ class MACE(torch.nn.Module):
 
     def forward(self, data: AtomicData) -> AtomicData:
         # Setup
-        num_graphs = data.ptr.numel() - 1  # data.batch.max()
         num_atoms_arange = torch.arange(data.pos.shape[0])
+        num_graphs = data.ptr.numel() - 1  # data.batch.max()
         node_heads = torch.zeros_like(data.batch)
 
         types_ids = self.types_mapping[data.atom_types].view(-1, 1)
@@ -94,15 +101,21 @@ class MACE(torch.nn.Module):
         edge_feats = self.radial_embedding(
             lengths, node_attrs, edge_index, self.atomic_numbers
         )
+
         if self.pair_repulsion_fn:
             pair_node_energy = self.pair_repulsion_fn(
                 lengths, node_attrs, edge_index, self.atomic_numbers
             )
+            pair_energy = scatter_sum(
+                src=pair_node_energy, index=data["batch"], dim=-1, dim_size=num_graphs
+            )  # [n_graphs,]
         else:
-            pair_node_energy = torch.zeros(data.pos.shape[0], data.batch.shape[0])
+            pair_energy = torch.zeros(data.batch.max() + 1,
+                                      device=data.pos.device,
+                                      dtype=data.pos.dtype)
 
         # Interactions
-        node_es_list = [pair_node_energy]
+        energies = [pair_energy]
         for interaction, product, readout in zip(
             self.interactions, self.products, self.readouts
         ):
@@ -116,22 +129,22 @@ class MACE(torch.nn.Module):
             node_feats = product(
                 node_feats=node_feats, sc=sc, node_attrs=node_attrs
             )
-            node_es_list.append(
-                readout(node_feats, node_heads)[num_atoms_arange, node_heads]
-            )  # {[n_nodes, ], }
+            node_energies = readout(node_feats, node_heads)[
+                num_atoms_arange, node_heads
+            ]  # [n_nodes, len(heads)]
+            energy = scatter_sum(
+                src=node_energies,
+                index=data["batch"],
+                dim=0,
+                dim_size=num_graphs,
+            )  # [n_graphs,]
+            energies.append(energy)
 
-        # Sum over interactions
-        node_inter_es = torch.sum(
-            torch.stack(node_es_list, dim=0), dim=0
-        )  # [n_nodes, ]
-        node_inter_es = self.scale_shift(node_inter_es, node_heads)
+        # Sum over energy contributions
+        contributions = torch.stack(energies, dim=-1)
+        total_energy = torch.sum(contributions, dim=-1)  # [n_graphs, ]
 
-        # Sum over nodes in graph
-        energy = scatter_sum(
-            src=node_inter_es, index=data.batch, dim=-1, dim_size=num_graphs
-        )  # [n_graphs,]
-
-        data.out[self.name] = {ENERGY_KEY: energy}
+        data.out[self.name] = {ENERGY_KEY: total_energy}
 
         return data
 
@@ -161,11 +174,10 @@ class MACE(torch.nn.Module):
         }
 
 
+@compile_mode("script")
 class StandardMACE(MACE):
     def __init__(
         self,
-        atomic_inter_scale: float,
-        atomic_inter_shift: float,
         r_max: float,
         num_bessel: int,
         num_polynomial_cutoff: int,
@@ -173,8 +185,8 @@ class StandardMACE(MACE):
         interaction_cls: str,
         interaction_cls_first: str,
         num_interactions: int,
-        hidden_irreps: o3.Irreps,
-        MLP_irreps: o3.Irreps,
+        hidden_irreps: str,
+        MLP_irreps: str,
         avg_num_neighbors: float,
         atomic_numbers: List[int],
         correlation: Union[int, List[int]],
@@ -186,8 +198,12 @@ class StandardMACE(MACE):
         radial_type: Optional[str] = "bessel",
         cueq_config: Optional[Dict[str, Any]] = None,
     ):
-        atomic_numbers = torch.as_tensor(atomic_numbers.sort())
+        atomic_numbers.sort()
+        atomic_numbers = torch.as_tensor(atomic_numbers)
         num_elements = atomic_numbers.shape[0]
+
+        hidden_irreps = o3.Irreps(hidden_irreps)
+        MLP_irreps = o3.Irreps(MLP_irreps)
 
         if isinstance(correlation, int):
             correlation = [correlation] * num_interactions
@@ -207,6 +223,8 @@ class StandardMACE(MACE):
             distance_transform=distance_transform,
         )
         edge_feats_irreps = o3.Irreps(f"{radial_embedding.out_dim}x0e")
+
+        pair_repulsion_fn = None
         if pair_repulsion:
             pair_repulsion_fn = ZBLBasis(p=num_polynomial_cutoff)
 
@@ -301,20 +319,15 @@ class StandardMACE(MACE):
                     )
                 )
 
-        scale_shift = ScaleShiftBlock(
-                    scale=atomic_inter_scale, shift=atomic_inter_shift
-                )
-
         super().__init__(
-            atomic_numbers=atomic_numbers,
-            node_embedding=node_embedding,
-            radial_embedding=radial_embedding,
-            spherical_harmonics=spherical_harmonics,
-            interactions=interactions,
-            products=products,
-            readouts=readouts,
-            scale_shift=scale_shift,
-            r_max=r_max,
-            max_num_neighbors=max_num_neighbors,
-            pair_repulsion_fn=pair_repulsion_fn,
+            atomic_numbers,
+            node_embedding,
+            radial_embedding,
+            spherical_harmonics,
+            interactions,
+            products,
+            readouts,
+            r_max,
+            max_num_neighbors,
+            pair_repulsion_fn,
         )

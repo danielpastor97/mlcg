@@ -1,7 +1,5 @@
 from .gradients import GradientsOut, SumOut, EnergyOut
 from .schnet import SchNet, StandardSchNet
-from .painn import PaiNN, StandardPaiNN
-from .mace import MACE, StandardMACE
 from .radial_basis import GaussianBasis, ExpNormalBasis
 from .cutoff import CosineCutoff, IdentityCutoff
 from .losses import ForceMSE, ForceRMSE, Loss
@@ -14,6 +12,8 @@ from .pyg_forward_compatibility import (
     load_and_adapt_old_checkpoint,
     fixed_pyg_inspector,
 )
+from .painn import PaiNN, StandardPaiNN
+from .mace import MACE, StandardMACE
 from .lr_scheduler import CustomStepLR
 from .utils import sparsify_prior_module, desparsify_prior_module
 

@@ -14,6 +14,24 @@ may find the class `StandardSchNet` to be helpful in getting started quickly.
 .. autoclass:: mlcg.nn.schnet.InteractionBlock
 .. autoclass:: mlcg.nn.schnet.CFConv
 
+PaiNN Utilities
+----------------
+
+These classes are used to define a PaiNN graph neural network. For "typical" PaiNN models, users
+may find the class `StandardPaiNN` to be helpful in getting started quickly.
+
+.. autoclass:: mlcg.nn.StandardPaiNN
+.. autoclass:: mlcg.nn.painn.PaiNN
+
+MACE Utilities
+----------------
+
+These classes are used to define a MACE graph neural network, for which the base implementation is required and available `here <https://github.com/ACEsuit/mace.git>`_. For "typical" MACE models, users
+may find the class `StandardMACE` to be helpful in getting started quickly.
+
+.. autoclass:: mlcg.nn.StandardMACE
+.. autoclass:: mlcg.nn.mace.MACE
+
 Radial Basis Functions
 ----------------------
 
