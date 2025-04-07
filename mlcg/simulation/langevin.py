@@ -42,17 +42,20 @@ class LangevinSimulation(_Simulation):
 
     .. math::
         F(X_t) =& - \nabla  U(X_t)  \\
+        & \\
         \epsilon =& \exp(-\eta \; \Delta t) \\
-        \alpha =& \sqrt{1 - \epsilon^2}
+        & \\
+        \alpha =& \sqrt{(1 - \epsilon^2) / \beta m}
+
+    Initial velocities are sampled from the Maxwell-Boltzmann distribution for 
+    the provided beta.
 
     A diffusion constant :math:`D` can be back-calculated using
     the Einstein relation:
 
     .. math::
         D = 1 / (\beta  \eta)
-
-    Initial velocities are set to zero if not provided.
-
+    
     Parameters
     ----------
 
@@ -84,7 +87,7 @@ class LangevinSimulation(_Simulation):
         betas:
             The inverse thermodynamic temperature of each atom
         masses:
-            Them masses of each atom
+            The masses of each atom
         """
         assert all([m > 0 for m in masses])
         scale = torch.sqrt(1 / (betas * masses))
@@ -158,11 +161,13 @@ class LangevinSimulation(_Simulation):
         # Initialize velocities according to Maxwell-Boltzmann distribution
         if VELOCITY_KEY not in self.initial_data:
             # initialize velocities at zero
-            self.initial_data[VELOCITY_KEY] = (
-                LangevinSimulation.sample_maxwell_boltzmann(
-                    self.beta.repeat_interleave(self.n_atoms),
-                    self.initial_data[MASS_KEY],
-                ).to(self.dtype)
+            self.initial_data[
+                VELOCITY_KEY
+            ] = LangevinSimulation.sample_maxwell_boltzmann(
+                self.beta.repeat_interleave(self.n_atoms),
+                self.initial_data[MASS_KEY],
+            ).to(
+                self.dtype
             )
         assert (
             self.initial_data[VELOCITY_KEY].shape
@@ -272,8 +277,7 @@ class OverdampedSimulation(_Simulation):
     The following Brownian motion scheme is used:
 
     .. math::
-
-        dX_t = - \nabla U( X_t )   D  \Delta t + \sqrt{( 2  D *\Delta t / \beta )} dW_t
+        dX_t = - \nabla U( X_t )   D  \Delta t + \sqrt{( 2  D \Delta t / \beta )} dW_t
 
     for coordinates :math:`X_t` at time :math:`t`, potential energy :math:`U`,
     diffusion :math:`D`, thermodynamic inverse temperature :math:`\beta`,

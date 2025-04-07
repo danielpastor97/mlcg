@@ -34,10 +34,15 @@ JPERKCAL = 4184  # Ratio of Joules/kilocalorie
 
 class _Simulation(object):
     """
+
     Parameters
     ----------
     dt : float, default=5e-4
-        The integration time step for Langevin dynamics.
+        The integration time step for Langevin dynamics. The simulation code is unit agnostic
+        and will use the distance and energy units that are used by the network. However, from
+        the two  other parameters in a simulation, time and mass, only one of them is unit-agnostic:
+        **if you provide the time thinking in a particular unit, the unit of mass is defined, and
+        viceversa. Please be aware that only either mass or time can be provided in custom units**.
     save_forces : bool, default=False
         Whether to save forces at the same saved interval as the simulation
         coordinates
