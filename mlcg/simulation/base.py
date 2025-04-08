@@ -38,17 +38,17 @@ class _Simulation(object):
     ----------
     dt : float, default=5e-4
         The integration time step for the dynamics. The simulation code is unit agnostic
-        and will use the same distance and energy units that the network and initial configurations. 
+        and will use the same distance and energy units that the network and initial configurations.
         However, for the two other parameters in a simulation, time and mass, only one of them is unit-agnostic:
         **if you provide the time thinking in a particular unit, the unit of mass is defined, and
         viceversa. Be aware that only either mass or time can be provided in custom units**.
-        
-        The following relation must be satisfied by the units to ensure consistency: 
+
+        The following relation must be satisfied by the units to ensure consistency:
 
         .. math::
 
             [\text{Energy}] = [\text{Mass}]\frac{[\text{Length}]^2}{[\text{Time}]^2}
-        
+
         For example, if you are using kcal/mol for the energy, Angstrom from the distance and time
         in picoseconds, the masses will need to be provided in units of AMU/418.39.
     save_forces : bool, default=False

@@ -283,7 +283,7 @@ class OverdampedSimulation(_Simulation):
     diffusion :math:`D`, thermodynamic inverse temperature :math:`\beta`,
     time step :math:`\Delta t`, and stochastic Weiner process :math:`W`.
 
-    Due to the nature of Overdamped Langevin dynamics, the masses and velocities 
+    Due to the nature of Overdamped Langevin dynamics, the masses and velocities
     are not used.
 
     Parameters
