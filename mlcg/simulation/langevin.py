@@ -18,9 +18,9 @@ torch_pi = torch.tensor(np.pi)
 
 
 class LangevinSimulation(_Simulation):
-    r"""Langevin simulatin class for trained models.
+    r"""Langevin simulation class for trained models.
 
-    The following `BAOAB integration scheme <https://doi.org/10.1007/978-3-319-16375-8>`_ is used, where::
+    The following [BAOAB]_ integration scheme is used, where::
 
         B = deterministic velocity update
         A = deterministic position update
@@ -46,7 +46,7 @@ class LangevinSimulation(_Simulation):
         \epsilon =& \exp(-\eta \; \Delta t) \\
         & \\
         \alpha =& \sqrt{(1 - \epsilon^2) / \beta m}
-
+    
     Initial velocities are sampled from the Maxwell-Boltzmann distribution for 
     the provided beta.
 
@@ -56,6 +56,8 @@ class LangevinSimulation(_Simulation):
     .. math::
         D = 1 / (\beta  \eta)
     
+    For a larger discussion on Langevin Dynamics integrators, please refer to [MDBook]_.
+        
     Parameters
     ----------
 
@@ -266,7 +268,7 @@ class LangevinSimulation(_Simulation):
 
 # pipe the doc from the base class into the child class so that it's properly
 # displayed by sphinx
-LangevinSimulation.__doc__ += _Simulation.__doc__
+LangevinSimulation.__doc__ += _Simulation.__doc__ + "\n"
 
 
 class OverdampedSimulation(_Simulation):
@@ -280,6 +282,9 @@ class OverdampedSimulation(_Simulation):
     for coordinates :math:`X_t` at time :math:`t`, potential energy :math:`U`,
     diffusion :math:`D`, thermodynamic inverse temperature :math:`\beta`,
     time step :math:`\Delta t`, and stochastic Weiner process :math:`W`.
+
+    Due to the nature of Overdamped Langevin dynamics, the masses and velocities 
+    are not used.
 
     Parameters
     ----------
