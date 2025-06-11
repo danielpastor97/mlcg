@@ -24,7 +24,7 @@ from ..data._keys import (
     POSITIONS_KEY,
 )
 from .specialize_prior import condense_all_priors_for_simulation
-
+from ..neighbor_list.torch_impl import wrap_positions
 
 # Physical Constants
 KBOLTZMANN = 1.38064852e-23  # Boltzmann's constant in Joules/Kelvin
@@ -303,6 +303,11 @@ class _Simulation(object):
             # step forward in time
             data, potential, forces = self.timestep(data, forces)
 
+            pbc = getattr(data, "pbc", None)
+            cell = getattr(data, "cell", None)
+            if all([feat != None for feat in [pbc, cell]]):
+                data = wrap_positions(data, self.device)
+            
             # save to arrays if relevant
             if (t + 1) % self.save_interval == 0:
                 # save arrays

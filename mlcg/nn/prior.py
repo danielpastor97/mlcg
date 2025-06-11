@@ -28,6 +28,7 @@ class _Prior(object):
         raise NotImplementedError
 
 
+
 class Harmonic(torch.nn.Module, _Prior):
     r"""1-D Harmonic prior interaction for feature :math:`x` of the form:
 
@@ -118,7 +119,16 @@ class Harmonic(torch.nn.Module, _Prior):
             Tensor of computed features
         """
         mapping = data.neighbor_list[self.name]["index_mapping"]
-        return Harmonic.compute_features(data.pos, mapping, self.name)
+        pbc = getattr(data, "pbc", None)
+        cell = getattr(data, "cell", None)
+        return Harmonic.compute_features(
+            pos=data.pos,
+            mapping=mapping,
+            target=self.name,
+            pbc=pbc,
+            cell=cell,
+            batch=data.batch
+        )
 
     def data2parameters(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
@@ -161,8 +171,23 @@ class Harmonic(torch.nn.Module, _Prior):
         return data
 
     @staticmethod
-    def compute_features(pos, mapping, target):
-        return Harmonic._compute_map[target](pos, mapping)
+    def compute_features(
+        pos: torch.Tensor,
+        mapping: torch.Tensor,
+        target: str,
+        pbc: Optional[torch.Tensor] = None,
+        cell: Optional[torch.Tensor] = None,
+        batch: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        if all([feat != None for feat in [pbc, cell]]):
+            cell_shifts = compute_cell_shifts(pos, mapping, pbc, cell, batch)
+        else:
+            cell_shifts = None
+        return Harmonic._compute_map[target](
+            pos=pos,
+            mapping=mapping,
+            cell_shifts=cell_shifts
+        )
 
     @staticmethod
     def compute(x, x0, k, V0=0):
@@ -262,8 +287,15 @@ class HarmonicBonds(Harmonic):
         return Harmonic.neighbor_list(topology, HarmonicBonds.name)
 
     @staticmethod
-    def compute_features(pos, mapping):
-        return Harmonic.compute_features(pos, mapping, HarmonicBonds.name)
+    def compute_features(pos, mapping, pbc=None, cell=None, batch=None):
+        return Harmonic.compute_features(
+            pos=pos,
+            mapping=mapping,
+            target=HarmonicBonds.name,
+            pbc=pbc,
+            cell=cell,
+            batch=batch
+        )
 
 
 class HarmonicAngles(Harmonic):
@@ -291,8 +323,15 @@ class HarmonicAngles(Harmonic):
         return Harmonic.neighbor_list(topology, HarmonicAngles.name)
 
     @staticmethod
-    def compute_features(pos, mapping):
-        return Harmonic.compute_features(pos, mapping, HarmonicAngles.name)
+    def compute_features(pos, mapping, pbc=None, cell=None, batch=None):
+        return Harmonic.compute_features(
+            pos=pos,
+            mapping=mapping,
+            target=HarmonicAngles.name,
+            pbc=pbc,
+            cell=cell,
+            batch=batch
+        )
 
 
 class HarmonicImpropers(Harmonic):
@@ -309,8 +348,15 @@ class HarmonicImpropers(Harmonic):
         return Harmonic.neighbor_list(topology, HarmonicImpropers.name)
 
     @staticmethod
-    def compute_features(pos, mapping):
-        return Harmonic.compute_features(pos, mapping, HarmonicImpropers.name)
+    def compute_features(pos, mapping, pbc=None, cell=None, batch=None):
+        return Harmonic.compute_features(
+            pos=pos,
+            mapping=mapping,
+            target=HarmonicImpropers.name,
+            pbc=pbc,
+            cell=cell,
+            batch=batch
+        )
 
 
 class ShiftedPeriodicHarmonicImpropers(Harmonic):
@@ -359,12 +405,17 @@ class ShiftedPeriodicHarmonicImpropers(Harmonic):
         return Harmonic.neighbor_list(topology, HarmonicImpropers.name)
 
     @staticmethod
-    def compute_features(pos, mapping):
+    def compute_features(pos, mapping, pbc=None, cell=None, batch=None):
         # features should be between -pi and pi after data2features()
         # Here, we conditionally shift angles in (-pi, 0) to (pi, 2pi)
         # Then subtract pi in order to center the distribution at 0
         features = Harmonic.compute_features(
-            pos, mapping, HarmonicImpropers.name
+            pos=pos,
+            mapping=mapping,
+            target=HarmonicImpropers.name,
+            pbc=pbc,
+            cell=cell,
+            batch=batch
         )
         features = (
             torch.where(features < 0, features + 2 * torch_pi, features)
@@ -374,8 +425,14 @@ class ShiftedPeriodicHarmonicImpropers(Harmonic):
 
     def data2features(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
+        pbc = getattr(data, "pbc", None)
+        cell = getattr(data, "cell", None)
         return ShiftedPeriodicHarmonicImpropers.compute_features(
-            data.pos, mapping
+            pos=data.pos,
+            mapping=mapping,
+            pbc=pbc,
+            cell=cell,
+            batch=data.batch
         )
 
     def forward(self, data):
@@ -453,7 +510,15 @@ class Repulsion(torch.nn.Module, _Prior):
         """
 
         mapping = data.neighbor_list[self.name]["index_mapping"]
-        return Repulsion.compute_features(data.pos, mapping)
+        pbc = getattr(data, "pbc", None)
+        cell = getattr(data, "cell", None)
+        return Repulsion.compute_features(
+            pos=data.pos,
+            mapping=mapping,
+            pbc=pbc,
+            cell=cell,
+            batch=data.batch,
+        )
 
     def forward(self, data: AtomicData) -> AtomicData:
         """Forward pass through the repulsion interaction.
@@ -488,8 +553,22 @@ class Repulsion(torch.nn.Module, _Prior):
         return data
 
     @staticmethod
-    def compute_features(pos, mapping):
-        return compute_distances(pos, mapping)
+    def compute_features(
+        pos: torch.Tensor,
+        mapping: torch.Tensor,
+        pbc: Optional[torch.Tensor] = None,
+        cell: Optional[torch.Tensor] = None,
+        batch: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        if all([feat != None for feat in [pbc, cell]]):
+            cell_shifts = compute_cell_shifts(pos, mapping, pbc, cell, batch)
+        else:
+            cell_shifts = None
+        return compute_distances(
+            pos=pos,
+            mapping=mapping,
+            cell_shifts=cell_shifts
+        )
 
     @staticmethod
     def compute(x, sigma):
@@ -608,11 +687,27 @@ class GeneralBonds(Harmonic):
 
     def data2features(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
-        return Harmonic.compute_features(data.pos, mapping, "bonds")
+        pbc = getattr(data, "pbc", None)
+        cell = getattr(data, "cell", None)
+        return Harmonic.compute_features(
+            pos=data.pos,
+            mapping=mapping,
+            target="bonds",
+            pbc=pbc,
+            cell=cell,
+            batch=data.batch
+        )
 
     @staticmethod
-    def compute_features(pos, mapping):
-        return Harmonic.compute_features(pos, mapping, "bonds")
+    def compute_features(pos, mapping, pbc=None, cell=None, batch=None):
+        return Harmonic.compute_features(
+            pos=pos,
+            mapping=mapping,
+            target="bonds",
+            pbc=pbc, 
+            cell=cell,
+            batch=batch
+        )
 
 
 class GeneralAngles(Harmonic):
@@ -627,11 +722,27 @@ class GeneralAngles(Harmonic):
 
     def data2features(self, data):
         mapping = data.neighbor_list[self.name]["index_mapping"]
-        return Harmonic.compute_features(data.pos, mapping, "angles")
+        pbc = getattr(data, "pbc", None)
+        cell = getattr(data, "cell", None)
+        return Harmonic.compute_features(
+            pos=data.pos,
+            mapping=mapping,
+            target="angles",
+            pbc=pbc,
+            cell=cell,
+            batch=data.batch
+        )
 
     @staticmethod
-    def compute_features(pos, mapping):
-        return Harmonic.compute_features(pos, mapping, "angles")
+    def compute_features(pos, mapping, pbc=None, cell=None, batch=None):
+        return Harmonic.compute_features(
+            pos=pos,
+            mapping=mapping,
+            target="angles",
+            pbc=pbc,
+            cell=cell,
+            batch=batch,
+        )
 
 
 class Dihedral(torch.nn.Module, _Prior):
@@ -715,8 +826,15 @@ class Dihedral(torch.nn.Module, _Prior):
             Tensor of computed features
         """
         mapping = data.neighbor_list[self.name]["index_mapping"]
-        return Dihedral.compute_features(data.pos, mapping)
-
+        pbc = getattr(data, "pbc", None)
+        cell = getattr(data, "cell", None)
+        return Dihedral.compute_features(
+            pos=data.pos,
+            mapping=mapping,
+            pbc=pbc,
+            cell=cell,
+            batch=data.batch,
+        )
     def forward(self, data: AtomicData) -> AtomicData:
         """Forward pass through the dihedral interaction.
         Parameters
@@ -762,9 +880,21 @@ class Dihedral(torch.nn.Module, _Prior):
 
     @staticmethod
     def compute_features(
-        pos: torch.Tensor, mapping: torch.Tensor
+        pos: torch.Tensor,
+        mapping: torch.Tensor,
+        pbc: Optional[torch.Tensor] = None,
+        cell: Optional[torch.Tensor] = None,
+        batch: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        return compute_torsions(pos, mapping)
+        if all([feat != None for feat in [pbc, cell]]):
+            cell_shifts = compute_cell_shifts(pos, mapping, pbc, cell, batch)
+        else:
+            cell_shifts = None
+        return compute_torsions(
+            pos=pos,
+            mapping=mapping,
+            cell_shifts=cell_shifts
+        )
 
     @staticmethod
     def wrapper_fit_func(theta: torch.Tensor, *args) -> torch.Tensor:
@@ -1065,3 +1195,252 @@ class Dihedral(torch.nn.Module, _Prior):
     def neighbor_list(topology) -> None:
         nl = topology.neighbor_list(Dihedral.name)
         return {Dihedral.name: nl}
+
+def compute_cell_shifts(
+    pos: torch.Tensor,
+    mapping: torch.Tensor,
+    pbc: torch.Tensor,
+    cell: torch.Tensor,
+    batch: torch.Tensor,
+) -> torch.Tensor:
+    """
+    Compute the minimum vector using index 0 as reference
+        Scale vectors based on box size and shift if greater than half the box size
+        Initial implementation written by Clark Templeton 
+        Adopted from ase.geometry naive_find_mic
+            https://gitlab.com/ase/ase/
+    Inputs:
+        pos: (n_coords_over_frames x 3(x,y,z))
+            positions from AtomicData object
+        mapping: (order_map x n_mapping)
+            index mapping from AtomicData object
+            order_map = 2,3,4,etc. for harmonic, angle, dihedral, etc.
+        pbc: (frames x 3)
+            whether to apply cell shift in this dimension
+        cell: (frames x 3 x 3)
+            unit cell
+        batch: (n_mapping)
+            which frame corresponds to each mapping
+    Returns:
+        cell_shifts: (n_mapping x 3(x,y,z) x order_map)
+            Integer values of how many unit cells to shift for minimum image convention
+                based on the first index in mapping
+            First column is all zeros by convention as shift to self
+    """
+
+    # Must wrap with no grad in order to avoid error when passing through forward
+    with torch.no_grad():
+        atom_groups, mapping_order = mapping.T.shape[:2]
+        cell_shifts = torch.zeros(
+            atom_groups, 3, mapping_order, dtype=pos.dtype
+        ).to(pos.device)
+        if batch == None:
+            batch = torch.zeros(pos.shape[0], dtype=int)
+        batch_ids = batch[mapping[0]]
+        cell_inv = torch.linalg.inv(cell[batch_ids])
+        for ii in range(1, cell_shifts.shape[-1]):
+            drs = pos[mapping[0]] - pos[mapping[ii]]
+            # convert to fractional displacement
+            frac_dr = torch.einsum(
+                "bij,bj->bi",
+                cell_inv.to(drs.dtype),
+                drs,
+                )
+            # compute unit number of unit cell shifts
+            cell_shifts[:, :, ii] = torch.floor(frac_dr + 0.5)
+            # convert back to cartesian displacement 
+            cell_shifts[:, :, ii] = pbc[batch_ids] * torch.einsum(
+                "bij,bj->bi",
+                cell[batch_ids].to(drs.dtype),
+                cell_shifts[:, :, ii],
+            )
+    return cell_shifts
+
+class LennardJonesShifted(torch.nn.Module, _Prior):
+    r"""1-D Lennard-Jones potential with shift modification for feature :math:`x` of the form:
+
+    .. math::
+
+        U_{\text{LJ}}(x) = 4\epsilon \left[ \left(\frac{\sigma}{x}\right)^{12} - \left(\frac{\sigma}{x}\right)^{6} \right] - U_{\text{LJ}}(r_c)
+
+    where :math:`\sigma` is the distance at which the potential is zero, :math:`\epsilon` is the well depth,
+    and :math:`r_c` is the cutoff distance. The potential is shifted by :math:`U_{\text{LJ}}(r_c)` to ensure
+    it is zero at the cutoff.
+
+    Parameters
+    ----------
+    statistics:
+        Dictionary of interaction parameters for each type of atom pair,
+        where the keys are tuples of interacting bead types and the
+        corresponding values define the interaction parameters. Must contain:
+
+        .. code-block:: python
+
+            tuple(*specific_types) : {
+                "sigma" : torch.Tensor scalar that describes the distance at which 
+                    the potential is zero.
+                "epsilon" : torch.Tensor scalar that describes the well depth.
+                "cutoff" : torch.Tensor scalar that describes the cutoff distance.
+                ...
+                }
+        The keys must be tuples of 2 integer atom types.
+    """
+
+    name: Final[str] = "lennard_jones"
+    _neighbor_list_name = "fully connected"
+
+    def __init__(self, statistics: Dict) -> None:
+        super(LennardJonesShifted, self).__init__()
+        keys = torch.tensor(list(statistics.keys()), dtype=torch.long)
+        self.allowed_interaction_keys = list(statistics.keys())
+        self.order = 2
+        self.name = self.name
+        unique_types = torch.unique(keys.flatten())
+        assert unique_types.min() >= 0
+        max_type = unique_types.max()
+        sizes = tuple([max_type + 1 for _ in range(self.order)])
+        sigma = torch.zeros(sizes)
+        epsilon = torch.zeros(sizes)
+        cutoff = torch.zeros(sizes)
+        for key in statistics.keys():
+            # hardcode 0 for now
+            sigma[key] = 0
+            epsilon[key] = 0
+            cutoff[key] = 0
+        self.register_buffer("sigma", sigma)
+        self.register_buffer("epsilon", epsilon)
+        self.register_buffer("cutoff", cutoff)
+
+    def data2features(self, data: AtomicData) -> torch.Tensor:
+        """Computes pairwise distances from an AtomicData instance
+
+        Parameters
+        ----------
+        data:
+            Input `AtomicData` instance
+
+        Returns
+        -------
+        torch.Tensor:
+            Tensor of computed distances
+        """
+        mapping = data.neighbor_list[self.name]["index_mapping"]
+        pbc = getattr(data, "pbc", None)
+        cell = getattr(data, "cell", None)
+        return LennardJonesShifted.compute_features(
+            pos=data.pos,
+            mapping=mapping,
+            pbc=pbc,
+            cell=cell,
+            batch=data.batch,
+        )
+
+    def forward(self, data: AtomicData) -> AtomicData:
+        """Forward pass through the Lennard-Jones interaction.
+
+        Parameters
+        ----------
+        data:
+            Input AtomicData instance with appropriate neighbor list
+
+        Returns
+        -------
+        AtomicData:
+            Updated AtomicData instance with the 'out' field containing
+            predicted energies for each structure
+        """
+        mapping = data.neighbor_list[self.name]["index_mapping"]
+        mapping_batch = data.neighbor_list[self.name]["mapping_batch"]
+        interaction_types = [
+            data.atom_types[mapping[ii]] for ii in range(self.order)
+        ]
+        features = self.data2features(data)
+        y = LennardJonesShifted.compute(
+            features,
+            self.sigma[interaction_types],
+            self.epsilon[interaction_types],
+            self.cutoff[interaction_types]
+        )
+        y = scatter(y, mapping_batch, dim=0, reduce="sum")
+        data.out[self.name] = {"energy": y}
+        return data
+
+    @staticmethod
+    def compute_features(
+        pos: torch.Tensor,
+        mapping: torch.Tensor,
+        pbc: Optional[torch.Tensor] = None,
+        cell: Optional[torch.Tensor] = None,
+        batch: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        if all([feat != None for feat in [pbc, cell]]):
+            cell_shifts = compute_cell_shifts(pos, mapping, pbc, cell, batch)
+        else:
+            cell_shifts = None
+        return compute_distances(
+            pos=pos,
+            mapping=mapping,
+            cell_shifts=cell_shifts
+        )
+
+    @staticmethod
+    def compute(x: torch.Tensor, sigma: torch.Tensor, epsilon: torch.Tensor, cutoff: torch.Tensor) -> torch.Tensor:
+        """Compute the shifted Lennard-Jones potential
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Distances between particles
+        sigma : torch.Tensor
+            Distance at which potential is zero
+        epsilon : torch.Tensor
+            Well depth
+        cutoff : torch.Tensor
+            Cutoff distance
+
+        Returns
+        -------
+        torch.Tensor
+            Potential energy
+        """
+        # Compute mask for distances within cutoff
+        mask = x < cutoff
+        
+        # Initialize energy tensor with zeros
+        energy = torch.zeros_like(x)
+        
+        # Compute only for distances within cutoff
+        r_scaled = sigma[mask] / x[mask]
+        r6 = r_scaled ** 6
+        r12 = r6 ** 2
+        
+        # Compute potential at cutoff for shifting
+        rc_scaled = sigma[mask] / cutoff[mask]
+        rc6 = rc_scaled ** 6
+        rc12 = rc6 ** 2
+        v_shift = 4.0 * epsilon[mask] * (rc12 - rc6)
+        
+        # Compute shifted potential
+        energy[mask] = 4.0 * epsilon[mask] * (r12 - r6) - v_shift
+        
+        return energy
+
+    @staticmethod
+    def neighbor_list(topology: Topology) -> Dict:
+        """Compute neighbor list from topology
+
+        Parameters
+        ----------
+        topology:
+            A Topology instance with defined fully-connected edges
+
+        Returns
+        -------
+        Dict:
+            Neighborlist of fully-connected distances
+        """
+        return {
+            LennardJonesShifted.name: topology.neighbor_list(
+                LennardJonesShifted._neighbor_list_name
+            )
+        }
