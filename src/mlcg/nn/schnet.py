@@ -506,6 +506,114 @@ class StandardSchNet(SchNet):
         )
 
 
+class FixEmbedSchNet(SchNet):
+    """Small wrapper class for :ref:`SchNet` to simplify the definition of the
+    SchNet model through an input file. The upper distance cutoff attribute
+    in is set by default to match the upper cutoff value in the cutoff function.
+
+    Parameters
+    ----------
+    rbf_layer:
+        radial basis function used to project the distances :math:`r_{ij}`.
+    cutoff:
+        smooth cutoff function to supply to the CFConv
+    output_hidden_layer_widths:
+        List giving the number of hidden nodes of each hidden layer of the MLP
+        used to predict the target property from the learned representation.
+    hidden_channels:
+        dimension of the learned representation, i.e. dimension of the embeding projection, convolution layers, and interaction block.
+    embedding_size:
+        dimension of the input embeddings (should be larger than :obj:`AtomicData.atom_types.max()+1`).
+    num_filters:
+        number of nodes of the networks used to filter the projected distances
+    num_interactions:
+        number of interaction blocks
+    activation:
+        activation function
+    max_num_neighbors:
+        The maximum number of neighbors to return for each atom in :obj:`data`.
+        If the number of actual neighbors is greater than
+        :obj:`max_num_neighbors`, returned neighbors are picked randomly.
+    aggr:
+        Aggregation scheme for continuous filter output. For all options,
+        see `here <https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html?highlight=MessagePassing#the-messagepassing-base-class>`_
+        for more options.
+
+    """
+
+    def __init__(
+        self,
+        rbf_layer: torch.nn.Module,
+        cutoff: torch.nn.Module,
+        output_hidden_layer_widths: List[int],
+        hidden_channels: int = 128,
+        embedding_path: str = "",
+        num_filters: int = 128,
+        num_interactions: int = 3,
+        activation: torch.nn.Module = torch.nn.Tanh(),
+        max_num_neighbors: int = 1000,
+        aggr: str = "add",
+        output_activation: Optional[torch.nn.Module] = None,
+    ):
+        if num_interactions < 1:
+            raise ValueError("At least one interaction block must be specified")
+
+        if cutoff.cutoff_lower != rbf_layer.cutoff.cutoff_lower:
+            warnings.warn(
+                "Cutoff function lower cutoff, {}, and radial basis function "
+                " lower cutoff, {}, do not match.".format(
+                    cutoff.cutoff_lower, rbf_layer.cutoff.cutoff_lower
+                )
+            )
+        if cutoff.cutoff_upper != rbf_layer.cutoff.cutoff_upper:
+            warnings.warn(
+                "Cutoff function upper cutoff, {}, and radial basis function "
+                " upper cutoff, {}, do not match.".format(
+                    cutoff.cutoff_upper, rbf_layer.cutoff.cutoff_upper
+                )
+            )
+
+        embedding_layer = torch.nn.Embedding.from_pretrained(embedding_path)
+
+        assert embedding_layer.weight.shape[1] == hidden_channels
+
+        interaction_blocks = []
+        for _ in range(num_interactions):
+            filter_network = MLP(
+                layer_widths=[rbf_layer.num_rbf, num_filters, num_filters],
+                activation_func=activation,
+                last_bias=False,
+            )
+
+            cfconv = CFConv(
+                filter_network,
+                cutoff=cutoff,
+                num_filters=num_filters,
+                in_channels=hidden_channels,
+                out_channels=hidden_channels,
+                aggr=aggr,
+            )
+            block = InteractionBlock(cfconv, hidden_channels, activation)
+            interaction_blocks.append(block)
+        output_layer_widths = (
+            [hidden_channels] + output_hidden_layer_widths + [1]
+        )
+        if output_activation is None:
+            output_activation = activation
+        output_network = MLP(
+            output_layer_widths,
+            activation_func=output_activation,
+            last_bias=False,
+        )
+        super(StandardSchNet, self).__init__(
+            embedding_layer,
+            interaction_blocks,
+            rbf_layer,
+            output_network,
+            max_num_neighbors=max_num_neighbors,
+        )
+
+
 class AttentiveSchNet(SchNet):
     """Small wrapper class for :ref:`SchNet` to simplify the definition of the
     SchNet model with an Interaction block that includes attention through an input file. The upper distance cutoff attribute
