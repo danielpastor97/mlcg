@@ -572,8 +572,8 @@ class FixEmbedSchNet(SchNet):
                     cutoff.cutoff_upper, rbf_layer.cutoff.cutoff_upper
                 )
             )
-
-        embedding_layer = torch.nn.Embedding.from_pretrained(embedding_path)
+        aux_embed = torch.load(embedding_path)
+        embedding_layer = torch.nn.Embedding.from_pretrained(aux_embed)
 
         assert embedding_layer.weight.shape[1] == hidden_channels
 
