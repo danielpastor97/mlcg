@@ -605,7 +605,7 @@ class FixEmbedSchNet(SchNet):
             activation_func=output_activation,
             last_bias=False,
         )
-        super(StandardSchNet, self).__init__(
+        super().__init__(
             embedding_layer,
             interaction_blocks,
             rbf_layer,
