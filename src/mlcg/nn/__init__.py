@@ -1,5 +1,5 @@
 from .gradients import GradientsOut, SumOut, EnergyOut
-from .schnet import SchNet, StandardSchNet, NoiseEmbedSchNet
+from .schnet import SchNet, StandardSchNet, NoiseEmbedSchNet, RBFRegularizedSchNet
 from .radial_basis import GaussianBasis, ExpNormalBasis, SkewedMuGaussianBasis
 from .cutoff import CosineCutoff, IdentityCutoff
 from .losses import ForceMSE, ForceRMSE, Loss, EnergyMSE, VarianceRegularizedMSE, DistributionMatchingMSE
